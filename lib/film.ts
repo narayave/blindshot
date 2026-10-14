@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 import convert from "heic-convert";
 
 type RGB = [number, number, number];
@@ -6,7 +6,15 @@ type RGB = [number, number, number];
 export type FilmOptions = {
   maxEdge: number; // output long edge in px (disposable scans are ~2000)
   exposure: number; // global gain before the film curve
-  flash: { center: number; edge: number; radius: number; centerY: number }; // on-camera flash falloff
+  flash: {
+    mode: "depth" | "center"; // depth: whatever is closest gets the flash. center: radial falloff from the middle
+    near: number; // gain on the nearest subject
+    far: number; // gain on the background
+    falloff: number; // >1 = flash dies off faster with distance (depth mode)
+    radius: number; // center mode only, fraction of long edge
+    centerY: number; // center mode only
+    auto: [number, number]; // scene mean brightness: >= [0] no flash look (daylight), <= [1] full flash look
+  };
   vignette: number; // 0..1 corner darkening
   lightThreshold: number; // source brightness above which a pixel counts as a light (ignores flash falloff)
   halation: { strength: number; threshold: number; radius: number; color: RGB }; // radius = fraction of long edge
@@ -19,8 +27,11 @@ export type FilmOptions = {
   warmth: number; // pushes red up / blue down (skin)
   grain: { amount: number; size: number; shadowBoost: number; chroma: number };
   softness: number; // final blur sigma in px, 0 = off
+  leak: { chance: number; strength: number }; // orange/red light leak from the film edge
+  dust: number; // dust specks and hairs, 0 = clean scan
+  scratches: number; // chance of a long scratch
   dateStamp: Date | null; // orange LED date in the corner
-  seed: number; // same seed = same grain
+  seed: number; // same seed = same grain, leaks and dust. Use a per-photo value
   quality: number; // jpeg quality
 };
 
@@ -29,9 +40,9 @@ export type FilmOptions = {
 export const DEFAULT_FILM: FilmOptions = {
   maxEdge: 2000,
   exposure: 1.0,
-  flash: { center: 1.5, edge: 0.45, radius: 0.28, centerY: 0.5 },
+  flash: { mode: "depth", near: 1.6, far: 0.62, falloff: 1.3, radius: 0.28, centerY: 0.5, auto: [0.5, 0.3] },
   vignette: 0.3,
-  lightThreshold: 0.93,
+  lightThreshold: 0.97,
   halation: { strength: 0.7, threshold: 0.82, radius: 0.012, color: [1, 0.32, 0.12] },
   shoulder: 0.72,
   contrast: 0.75,
@@ -42,6 +53,9 @@ export const DEFAULT_FILM: FilmOptions = {
   warmth: 0.35,
   grain: { amount: 0.075, size: 1.6, shadowBoost: 1.2, chroma: 0.35 },
   softness: 0.8,
+  leak: { chance: 0.35, strength: 0.55 },
+  dust: 1,
+  scratches: 0.3,
   dateStamp: null,
   seed: 1,
   quality: 86,
@@ -92,16 +106,24 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const n = w * h;
   const long = Math.max(w, h);
 
+  // Daylight shots shouldn't get the night flash look: scale it by how dark the scene is.
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += 0.2126 * data[i * 3] + 0.7152 * data[i * 3 + 1] + 0.0722 * data[i * 3 + 2];
+  const [dayAt, nightAt] = o.flash.auto;
+  const night = clamp01((dayAt - sum / n / 255) / (dayAt - nightAt));
+  const near = night > 0 && o.flash.mode === "depth" ? await nearness(data, w, h) : null;
+
   // Pass 1, optics: flash falloff + vignette on the scene, and a mask of bright spots for halation.
   const scene = new Float32Array(n * 3);
   const bright = Buffer.alloc(n);
+  const { near: fNear, far: fFar } = o.flash;
   const cx = w / 2, cy = h * o.flash.centerY;
   const r2 = 2 * (o.flash.radius * long) ** 2;
   const halfDiag2 = (w / 2) ** 2 + (h / 2) ** 2;
   for (let y = 0, i = 0; y < h; y++) {
     for (let x = 0; x < w; x++, i++) {
-      const d2 = (x - cx) ** 2 + (y - cy) ** 2;
-      const flash = o.flash.edge + (o.flash.center - o.flash.edge) * Math.exp(-d2 / r2);
+      const reach = near ? near[i] ** o.flash.falloff : Math.exp(-((x - cx) ** 2 + (y - cy) ** 2) / r2);
+      const flash = 1 + (fFar + (fNear - fFar) * reach - 1) * night;
       const vd = ((x - w / 2) ** 2 + (y - h / 2) ** 2) / halfDiag2;
       const sr = data[i * 3] / 255, sg = data[i * 3 + 1] / 255, sb = data[i * 3 + 2] / 255;
       const lum = 0.2126 * sr + 0.7152 * sg + 0.0722 * sb;
@@ -170,13 +192,85 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
     out[i * 3 + 2] = clamp01(b) * 255 + 0.5;
   }
 
-  let img = sharp(out, { raw: { width: w, height: h, channels: 3 } });
-  if (o.softness >= 0.3) img = img.blur(o.softness);
-  if (o.dateStamp) {
-    // blur and composite run in a fixed order inside one pipeline; flatten first so the stamp stays crisp
-    img = sharp(await img.png().toBuffer()).composite([{ input: Buffer.from(dateStampSvg(o.dateStamp, w, h)) }]);
+  // Soften first as its own step so dust and the stamp composited on top stay crisp.
+  const raw = { raw: { width: w, height: h, channels: 3 as const } };
+  const base = o.softness >= 0.3 ? await sharp(out, raw).blur(o.softness).raw().toBuffer() : out;
+  const rand = mulberry32(o.seed ^ 0x9e3779b9);
+  const layers: OverlayOptions[] = [];
+  if (rand() < o.leak.chance) layers.push({ input: Buffer.from(leakSvg(w, h, rand, o.leak.strength)), blend: "screen" });
+  if (o.dust > 0 || o.scratches > 0) layers.push({ input: Buffer.from(dustSvg(w, h, rand, o.dust, rand() < o.scratches)) });
+  if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h)) });
+  return sharp(base, raw).composite(layers).jpeg({ quality: o.quality, mozjpeg: true }).toBuffer(); // sharp drops EXIF (incl. GPS)
+}
+
+type DepthFn = (img: unknown) => Promise<{ depth: { data: Uint8Array; width: number; height: number } }>;
+let depthModel: Promise<{ est: DepthFn; RawImage: typeof import("@huggingface/transformers").RawImage }> | undefined;
+
+// How close each pixel is to the camera, 0 (far) to 1 (near), from Depth Anything V2 Small
+// (Apache-2.0, ~25MB, downloaded on first use and cached). ~150ms per photo on a laptop CPU.
+async function nearness(data: Buffer, w: number, h: number): Promise<Float32Array> {
+  depthModel ??= import("@huggingface/transformers").then(async (t) => {
+    const pipeline = t.pipeline as unknown as (task: string, model: string, opts: object) => Promise<DepthFn>;
+    return { est: await pipeline("depth-estimation", "onnx-community/depth-anything-v2-small", { dtype: "q8" }), RawImage: t.RawImage };
+  });
+  const { est, RawImage } = await depthModel;
+  const small = await sharp(data, { raw: { width: w, height: h, channels: 3 } })
+    .resize(518, 518, { fit: "inside" })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { depth } = await est(new RawImage(new Uint8ClampedArray(small.data), small.info.width, small.info.height, 3));
+  const full = await sharp(Buffer.from(depth.data), { raw: { width: depth.width, height: depth.height, channels: 1 } })
+    .resize(w, h, { fit: "fill" })
+    .raw()
+    .toBuffer();
+  // stretch between the 2nd and 99th percentile so every photo spans the full near..far range
+  const hist = new Uint32Array(256);
+  for (const v of full) hist[v]++;
+  const pct = (p: number) => {
+    for (let v = 0, acc = 0; v < 256; v++) if ((acc += hist[v]) >= p * full.length) return v;
+    return 255;
+  };
+  const lo = pct(0.02), hi = Math.max(lo + 1, pct(0.99));
+  const out = new Float32Array(full.length);
+  for (let i = 0; i < full.length; i++) out[i] = clamp01((full[i] - lo) / (hi - lo));
+  return out;
+}
+
+// Soft orange/red blobs bleeding in from one film edge, composited with "screen".
+function leakSvg(w: number, h: number, rand: () => number, strength: number): string {
+  const colors = ["#ff2a00", "#ff6a00", "#ffa600", "#ff1f4b"];
+  const edge = rand() < 0.5 ? 0 : w;
+  const blobs = Array.from({ length: 2 + Math.floor(rand() * 2) }, (_, i) => {
+    const c = colors[Math.floor(rand() * colors.length)];
+    const cx = edge === 0 ? rand() * w * 0.08 : w - rand() * w * 0.08;
+    return `<radialGradient id="l${i}"><stop offset="0" stop-color="${c}" stop-opacity="${strength * (0.6 + rand() * 0.4)}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>
+    <ellipse cx="${cx}" cy="${h * (0.1 + rand() * 0.8)}" rx="${w * (0.15 + rand() * 0.3)}" ry="${h * (0.3 + rand() * 0.5)}" fill="url(#l${i})"/>`;
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${blobs.join("")}</svg>`;
+}
+
+// Dust on the negative prints as white specks; plus a few hairs and maybe a long scratch.
+function dustSvg(w: number, h: number, rand: () => number, amount: number, scratch: boolean): string {
+  const s = Math.max(w, h) / 2000;
+  const parts: string[] = [];
+  for (let i = 0, specks = Math.round(amount * (12 + rand() * 25)); i < specks; i++) {
+    const light = rand() < 0.8;
+    parts.push(`<ellipse cx="${rand() * w}" cy="${rand() * h}" rx="${(0.6 + rand() * 2.2) * s}" ry="${(0.5 + rand() * 1.6) * s}" fill="${light ? "#fffbea" : "#1a1a12"}" opacity="${0.35 + rand() * 0.5}"/>`);
   }
-  return img.jpeg({ quality: o.quality, mozjpeg: true }).toBuffer(); // sharp drops EXIF (incl. GPS) by default
+  for (let i = 0, hairs = Math.round(amount * rand() * 3); i < hairs; i++) {
+    const x = rand() * w, y = rand() * h, len = (40 + rand() * 160) * s, a = rand() * Math.PI * 2;
+    const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
+    const qx = (x + ex) / 2 + (rand() - 0.5) * len, qy = (y + ey) / 2 + (rand() - 0.5) * len;
+    parts.push(`<path d="M${x} ${y}Q${qx} ${qy} ${ex} ${ey}" stroke="#fffbea" stroke-width="${(0.8 + rand() * 0.8) * s}" opacity="${0.4 + rand() * 0.35}" fill="none"/>`);
+  }
+  if (scratch) {
+    let x = w * (0.1 + rand() * 0.8);
+    const y0 = rand() * h * 0.3, y1 = h * (0.6 + rand() * 0.4);
+    let d = `M${x} ${y0}`;
+    for (let k = 1; k <= 6; k++) d += `L${(x += (rand() - 0.5) * 4 * s)} ${y0 + ((y1 - y0) * k) / 6}`;
+    parts.push(`<path d="${d}" stroke="#fffbea" stroke-width="${1.2 * s}" opacity="${0.18 + rand() * 0.17}" fill="none"/>`);
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${parts.join("")}</svg>`;
 }
 
 // Random RGB noise at reduced resolution, upscaled so grain clumps instead of being per-pixel.

@@ -25,7 +25,8 @@ if (!files.length) console.log(`No images in ${inDir}. Drop some phone photos th
 
 for (const f of files) {
   const t0 = performance.now();
-  const out = await applyFilmFilter(await readFile(path.join(inDir, f)), options);
+  const seed = options.seed ?? [...f].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7); // per-photo leaks/dust
+  const out = await applyFilmFilter(await readFile(path.join(inDir, f)), { ...options, seed });
   const dest = path.join(outDir, path.parse(f).name + ".jpg");
   await writeFile(dest, out);
   console.log(`${dest}  ${Math.round(performance.now() - t0)}ms`);
