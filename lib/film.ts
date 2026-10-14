@@ -27,25 +27,26 @@ export type FilmOptions = {
   quality: number; // jpeg quality
 };
 
-// Punchy disposable scan with a green mood: deep but slightly faded green-black shadows,
-// warm skin and highlights, rich colour, heavy grain.
+// Tuned against real disposable scans: crisp, deep rich colour, near-black blacks with a slight
+// olive lift, warm mids, highlights allowed to blow out. A strong S-curve does the "near is blown,
+// background is dark" look without any subject detection.
 export const DEFAULT_FILM: FilmOptions = {
   maxEdge: 2000,
   exposure: 1.0,
   gamma: 1.0,
-  shoulder: 0.72,
-  contrast: 0.75,
-  blackPoint: [0.09, 0.115, 0.075],
-  whitePoint: [0.97, 0.96, 0.86],
-  shadowTint: [0.9, 1.0, 0.78],
-  saturation: 1.12,
-  warmth: 0.35,
-  halation: { strength: 0.5, threshold: 0.82, radius: 0.012, color: [1, 0.32, 0.12] },
-  grain: { amount: 0.075, size: 1.6, shadowBoost: 1.2, chroma: 0.35 },
-  vignette: 0.3,
-  softness: 0.8,
-  leak: { chance: 0.4, strength: 0.55, colors: ["#ff6a3d", "#ff9a6b", "#ff8fa3", "#ffd27a"] },
-  dust: 1,
+  shoulder: 0.85,
+  contrast: 0.8,
+  blackPoint: [0.045, 0.056, 0.025],
+  whitePoint: [0.98, 0.97, 0.94],
+  shadowTint: [0.92, 1.0, 0.8],
+  saturation: 1.2,
+  warmth: 0.3,
+  halation: { strength: 0.35, threshold: 0.85, radius: 0.01, color: [1, 0.32, 0.12] },
+  grain: { amount: 0.06, size: 1.3, shadowBoost: 1.0, chroma: 0.3 },
+  vignette: 0.25,
+  softness: 0.4,
+  leak: { chance: 0.25, strength: 0.5, colors: ["#ff6a3d", "#ff9a6b", "#ff8fa3", "#ffd27a"] },
+  dust: 2,
   scratches: 0.3,
   dateStamp: null,
   seed: 1,
@@ -208,11 +209,12 @@ function dustSvg(w: number, h: number, rand: () => number, amount: number, scrat
     const fill = c < 0.75 ? "#fffbea" : c < 0.9 ? "#ffc9a0" : "#1a1a12"; // mostly white, some warm, a few dark
     parts.push(`<ellipse cx="${rand() * w}" cy="${rand() * h}" rx="${(0.6 + rand() * 2.2) * s}" ry="${(0.5 + rand() * 1.6) * s}" fill="${fill}" opacity="${0.35 + rand() * 0.5}"/>`);
   }
-  for (let i = 0, hairs = Math.round(amount * rand() * 3); i < hairs; i++) {
-    const x = rand() * w, y = rand() * h, len = (40 + rand() * 160) * s, a = rand() * Math.PI * 2;
+  // curly fibres: cubic curves with wild control points loop back on themselves
+  for (let i = 0, hairs = Math.round(amount * (2 + rand() * 5)); i < hairs; i++) {
+    const x = rand() * w, y = rand() * h, len = (20 + rand() * 120) * s, a = rand() * Math.PI * 2;
     const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
-    const qx = (x + ex) / 2 + (rand() - 0.5) * len, qy = (y + ey) / 2 + (rand() - 0.5) * len;
-    parts.push(`<path d="M${x} ${y}Q${qx} ${qy} ${ex} ${ey}" stroke="#fffbea" stroke-width="${(0.8 + rand() * 0.8) * s}" opacity="${0.4 + rand() * 0.35}" fill="none"/>`);
+    const c = () => (rand() - 0.5) * len * 1.6;
+    parts.push(`<path d="M${x} ${y}C${x + c()} ${y + c()} ${ex + c()} ${ey + c()} ${ex} ${ey}" stroke="#fffbea" stroke-width="${(0.7 + rand() * 0.8) * s}" opacity="${0.45 + rand() * 0.4}" fill="none"/>`);
   }
   if (scratch) {
     let x = w * (0.1 + rand() * 0.8);
