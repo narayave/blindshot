@@ -2,7 +2,7 @@
 
 *a disposable camera for your party*
 
-Guests scan a QR code, open the site on their phone and shoot like a disposable camera: a limited number of shots, and no preview. Every photo is saved untouched, and a copy gets an analog film look (grain, olive shadows, harsh flash, halation). The host curates the results afterwards.
+Guests scan a QR code, open the site on their phone and shoot like a disposable camera: a limited number of shots, and no preview. Every photo is saved untouched, and a copy gets the same fixed film look (faded blacks, grain, dust, light leaks). The host curates the results afterwards.
 
 **Status:** early. The film filter works; the camera, upload and admin flows are next.
 

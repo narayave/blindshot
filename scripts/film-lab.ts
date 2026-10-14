@@ -2,19 +2,18 @@
 //   npm run lab                 -> lab/in/* -> lab/out/*.jpg
 //   npm run lab -- some/folder  -> some/folder/* -> lab/out/*.jpg
 // Override any option in lab/options.json, e.g. { "contrast": 0.7, "grain": { "amount": 0.1 } }
-// Set "dateStamp": "2026-10-14" there to preview the stamp, or "preset": "dirtyFlash" to start from a named look.
+// Set "dateStamp": "2026-10-14" there to preview the stamp.
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { applyFilmFilter, PRESETS, type FilmOptions } from "../lib/film.ts";
+import { applyFilmFilter, type FilmOptions } from "../lib/film.ts";
 
 const inDir = process.argv[2] ?? "lab/in";
 const outDir = "lab/out";
 
-let options: Partial<FilmOptions> & { preset?: string } = {};
+let options: Partial<FilmOptions> = {};
 try {
   options = JSON.parse(await readFile("lab/options.json", "utf8"));
   if (typeof options.dateStamp === "string") options.dateStamp = new Date(`${options.dateStamp}T00:00`); // local midnight, not UTC
-  if (options.preset) options = { ...PRESETS[options.preset], ...options };
   console.log("options:", JSON.stringify(options));
 } catch (e) {
   if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
