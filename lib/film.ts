@@ -7,7 +7,7 @@ export type FilmOptions = {
   maxEdge: number; // output long edge in px (disposable scans are ~2000)
   exposure: number; // global gain before the film curve
   flash: {
-    mode: "depth" | "center"; // depth: whatever is closest gets the flash. center: radial falloff from the middle
+    mode: "depth" | "center" | "off"; // depth: closest things get the flash. center: radial falloff. off: plain filter
     near: number; // gain on the nearest subject
     far: number; // gain on the background
     falloff: number; // >1 = flash dies off faster with distance (depth mode)
@@ -65,9 +65,10 @@ export const DEFAULT_FILM: FilmOptions = {
 
 // Named looks, applied on top of DEFAULT_FILM.
 export const PRESETS: Record<string, Partial<FilmOptions>> = {
-  // Instagram-style "dirty flash": hot flash on the subject, dark cool background, faded colour.
+  // Instagram-style "dirty flash" as a plain grade: no subject detection, just cool faded colour,
+  // rich skin, dark edges, dust.
   dirtyFlash: {
-    flash: { mode: "depth", near: 1.45, far: 0.45, falloff: 1.1, radius: 0.28, centerY: 0.5, auto: [0.7, 0.55] },
+    flash: { mode: "off", near: 1, far: 1, falloff: 1, radius: 0.28, centerY: 0.5, auto: [0.7, 0.55] },
     contrast: 0.8,
     saturation: 0.7,
     warmSaturation: 1.25,
@@ -77,7 +78,7 @@ export const PRESETS: Record<string, Partial<FilmOptions>> = {
     whitePoint: [0.97, 0.97, 0.94],
     grain: { amount: 0.06, size: 1.3, shadowBoost: 1.0, chroma: 0.3 },
     halation: { strength: 0.4, threshold: 0.85, radius: 0.012, color: [1, 0.35, 0.15] },
-    vignette: 0.35,
+    vignette: 0.55,
     dust: 1.6,
   },
 };
@@ -133,6 +134,7 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const [dayAt, nightAt] = o.flash.auto;
   const night = clamp01((dayAt - sum / n / 255) / (dayAt - nightAt));
   const near = night > 0 && o.flash.mode === "depth" ? await nearness(data, w, h) : null;
+  const flashOn = night > 0 && o.flash.mode !== "off";
 
   // Pass 1, optics: flash falloff + vignette on the scene, and a mask of bright spots for halation.
   const scene = new Float32Array(n * 3);
@@ -144,7 +146,7 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   for (let y = 0, i = 0; y < h; y++) {
     for (let x = 0; x < w; x++, i++) {
       const reach = near ? near[i] ** o.flash.falloff : Math.exp(-((x - cx) ** 2 + (y - cy) ** 2) / r2);
-      const flash = 1 + (fFar + (fNear - fFar) * reach - 1) * night;
+      const flash = flashOn ? 1 + (fFar + (fNear - fFar) * reach - 1) * night : 1;
       const vd = ((x - w / 2) ** 2 + (y - h / 2) ** 2) / halfDiag2;
       const sr = data[i * 3] / 255, sg = data[i * 3 + 1] / 255, sb = data[i * 3 + 2] / 255;
       const lum = 0.2126 * sr + 0.7152 * sg + 0.0722 * sb;
