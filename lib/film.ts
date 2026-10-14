@@ -45,7 +45,7 @@ export const DEFAULT_FILM: FilmOptions = {
   grain: { amount: 0.06, size: 1.3, shadowBoost: 1.0, chroma: 0.3 },
   vignette: 0.45,
   softness: 0.4,
-  leak: { chance: 0.3, strength: 0.5, colors: ["#ff6a3d", "#ff9a6b", "#ff8fa3", "#ffd27a"] },
+  leak: { chance: 0.25, strength: 0.5, colors: ["#ff6a3d", "#ff9a6b", "#ff8fa3", "#ffd27a"] },
   dust: 2.6,
   scratches: 0.3,
   dateStamp: null,
