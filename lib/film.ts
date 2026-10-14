@@ -176,8 +176,16 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   if (rand() < o.leak.chance) layers.push({ input: Buffer.from(leakSvg(w, h, rand, o.leak)), blend: "screen" });
   if (o.dust > 0 || o.scratches > 0) layers.push({ input: Buffer.from(dustSvg(w, h, rand, o.dust, rand() < o.scratches)) });
   if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h)) });
-  if (o.watermark) layers.push({ input: Buffer.from(watermarkSvg(w, h)) });
-  return sharp(base, raw3).composite(layers).jpeg({ quality: o.quality, mozjpeg: true }).toBuffer(); // sharp drops EXIF (incl. GPS)
+  let img = sharp(base, raw3);
+  if (o.watermark) {
+    // Composite everything else first, so the watermark can read the final corner (leaks included).
+    const flat = layers.length ? await img.composite(layers).removeAlpha().raw().toBuffer() : base;
+    const box = watermarkBox(w, h);
+    img = sharp(flat, raw3).composite([{ input: Buffer.from(watermarkSvg(w, h, box, meanLuma(flat, w, box) > 0.55)) }]);
+  } else if (layers.length) {
+    img = img.composite(layers);
+  }
+  return img.jpeg({ quality: o.quality, mozjpeg: true }).toBuffer(); // sharp drops EXIF (incl. GPS)
 }
 
 // Random RGB noise at reduced resolution, upscaled so grain clumps instead of being per-pixel.
@@ -230,16 +238,34 @@ function dustSvg(w: number, h: number, rand: () => number, amount: number, scrat
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${parts.join("")}</svg>`;
 }
 
-// Faint credit, bottom-left (the date stamp lives bottom-right). Pre-traced path, so no fonts needed.
-function watermarkSvg(w: number, h: number): string {
-  const textH = Math.min(w, h) * 0.03;
-  const k = textH / WATERMARK.height;
-  const x = Math.min(w, h) * 0.035, y = h - Math.min(w, h) * 0.035 - textH;
-  const t = `translate(${x} ${y}) scale(${k})`;
+// Credit, bottom-left (the date stamp lives bottom-right). Pre-traced path, so no fonts needed.
+// Tone flips with the background (dark text on bright corners, light on dark) and a soft halo in the
+// opposite tone keeps it readable over busy detail.
+type Box = { x: number; y: number; w: number; h: number };
+function watermarkBox(w: number, h: number): Box {
+  const textH = Math.min(w, h) * 0.03, pad = Math.min(w, h) * 0.035;
+  return { x: pad, y: h - pad - textH, w: (textH * WATERMARK.width) / WATERMARK.height, h: textH };
+}
+
+function meanLuma(rgb: Buffer, w: number, b: Box): number {
+  let sum = 0, n = 0;
+  for (let y = Math.floor(b.y); y < Math.ceil(b.y + b.h); y++)
+    for (let x = Math.floor(b.x); x < Math.ceil(b.x + b.w); x++) {
+      const i = (y * w + x) * 3;
+      sum += 0.2126 * rgb[i] + 0.7152 * rgb[i + 1] + 0.0722 * rgb[i + 2];
+      n++;
+    }
+  return n ? sum / n / 255 : 0;
+}
+
+function watermarkSvg(w: number, h: number, b: Box, brightBehind: boolean): string {
+  const k = b.h / WATERMARK.height;
+  const t = `translate(${b.x} ${b.y}) scale(${k})`;
+  const [ink, halo] = brightBehind ? ["#16180f", "#fffbea"] : ["#fffbea", "#0b0c08"];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-  <defs><filter id="s"><feGaussianBlur stdDeviation="${2 / k}"/></filter></defs>
-  <path d="${WATERMARK.d}" transform="${t}" fill="#000" opacity="0.3" filter="url(#s)"/>
-  <path d="${WATERMARK.d}" transform="${t}" fill="#fffbea" opacity="0.5"/>
+  <defs><filter id="s"><feGaussianBlur stdDeviation="${b.h * 0.06 / k}"/></filter></defs>
+  <path d="${WATERMARK.d}" transform="${t}" fill="${halo}" stroke="${halo}" stroke-width="${b.h * 0.14 / k}" stroke-linejoin="round" opacity="0.45" filter="url(#s)"/>
+  <path d="${WATERMARK.d}" transform="${t}" fill="${ink}" opacity="0.68"/>
 </svg>`;
 }
 
