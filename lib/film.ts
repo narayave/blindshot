@@ -24,7 +24,8 @@ export type FilmOptions = {
   shadowTint: RGB; // per-channel multiplier, fades in toward the shadows
   whitePoint: RGB; // creamy, capped whites
   saturation: number;
-  warmth: number; // pushes red up / blue down (skin)
+  warmSaturation: number; // saturation for warm colours (skin), so cool colours can fade while skin stays rich
+  warmth: number; // pushes red up / blue down in lit areas (skin)
   grain: { amount: number; size: number; shadowBoost: number; chroma: number };
   softness: number; // final blur sigma in px, 0 = off
   leak: { chance: number; strength: number }; // orange/red light leak from the film edge
@@ -40,7 +41,7 @@ export type FilmOptions = {
 export const DEFAULT_FILM: FilmOptions = {
   maxEdge: 2000,
   exposure: 1.0,
-  flash: { mode: "depth", near: 1.6, far: 0.62, falloff: 1.3, radius: 0.28, centerY: 0.5, auto: [0.5, 0.3] },
+  flash: { mode: "depth", near: 1.6, far: 0.62, falloff: 1.3, radius: 0.28, centerY: 0.5, auto: [0.7, 0.55] },
   vignette: 0.3,
   lightThreshold: 0.97,
   halation: { strength: 0.7, threshold: 0.82, radius: 0.012, color: [1, 0.32, 0.12] },
@@ -50,6 +51,7 @@ export const DEFAULT_FILM: FilmOptions = {
   shadowTint: [0.97, 1.0, 0.72],
   whitePoint: [0.97, 0.95, 0.86],
   saturation: 1.12,
+  warmSaturation: 1.12,
   warmth: 0.35,
   grain: { amount: 0.075, size: 1.6, shadowBoost: 1.2, chroma: 0.35 },
   softness: 0.8,
@@ -59,6 +61,25 @@ export const DEFAULT_FILM: FilmOptions = {
   dateStamp: null,
   seed: 1,
   quality: 86,
+};
+
+// Named looks, applied on top of DEFAULT_FILM.
+export const PRESETS: Record<string, Partial<FilmOptions>> = {
+  // Instagram-style "dirty flash": hot flash on the subject, dark cool background, faded colour.
+  dirtyFlash: {
+    flash: { mode: "depth", near: 1.45, far: 0.45, falloff: 1.1, radius: 0.28, centerY: 0.5, auto: [0.7, 0.55] },
+    contrast: 0.8,
+    saturation: 0.7,
+    warmSaturation: 1.25,
+    warmth: 0.45,
+    blackPoint: [0.05, 0.07, 0.09],
+    shadowTint: [0.82, 1.0, 1.12],
+    whitePoint: [0.97, 0.97, 0.94],
+    grain: { amount: 0.06, size: 1.3, shadowBoost: 1.0, chroma: 0.3 },
+    halation: { strength: 0.4, threshold: 0.85, radius: 0.012, color: [1, 0.35, 0.15] },
+    vignette: 0.35,
+    dust: 1.6,
+  },
 };
 
 // Deep-merges one level so callers can pass e.g. { grain: { amount: 0.1 } }.
@@ -138,7 +159,7 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const sigma = Math.max(0.3, o.halation.radius * long);
   const [glow, noise] = await Promise.all([
     o.halation.strength > 0
-      ? sharp(bright, { raw: { width: w, height: h, channels: 1 } }).blur(sigma).raw().toBuffer()
+      ? sharp(bright, { raw: { width: w, height: h, channels: 1 } }).blur(sigma).extractChannel(0).raw().toBuffer() // sharp outputs 3 channels otherwise
       : null,
     grainNoise(w, h, o.grain.size, o.seed),
   ]);
@@ -164,11 +185,13 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
     b += o.contrast * (b * b * (3 - 2 * b) - b);
 
     const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    r = lum + (r - lum) * o.saturation;
-    g = lum + (g - lum) * o.saturation;
-    b = lum + (b - lum) * o.saturation;
-    r *= 1 + 0.1 * o.warmth;
-    b *= 1 - 0.18 * o.warmth;
+    const sat = o.saturation + (o.warmSaturation - o.saturation) * clamp01((r - b) * 3);
+    r = lum + (r - lum) * sat;
+    g = lum + (g - lum) * sat;
+    b = lum + (b - lum) * sat;
+    // flash light is warm; keep the warmth on the lit areas so shadows can carry their own tint
+    r *= 1 + 0.1 * o.warmth * lum;
+    b *= 1 - 0.18 * o.warmth * lum;
     const sh = (1 - lum) * (1 - lum);
     r *= 1 + (o.shadowTint[0] - 1) * sh;
     g *= 1 + (o.shadowTint[1] - 1) * sh;
@@ -221,9 +244,12 @@ async function nearness(data: Buffer, w: number, h: number): Promise<Float32Arra
   const { depth } = await est(new RawImage(new Uint8ClampedArray(small.data), small.info.width, small.info.height, 3));
   const full = await sharp(Buffer.from(depth.data), { raw: { width: depth.width, height: depth.height, channels: 1 } })
     .resize(w, h, { fit: "fill" })
+    .extractChannel(0) // sharp outputs 3 channels otherwise
     .raw()
     .toBuffer();
-  // stretch between the 2nd and 99th percentile so every photo spans the full near..far range
+  if (full.length !== w * h) throw new Error(`depth map is ${full.length} bytes, expected ${w * h}`);
+  // Split subject from background (Otsu threshold on the depth histogram): the whole subject gets the
+  // flash, the background falls off. A little of the continuous depth keeps some gradient within each.
   const hist = new Uint32Array(256);
   for (const v of full) hist[v]++;
   const pct = (p: number) => {
@@ -231,9 +257,29 @@ async function nearness(data: Buffer, w: number, h: number): Promise<Float32Arra
     return 255;
   };
   const lo = pct(0.02), hi = Math.max(lo + 1, pct(0.99));
+  const t = otsu(hist, full.length), band = Math.max(4, (hi - lo) * 0.12);
   const out = new Float32Array(full.length);
-  for (let i = 0; i < full.length; i++) out[i] = clamp01((full[i] - lo) / (hi - lo));
+  for (let i = 0; i < full.length; i++) {
+    const subject = clamp01((full[i] - (t - band)) / (2 * band));
+    out[i] = 0.8 * subject * subject * (3 - 2 * subject) + 0.2 * clamp01((full[i] - lo) / (hi - lo));
+  }
   return out;
+}
+
+function otsu(hist: Uint32Array, total: number): number {
+  let sum = 0;
+  for (let v = 0; v < 256; v++) sum += v * hist[v];
+  let sumB = 0, wB = 0, best = 0, t = 128;
+  for (let v = 0; v < 256; v++) {
+    wB += hist[v];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += v * hist[v];
+    const between = wB * wF * (sumB / wB - (sum - sumB) / wF) ** 2;
+    if (between > best) { best = between; t = v; }
+  }
+  return t;
 }
 
 // Soft orange/red blobs bleeding in from one film edge, composited with "screen".
@@ -254,8 +300,9 @@ function dustSvg(w: number, h: number, rand: () => number, amount: number, scrat
   const s = Math.max(w, h) / 2000;
   const parts: string[] = [];
   for (let i = 0, specks = Math.round(amount * (12 + rand() * 25)); i < specks; i++) {
-    const light = rand() < 0.8;
-    parts.push(`<ellipse cx="${rand() * w}" cy="${rand() * h}" rx="${(0.6 + rand() * 2.2) * s}" ry="${(0.5 + rand() * 1.6) * s}" fill="${light ? "#fffbea" : "#1a1a12"}" opacity="${0.35 + rand() * 0.5}"/>`);
+    const c = rand();
+    const fill = c < 0.65 ? "#fffbea" : c < 0.85 ? "#ff9a5a" : "#1a1a12"; // mostly white, some orange, a few dark
+    parts.push(`<ellipse cx="${rand() * w}" cy="${rand() * h}" rx="${(0.6 + rand() * 2.2) * s}" ry="${(0.5 + rand() * 1.6) * s}" fill="${fill}" opacity="${0.35 + rand() * 0.5}"/>`);
   }
   for (let i = 0, hairs = Math.round(amount * rand() * 3); i < hairs; i++) {
     const x = rand() * w, y = rand() * h, len = (40 + rand() * 160) * s, a = rand() * Math.PI * 2;
