@@ -8,6 +8,7 @@ export type FilmOptions = {
   exposure: number; // global gain before the film curve
   flash: { center: number; edge: number; radius: number; centerY: number }; // on-camera flash falloff
   vignette: number; // 0..1 corner darkening
+  lightThreshold: number; // source brightness above which a pixel counts as a light (ignores flash falloff)
   halation: { strength: number; threshold: number; radius: number; color: RGB }; // radius = fraction of long edge
   shoulder: number; // where highlights start rolling off (0..1)
   contrast: number; // S-curve strength 0..1
@@ -28,12 +29,13 @@ export type FilmOptions = {
 export const DEFAULT_FILM: FilmOptions = {
   maxEdge: 2000,
   exposure: 1.0,
-  flash: { center: 1.5, edge: 0.4, radius: 0.3, centerY: 0.5 },
-  vignette: 0.35,
+  flash: { center: 1.5, edge: 0.45, radius: 0.28, centerY: 0.5 },
+  vignette: 0.3,
+  lightThreshold: 0.93,
   halation: { strength: 0.7, threshold: 0.82, radius: 0.012, color: [1, 0.32, 0.12] },
   shoulder: 0.72,
   contrast: 0.75,
-  blackPoint: [0.065, 0.068, 0.02],
+  blackPoint: [0.08, 0.08, 0.03],
   shadowTint: [0.97, 1.0, 0.72],
   whitePoint: [0.97, 0.95, 0.86],
   saturation: 1.12,
@@ -104,7 +106,7 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
       const sr = data[i * 3] / 255, sg = data[i * 3 + 1] / 255, sb = data[i * 3 + 2] / 255;
       const lum = 0.2126 * sr + 0.7152 * sg + 0.0722 * sb;
       // lights in the frame are emitters, not lit by the flash: keep them bright
-      const emit = lum < 0.8 ? 0 : (lum - 0.8) / 0.2;
+      const emit = lum < o.lightThreshold ? 0 : (lum - o.lightThreshold) / (1 - o.lightThreshold);
       const gain = (o.exposure * flash + (1 - o.exposure * flash) * emit) * (1 - o.vignette * vd * vd);
       scene[i * 3] = sr * gain; scene[i * 3 + 1] = sg * gain; scene[i * 3 + 2] = sb * gain;
       bright[i] = lum > o.halation.threshold ? Math.min(255, ((lum - o.halation.threshold) / (1 - o.halation.threshold)) * 255) : 0;
