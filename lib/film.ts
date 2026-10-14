@@ -14,7 +14,7 @@ export type FilmOptions = {
   whitePoint: RGB; // capped, warm whites
   shadowTint: RGB; // per-channel multiplier, fades in toward the shadows
   saturation: number;
-  warmth: number; // pushes red up / blue down in brighter areas
+  warmth: number; // pushes red up / blue down (skin)
   halation: { strength: number; threshold: number; radius: number; color: RGB }; // glow around bright spots; radius = fraction of long edge
   grain: { amount: number; size: number; shadowBoost: number; chroma: number };
   vignette: number; // 0..1 corner darkening
@@ -27,24 +27,25 @@ export type FilmOptions = {
   quality: number; // jpeg quality
 };
 
-// Faded disposable scan: milky olive blacks, warm capped whites, soft contrast, muted colour.
+// Punchy disposable scan with a green mood: deep but slightly faded green-black shadows,
+// warm skin and highlights, rich colour, heavy grain.
 export const DEFAULT_FILM: FilmOptions = {
   maxEdge: 2000,
   exposure: 1.0,
-  gamma: 0.72,
-  shoulder: 0.8,
-  contrast: 0.35,
-  blackPoint: [0.17, 0.165, 0.09],
-  whitePoint: [0.95, 0.92, 0.92],
-  shadowTint: [1.0, 0.98, 0.95],
-  saturation: 0.85,
-  warmth: 0.12,
-  halation: { strength: 0.35, threshold: 0.85, radius: 0.01, color: [1, 0.4, 0.25] },
-  grain: { amount: 0.055, size: 1.5, shadowBoost: 0.8, chroma: 0.3 },
-  vignette: 0.2,
-  softness: 0.9,
-  leak: { chance: 0.35, strength: 0.35, colors: ["#ffb08a", "#ffd9a0", "#ff8fa3", "#9fe8d8"] },
-  dust: 1.2,
+  gamma: 1.0,
+  shoulder: 0.72,
+  contrast: 0.75,
+  blackPoint: [0.09, 0.115, 0.075],
+  whitePoint: [0.97, 0.96, 0.86],
+  shadowTint: [0.9, 1.0, 0.78],
+  saturation: 1.12,
+  warmth: 0.35,
+  halation: { strength: 0.5, threshold: 0.82, radius: 0.012, color: [1, 0.32, 0.12] },
+  grain: { amount: 0.075, size: 1.6, shadowBoost: 1.2, chroma: 0.35 },
+  vignette: 0.3,
+  softness: 0.8,
+  leak: { chance: 0.4, strength: 0.55, colors: ["#ff6a3d", "#ff9a6b", "#ff8fa3", "#ffd27a"] },
+  dust: 1,
   scratches: 0.3,
   dateStamp: null,
   seed: 1,
@@ -138,8 +139,8 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
       r = lum + (r - lum) * o.saturation;
       g = lum + (g - lum) * o.saturation;
       b = lum + (b - lum) * o.saturation;
-      r *= 1 + 0.1 * o.warmth * lum;
-      b *= 1 - 0.18 * o.warmth * lum;
+      r *= 1 + 0.1 * o.warmth;
+      b *= 1 - 0.18 * o.warmth;
       const sh = (1 - lum) * (1 - lum);
       r *= 1 + (o.shadowTint[0] - 1) * sh;
       g *= 1 + (o.shadowTint[1] - 1) * sh;
