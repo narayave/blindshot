@@ -194,11 +194,24 @@ You need **Supabase** (database, free tier) and **Azure** (photo storage + Stati
 
 ### Deploy to Azure Static Web Apps (Free)
 
-1. Azure portal → **Create a resource → Static Web App**. Plan: **Free**. Source: **GitHub**, repo `blindshot`, branch `main`. Build preset: **Next.js**, app location `/`, API and output location empty.
-2. Azure commits a GitHub Actions workflow to the repo; every push to `main` now builds and deploys.
-3. In the Static Web App → **Settings → Environment variables**, add the vars from `.env.example`, with `SITE_URL` set to the app's URL (`https://<name>.azurestaticapps.net`).
-4. Run `npm run setup` locally once more with that `SITE_URL`, so storage CORS accepts uploads from it.
-5. Open `/admin` and print the QR code.
+Deploys run from [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): push to `main` → production, pull request → its own preview URL.
+
+1. Create the app (Free plan, no source link; the workflow does the deploying):
+   ```bash
+   az staticwebapp create -n blindshot -g <resource-group> -l westus2 --sku Free
+   ```
+2. Give GitHub the deploy token:
+   ```bash
+   az staticwebapp secrets list -n blindshot --query properties.apiKey -o tsv \
+     | gh secret set AZURE_STATIC_WEB_APPS_API_TOKEN
+   ```
+3. Set the runtime env vars from `.env.example` (`SITE_URL` = your domain):
+   ```bash
+   az staticwebapp appsettings set -n blindshot --setting-names DATABASE_URL=... AZURE_STORAGE_ACCOUNT=... AZURE_STORAGE_KEY=... ADMIN_PASSWORD=... SITE_URL=https://blindshot.example.com
+   ```
+4. **Custom domain on Cloudflare:** add a `CNAME` from the subdomain to the app's `*.azurestaticapps.net` hostname, **DNS only (grey cloud)**, then `az staticwebapp hostname set -n blindshot --hostname blindshot.example.com`. Azure validates it and issues the HTTPS certificate. Once that's done you can turn the Cloudflare proxy back on if you want it.
+5. Run `npm run setup` locally with the same `SITE_URL`, so storage CORS accepts uploads from the domain.
+6. Push to `main`, then open `/admin` and print the QR code.
 
 Hybrid Next.js on Static Web Apps is a Microsoft preview feature. If it misbehaves, the same build runs unchanged on Azure App Service (`node server.js` from `.next/standalone`).
 
