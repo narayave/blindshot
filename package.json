@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && cp -r .next/static .next/standalone/.next/ && (cp -r public .next/standalone/ 2>/dev/null || true)",
     "start": "next start",
     "lab": "node scripts/film-lab.ts",
     "typecheck": "next typegen && tsc --noEmit",
@@ -32,5 +32,8 @@
     "opentype.js": "^2.0.0",
     "typescript": "^5"
   },
-  "type": "module"
+  "type": "module",
+  "engines": {
+    "node": "20.x"
+  }
 }

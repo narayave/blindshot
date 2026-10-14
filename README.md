@@ -31,10 +31,10 @@ flowchart LR
     CAM["getUserMedia<br/>live camera stream"]
   end
 
-  subgraph Vercel["Vercel · Next.js (App Router)"]
+  subgraph Web["Azure Static Web Apps · Next.js (App Router)"]
     API["Route handlers<br/>/api/session · /api/photos/init · /api/photos/complete"]
     PAGES["Server components<br/>/e/[code] · /e/[code]/roll · /admin"]
-    PROC["processPhoto()<br/>sharp film filter<br/>runs after the response"]
+    PROC["processPhoto()<br/>sharp film filter<br/>+ thumbnail + watermark"]
   end
 
   subgraph Data["Data"]
@@ -79,12 +79,12 @@ sequenceDiagram
   P->>S: PUT originals/{event}/{guest}/{photo}.jpg
   P->>A: POST /api/photos/complete { photoId, size, time }
   A->>DB: status = uploaded
-  A-->>P: 200 (the phone moves on)
-  Note over A: after() keeps working past the response
   A->>S: read original
-  A->>A: film filter (sharp): tone curve, colour, grain, dust, leaks
-  A->>S: write filtered/{event}/{guest}/{photo}.jpg (no EXIF/GPS)
+  A->>A: film filter (sharp): tone curve, colour, grain, dust, leaks, watermark
+  A->>S: write filtered/…/{photo}.jpg + {photo}_thumb.jpg (no EXIF/GPS)
   A->>DB: status = done
+  A-->>P: 200
+  Note over P: uploads run in a background queue,<br/>so the guest keeps shooting meanwhile
 ```
 
 If the signal drops, the phone keeps retrying the same `photoId`. Because the id is made on the phone, a retry gets a fresh upload URL for the same frame instead of spending another shot.
@@ -95,11 +95,11 @@ If the signal drops, the phone keeps retrying the same `photoId`. Because the id
 
 | Layer | Choice | Why |
 |---|---|---|
-| App | **Next.js 16** (App Router, TypeScript) | One codebase for the guest UI, API routes and the darkroom; `after()` runs the filter once the response has gone back to the phone. |
-| Hosting | **Vercel** | Zero-config deploys, preview URLs on every push (the camera needs HTTPS, so previews double as phone test builds). |
+| App | **Next.js 16** (App Router, TypeScript) | One codebase for the guest UI, API routes and the darkroom. Built as a self-contained `standalone` server (~60 MB). |
+| Hosting | **Azure Static Web Apps** (Free plan, hybrid Next.js) | $0. Server-rendered pages and API routes run on a managed backend; push to `main` deploys, pull requests get preview URLs (the camera needs HTTPS, so previews double as phone test builds). Same Azure account as the photos. |
 | Database | **Supabase Postgres** via `postgres.js` | Plain SQL. The shot limit is one atomic statement, so two fast taps can't overrun it. |
 | Photo storage | **Azure Data Lake Storage Gen2** | Cheap bulk storage (~10 GB a party); SAS URLs give phones scoped, expiring upload rights. |
-| Image processing | **sharp** (libvips) | Fast native processing in Node: about 0.4 s per photo at 2000 px. |
+| Image processing | **sharp** (libvips) | Fast native processing in Node: about 0.4 s per photo at 2000 px. Every photo is filtered on arrival (≈17 min of compute for a 2,600-photo party) and gets a 640 px thumbnail, so grids load ~60 KB per frame instead of ~700 KB. |
 | Camera | **getUserMedia** + canvas | Live 1-inch viewfinder; frames stay in memory, so nothing lands in the camera roll. File-input fallback when access is denied. |
 | Styling | Plain CSS with design tokens | Each event theme is a token set; no UI framework to fight. |
 
@@ -144,7 +144,7 @@ A local film lab (`npm run lab`) runs it over a folder of photos so the look can
 | **0 · Film lab** | ✅ Done | Filter as a pure function, local lab script, tuned against real disposable scans over several rounds. |
 | **1 · Interactive mocks** | ✅ Done | Clickable prototype of the guest flow; desi-retro event theme alongside the base look; community roll. |
 | **2 · MVP** | ✅ Done | Camera, direct-to-storage uploads, server-enforced roll limit, filtering, shared roll, darkroom, event themes. Tested end to end against local emulators. |
-| **3 · Deploy and demo** | ⏳ Next | Supabase + Azure + Vercel setup, real-phone testing, demo to the event partner. |
+| **3 · Deploy and demo** | ⏳ Next | Supabase + Azure Static Web Apps + Azure storage, real-phone testing, demo to the event partner. |
 | **4 · First live event** | 📅 Nov 2026 | ~200 guests, ~2,600 photos. Watch upload success rate, processing time, drop-offs at the camera permission prompt. |
 | **5 · Hardening** | Planned | Emailed 4-digit codes to find your roll on any device, upload retry that survives closing the page, rate limiting, queue-based processing for bursts. |
 | **6 · Product** | Planned | Host sign-up and self-serve events, theme builder, per-event pricing, bulk download for hosts. |
@@ -174,7 +174,7 @@ supabase/schema.sql    tables
 
 ## Running it
 
-You need three free-tier accounts: **Supabase** (database), an **Azure storage account** (photos), and **Vercel** (hosting).
+You need **Supabase** (database, free tier) and **Azure** (photo storage + Static Web Apps hosting on the Free plan).
 
 1. **Supabase:** create a project. Copy *Project Settings → Database → Connection string → Transaction pooler* (port 6543).
 2. **Azure:** use an existing storage account (ADLS Gen2 is fine) or create one (Standard, LRS). Copy the account name and a key from *Security + networking → Access keys*.
@@ -192,16 +192,19 @@ You need three free-tier accounts: **Supabase** (database), an **Azure storage a
    Leave out `--release` to hold the roll until you release it from `/admin`. Other flags: `--shots 11`, `--no-opt-outs`, `--date-stamp`.
 6. **Run it:** `npm run dev`, then open `http://localhost:3000/e/diwali` and `http://localhost:3000/admin`.
 
-### Deploy to Vercel
+### Deploy to Azure Static Web Apps (Free)
 
-1. Import the repo in Vercel. No build settings to change.
-2. Add the env vars from `.env.example`, with `SITE_URL` set to the deployed URL.
-3. Run `npm run setup` locally once more with that `SITE_URL`, so storage CORS accepts uploads from it.
-4. Open `/admin` and print the QR code.
+1. Azure portal → **Create a resource → Static Web App**. Plan: **Free**. Source: **GitHub**, repo `blindshot`, branch `main`. Build preset: **Next.js**, app location `/`, API and output location empty.
+2. Azure commits a GitHub Actions workflow to the repo; every push to `main` now builds and deploys.
+3. In the Static Web App → **Settings → Environment variables**, add the vars from `.env.example`, with `SITE_URL` set to the app's URL (`https://<name>.azurestaticapps.net`).
+4. Run `npm run setup` locally once more with that `SITE_URL`, so storage CORS accepts uploads from it.
+5. Open `/admin` and print the QR code.
+
+Hybrid Next.js on Static Web Apps is a Microsoft preview feature. If it misbehaves, the same build runs unchanged on Azure App Service (`node server.js` from `.next/standalone`).
 
 ### Testing on a phone
 
-The camera needs HTTPS. The easiest route is a Vercel preview deploy. To use your laptop's dev server, open a tunnel (`npx cloudflared tunnel --url http://localhost:3000` or ngrok), add the tunnel URL as `SITE_URL`, and re-run `npm run setup`.
+The camera needs HTTPS. The easiest route is a pull request: Static Web Apps gives it its own preview URL. To use your laptop's dev server, open a tunnel (`npx cloudflared tunnel --url http://localhost:3000` or ngrok), add the tunnel URL as `SITE_URL`, and re-run `npm run setup`.
 
 ### Film lab
 

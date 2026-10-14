@@ -1,15 +1,14 @@
-import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { sql } from "@/lib/db";
 import { processPhoto } from "@/lib/process";
 import { currentSession } from "@/lib/session";
 
-export const maxDuration = 60;
-
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const int = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 && (v as number) < 100_000 ? (v as number) : null);
 
-// The phone finished uploading the original: record metadata, then filter it after responding.
+// The phone finished uploading the original: record metadata and filter it (~1 s).
+// Done before responding rather than with after(), so it works on any host; the phone uploads in the background anyway.
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const photoId = typeof body?.photoId === "string" && UUID.test(body.photoId) ? body.photoId.toLowerCase() : null;
@@ -28,6 +27,6 @@ export async function POST(req: Request) {
       width = ${int(body?.width)}, height = ${int(body?.height)},
       device = ${(await headers()).get("user-agent")?.slice(0, 300) ?? null}
     where id = ${photoId}`;
-  after(() => processPhoto(photoId));
+  await processPhoto(photoId);
   return NextResponse.json({ ok: true });
 }

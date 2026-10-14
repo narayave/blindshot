@@ -232,14 +232,14 @@ function dustSvg(w: number, h: number, rand: () => number, amount: number, scrat
 
 // Faint credit, bottom-left (the date stamp lives bottom-right). Pre-traced path, so no fonts needed.
 function watermarkSvg(w: number, h: number): string {
-  const textH = Math.min(w, h) * 0.018;
+  const textH = Math.min(w, h) * 0.03;
   const k = textH / WATERMARK.height;
   const x = Math.min(w, h) * 0.035, y = h - Math.min(w, h) * 0.035 - textH;
   const t = `translate(${x} ${y}) scale(${k})`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
   <defs><filter id="s"><feGaussianBlur stdDeviation="${2 / k}"/></filter></defs>
-  <path d="${WATERMARK.d}" transform="${t}" fill="#000" opacity="0.25" filter="url(#s)"/>
-  <path d="${WATERMARK.d}" transform="${t}" fill="#fffbea" opacity="0.42"/>
+  <path d="${WATERMARK.d}" transform="${t}" fill="#000" opacity="0.3" filter="url(#s)"/>
+  <path d="${WATERMARK.d}" transform="${t}" fill="#fffbea" opacity="0.5"/>
 </svg>`;
 }
 
