@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { FILTERED } from "@/lib/config";
+import { FILTERED, thumbPath } from "@/lib/config";
 import { getEvent, isReleased, sql } from "@/lib/db";
 import { currentSession, isAdmin } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
@@ -77,7 +77,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
         {tabLink("mine", "Mine", counts.n_mine)}
       </div>
       <Sheet
-        frames={rows.map((r) => ({ id: r.id, src: url(r.filtered_path), by: r.mine ? "You" : r.name, n: r.shot_number, star: r.starred }))}
+        frames={rows.map((r) => ({ id: r.id, thumb: url(thumbPath(r.filtered_path)), src: url(r.filtered_path), by: r.mine ? "You" : r.name, n: r.shot_number, star: r.starred }))}
         moreHref={rows.length < total ? `?tab=${tab}&n=${limit + PAGE}` : null}
         empty={tab === "mine" ? "None of your shots are in yet." : "Nothing here yet."}
       />

@@ -1,5 +1,6 @@
 import sharp, { type OverlayOptions } from "sharp";
 import convert from "heic-convert";
+import { WATERMARK } from "./watermark.ts";
 
 type RGB = [number, number, number];
 
@@ -23,6 +24,7 @@ export type FilmOptions = {
   dust: number; // dust specks and hairs, 0 = clean scan
   scratches: number; // chance of a long scratch
   dateStamp: Date | null; // orange LED date in the corner
+  watermark: boolean; // faint credit in the bottom-left corner (text set in lib/watermark.ts)
   seed: number; // same seed = same grain, leaks and dust. Use a per-photo value
   quality: number; // jpeg quality
 };
@@ -49,6 +51,7 @@ export const DEFAULT_FILM: FilmOptions = {
   dust: 2.6,
   scratches: 0.3,
   dateStamp: null,
+  watermark: true,
   seed: 1,
   quality: 86,
 };
@@ -173,6 +176,7 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   if (rand() < o.leak.chance) layers.push({ input: Buffer.from(leakSvg(w, h, rand, o.leak)), blend: "screen" });
   if (o.dust > 0 || o.scratches > 0) layers.push({ input: Buffer.from(dustSvg(w, h, rand, o.dust, rand() < o.scratches)) });
   if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h)) });
+  if (o.watermark) layers.push({ input: Buffer.from(watermarkSvg(w, h)) });
   return sharp(base, raw3).composite(layers).jpeg({ quality: o.quality, mozjpeg: true }).toBuffer(); // sharp drops EXIF (incl. GPS)
 }
 
@@ -224,6 +228,19 @@ function dustSvg(w: number, h: number, rand: () => number, amount: number, scrat
     parts.push(`<path d="${d}" stroke="#fffbea" stroke-width="${1.2 * s}" opacity="${0.18 + rand() * 0.17}" fill="none"/>`);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${parts.join("")}</svg>`;
+}
+
+// Faint credit, bottom-left (the date stamp lives bottom-right). Pre-traced path, so no fonts needed.
+function watermarkSvg(w: number, h: number): string {
+  const textH = Math.min(w, h) * 0.018;
+  const k = textH / WATERMARK.height;
+  const x = Math.min(w, h) * 0.035, y = h - Math.min(w, h) * 0.035 - textH;
+  const t = `translate(${x} ${y}) scale(${k})`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+  <defs><filter id="s"><feGaussianBlur stdDeviation="${2 / k}"/></filter></defs>
+  <path d="${WATERMARK.d}" transform="${t}" fill="#000" opacity="0.25" filter="url(#s)"/>
+  <path d="${WATERMARK.d}" transform="${t}" fill="#fffbea" opacity="0.42"/>
+</svg>`;
 }
 
 // Seven-segment LED digits drawn as SVG rects, so no fonts are needed on the server.

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Frame = { id: string; src: string; by: string; n: number; star: boolean };
+type Frame = { id: string; thumb: string; src: string; by: string; n: number; star: boolean };
 
 export default function Sheet({ frames, moreHref, empty }: { frames: Frame[]; moreHref: string | null; empty: string }) {
   const [open, setOpen] = useState<Frame | null>(null);
@@ -19,7 +19,7 @@ export default function Sheet({ frames, moreHref, empty }: { frames: Frame[]; mo
         {frames.map((f) => (
           <button key={f.id} className="frame" type="button" onClick={() => setOpen(f)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={f.src} alt={`Frame ${f.n} by ${f.by}`} loading="lazy" />
+            <img src={f.thumb} alt={`Frame ${f.n} by ${f.by}`} loading="lazy" decoding="async" />
             <span className="edge"><span>{f.by}</span><span>▸ {f.n}</span></span>
             {f.star && <span className="star" title="Host pick">★</span>}
           </button>

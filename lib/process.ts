@@ -1,5 +1,6 @@
 import exifr from "exifr";
-import { FILTERED, ORIGINALS } from "./config";
+import sharp from "sharp";
+import { FILTERED, ORIGINALS, thumbPath } from "./config";
 import { sql } from "./db";
 import { DEFAULT_FILM, applyFilmFilter } from "./film";
 import { download, upload } from "./storage";
@@ -21,7 +22,12 @@ export async function processPhoto(photoId: string): Promise<void> {
       dateStamp: p.date_stamp ? (p.captured_at ?? new Date()) : null,
     });
     const filteredPath = p.original_path.replace(/\.[a-z]+$/i, ".jpg");
-    await upload(FILTERED, filteredPath, filtered, "image/jpeg");
+    // Small copy for grids: ~60 KB instead of ~700 KB, full size only loads when someone opens a frame.
+    const thumb = await sharp(filtered).resize(640, 640, { fit: "inside" }).jpeg({ quality: 78, mozjpeg: true }).toBuffer();
+    await Promise.all([
+      upload(FILTERED, filteredPath, filtered, "image/jpeg"),
+      upload(FILTERED, thumbPath(filteredPath), thumb, "image/jpeg"),
+    ]);
     await sql`
       update photos set filtered_path = ${filteredPath}, status = 'done', processed_at = now(), error = null,
         exif = ${exif ? sql.json(JSON.parse(JSON.stringify(exif))) : null}

@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import QRCode from "qrcode";
-import { FILTERED, ORIGINALS } from "@/lib/config";
+import { FILTERED, ORIGINALS, thumbPath } from "@/lib/config";
 import { isReleased, sql, type Event } from "@/lib/db";
 import { isAdmin } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
@@ -108,7 +108,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
             <article key={r.id} className={`card${r.hidden ? " is-hidden" : ""}`}>
               {r.filtered_path
                 ? // eslint-disable-next-line @next/next/no-img-element
-                  <a href={original(r.original_path)} target="_blank" rel="noreferrer" title="Open the untouched original"><img src={filtered(r.filtered_path)} alt={`${r.name}, shot ${r.shot_number}`} loading="lazy" /></a>
+                  <a href={original(r.original_path)} target="_blank" rel="noreferrer" title="Open the untouched original"><img src={filtered(thumbPath(r.filtered_path))} alt={`${r.name}, shot ${r.shot_number}`} loading="lazy" /></a>
                 : <div className="card-status">{r.status === "failed" ? "Filter failed" : "Developing…"}</div>}
               <div className="card-meta">
                 <span>{r.name} · {r.shot_number}</span>
