@@ -23,7 +23,7 @@ export type FilmOptions = {
   dust: number; // dust specks and hairs, 0 = clean scan
   scratches: number; // chance of a long scratch
   dateStamp: Date | null; // orange LED date in the corner
-  watermark: boolean; // faint credit in the bottom-left corner (text set in lib/watermark.ts)
+  watermark: boolean; // faint credit in the bottom-right corner (text set in lib/watermark.ts)
   seed: number; // same seed = same grain, leaks and dust. Use a per-photo value
   quality: number; // jpeg quality
 };
@@ -239,13 +239,14 @@ function dustSvg(w: number, h: number, rand: () => number, amount: number, scrat
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${parts.join("")}</svg>`;
 }
 
-// Credit, bottom-left (the date stamp lives bottom-right). Pre-traced path, so no fonts needed.
+// Credit, bottom-right (the date stamp lives bottom-left). Pre-traced path, so no fonts needed.
 // Tone flips with the background (dark text on bright corners, light on dark) and a soft halo in the
 // opposite tone keeps it readable over busy detail.
 type Box = { x: number; y: number; w: number; h: number };
 function watermarkBox(w: number, h: number): Box {
   const textH = Math.min(w, h) * 0.03, pad = Math.min(w, h) * 0.035;
-  return { x: pad, y: h - pad - textH, w: (textH * WATERMARK.width) / WATERMARK.height, h: textH };
+  const textW = (textH * WATERMARK.width) / WATERMARK.height;
+  return { x: w - pad - textW, y: h - pad - textH, w: textW, h: textH };
 }
 
 function meanLuma(rgb: Buffer, w: number, b: Box): number {
@@ -295,7 +296,7 @@ function dateStampSvg(date: Date, w: number, h: number): string {
     }
     x += W + gap;
   }
-  const ox = w - x - H * 1.5, oy = h - H * 2.2;
+  const ox = H * 1.5, oy = h - H * 2.2; // bottom-left: the watermark has bottom-right
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
   <defs><filter id="glow"><feGaussianBlur stdDeviation="${H * 0.12}"/></filter></defs>
   <g transform="translate(${ox} ${oy}) skewX(-6)" fill="#ff8a2a">
