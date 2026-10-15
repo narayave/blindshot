@@ -225,20 +225,9 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
   async function grab(snap: () => void): Promise<{ blob: Blob; w: number; h: number }> {
     const v = videoRef.current!;
     const track = streamRef.current?.getVideoTracks()[0];
-    const fire = flash && charged && !!track;
-    // Best: the phone's own flash through ImageCapture (Android Chrome). The phone meters with a pre-flash
-    // like its native camera app and returns a full-resolution photo.
-    if (fire && typeof ImageCapture !== "undefined") {
-      const ic = new ImageCapture(track!);
-      const caps = await ic.getPhotoCapabilities().catch(() => null);
-      if (caps?.fillLightMode?.includes("flash")) {
-        snap();
-        const blob = await ic.takePhoto({ fillLightMode: "flash" }).catch(() => null);
-        if (blob) return { blob, w: 0, h: 0 };
-      }
-    }
-    // Fallback: hold the phone light on until auto-exposure settles, then grab a frame.
-    const torch = fire && !!(track!.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
+    // The phone light stays on until auto-exposure settles, then we grab a frame: light first, then the shot.
+    // (ImageCapture's real flash was tried: on Android it often doesn't fire, and its pre-flash lags our click.)
+    const torch = flash && charged && !!track && !!(track.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
     if (torch) {
       await track!.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] }).catch(() => {});
       await exposureSettled(v);
@@ -429,7 +418,7 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
 /* ---------------- helpers ---------------- */
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-// Real-flash and picked photos come in at full sensor size (~4 MB); the film filter outputs 2000px, so send
+// Picked photos and big video frames can be full sensor size (~4 MB); the film filter outputs 2000px, so send
 // at most UPLOAD_EDGE to keep party-wifi uploads quick. Anything we can't decode goes up as-is.
 const UPLOAD_EDGE = 2400;
 async function shrink(blob: Blob, w: number, h: number): Promise<{ blob: Blob; w: number; h: number }> {
