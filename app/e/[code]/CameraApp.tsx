@@ -135,6 +135,9 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
 
   async function startCamera() {
     setCam("starting");
+    // Never sit on "Opening camera…": if the camera is held by another tab or the permission prompt got lost,
+    // fall back to the camera-app picker. If the stream turns up later, we still go live.
+    const stuck = setTimeout(() => setCam((c) => (c === "starting" ? "off" : c)), 8000);
     try {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -148,6 +151,8 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
       setCam("live");
     } catch {
       setCam("off");
+    } finally {
+      clearTimeout(stuck);
     }
   }
   const stopCamera = () => streamRef.current?.getTracks().forEach((t) => t.stop());
