@@ -1,5 +1,4 @@
 import sharp, { type OverlayOptions } from "sharp";
-import convert from "heic-convert";
 import { WATERMARK } from "./watermark.ts";
 
 type RGB = [number, number, number];
@@ -88,7 +87,9 @@ const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
 /** Original buffer in (JPEG/PNG/HEIC/...), filtered JPEG out. Output carries no EXIF/GPS. */
 export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOptions> = {}): Promise<Buffer> {
   const o = filmOptions(partial);
-  const src = isHeic(input) ? Buffer.from(await convert({ buffer: input, format: "JPEG", quality: 0.95 })) : input;
+  // heic-convert is a big decoder only iPhone uploads need: load it on demand to keep cold starts short.
+  const convert = isHeic(input) ? (await import("heic-convert")).default : null;
+  const src = convert ? Buffer.from(await convert({ buffer: input, format: "JPEG", quality: 0.95 })) : input;
 
   const { data, info } = await sharp(src)
     .rotate() // apply EXIF orientation
