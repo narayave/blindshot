@@ -1,0 +1,120 @@
+// Server rules that must hold whatever the browser does: shot limits, ownership, what the roll shows, the host gate.
+import { randomUUID } from "node:crypto";
+import { expect, test, request as pwRequest, type APIRequestContext } from "@playwright/test";
+import { dropEvent, makeEvent, photos, sql, testJpeg, waitDeveloped } from "./support.ts";
+
+type Ev = { id: string; code: string };
+
+async function guest(baseURL: string, e: Ev, extra: Record<string, unknown> = {}) {
+  const api = await pwRequest.newContext({ baseURL });
+  const r = await api.post("/api/session", { data: { eventCode: e.code, name: "Api", email: "api@example.com", consent: true, ...extra } });
+  expect(r.status()).toBe(200);
+  return api;
+}
+
+async function shoot(api: APIRequestContext, e: Ev, id = randomUUID(), times?: { capturedAt: string; sentAt: string }) {
+  const init = await api.post("/api/photos/init", { data: { eventCode: e.code, photoId: id } });
+  expect(init.status()).toBe(200);
+  const { uploadUrl } = await init.json();
+  const put = await fetch(uploadUrl, { method: "PUT", headers: { "x-ms-blob-type": "BlockBlob", "Content-Type": "image/jpeg" }, body: new Uint8Array(await testJpeg()) });
+  expect(put.status).toBe(201);
+  const now = new Date().toISOString();
+  const done = await api.post("/api/photos/complete", { data: { photoId: id, ...(times ?? { capturedAt: now, sentAt: now }) } });
+  expect(done.status()).toBe(200);
+  return { id, uploadUrl: uploadUrl as string };
+}
+
+const frames = async (api: APIRequestContext, e: Ev, tab = "all") =>
+  ((await (await api.get(`/e/${e.code}/roll?tab=${tab}`)).text()).match(/class="frame"/g) ?? []).length;
+
+let e: Ev;
+test.beforeEach(async () => { e = await makeEvent({ shots: 2 }); });
+test.afterEach(async () => { await dropEvent(e); });
+
+test("unknown event is a 404", async ({ request }) => {
+  expect((await request.get("/e/no-such-party")).status()).toBe(404);
+});
+
+test("joining needs consent", async ({ request }) => {
+  const r = await request.post("/api/session", { data: { eventCode: e.code, name: "A", email: "a@example.com" } });
+  expect(r.status()).toBe(400);
+});
+
+test("shot limit is enforced on the server, and retries don't burn shots", async ({ baseURL }) => {
+  const api = await guest(baseURL!, e);
+  const id = randomUUID();
+  const first = await (await api.post("/api/photos/init", { data: { eventCode: e.code, photoId: id } })).json();
+  expect(first.shotsLeft).toBe(1);
+  const retry = await (await api.post("/api/photos/init", { data: { eventCode: e.code, photoId: id } })).json();
+  expect(retry.shotsLeft).toBe(1); // same photo id: no new shot
+  expect((await (await api.post("/api/photos/init", { data: { eventCode: e.code, photoId: randomUUID() } })).json()).shotsLeft).toBe(0);
+  const over = await api.post("/api/photos/init", { data: { eventCode: e.code, photoId: randomUUID() } });
+  expect(over.status()).toBe(409);
+});
+
+test("upload links can write but not read; strangers can't touch photos", async ({ baseURL, request }) => {
+  const a = await guest(baseURL!, e);
+  const { id, uploadUrl } = await shoot(a, e);
+  expect((await fetch(uploadUrl)).status).toBe(403);
+
+  expect((await request.post("/api/photos/init", { data: { eventCode: e.code, photoId: randomUUID() } })).status()).toBe(401);
+  const b = await guest(baseURL!, e);
+  expect((await b.post("/api/photos/complete", { data: { photoId: id } })).status()).toBe(403);
+  expect((await b.post("/api/photos/complete", { data: { photoId: randomUUID() } })).status()).toBe(404);
+});
+
+test("roll: closed to non-guests, hidden until release, private rolls stay private", async ({ baseURL, request }) => {
+  const a = await guest(baseURL!, e, { privateRoll: true });
+  await shoot(a, e);
+  const b = await guest(baseURL!, e);
+  await shoot(b, e);
+  await waitDeveloped(e.id, 2);
+
+  expect(await (await request.get(`/e/${e.code}/roll`)).text()).toContain("for guests.");
+  expect(await frames(a, e, "mine")).toBe(1);
+  expect(await frames(a, e)).toBe(2); // you always see your own
+  expect(await frames(b, e)).toBe(1); // a's private frame is not shared
+
+  await sql`update events set release_at = null where id = ${e.id}`;
+  expect(await (await b.get(`/e/${e.code}/roll`)).text()).toContain("developing.");
+});
+
+test("capture times are corrected for a phone clock that's off", async ({ baseURL }) => {
+  const a = await guest(baseURL!, e);
+  const hourAgo = new Date(Date.now() - 3_600_000).toISOString(); // this phone's clock runs an hour slow
+  await shoot(a, e, undefined, { capturedAt: hourAgo, sentAt: hourAgo });
+  const [p] = await photos(e.id);
+  expect(Math.abs(p.captured_at!.getTime() - Date.now())).toBeLessThan(60_000);
+});
+
+test("darkroom: password gate, star a frame, release the roll", async ({ page, baseURL }) => {
+  test.skip(!process.env.ADMIN_PASSWORD, "needs ADMIN_PASSWORD");
+  await sql`update events set release_at = null where id = ${e.id}`;
+  const a = await guest(baseURL!, e);
+  await shoot(a, e);
+  await waitDeveloped(e.id, 1);
+
+  await page.goto(`/admin?event=${e.code}`);
+  await page.getByLabel("Host password").fill("definitely-wrong");
+  await page.getByRole("button", { name: /Open the darkroom/ }).click();
+  await expect(page.getByText("That password isn't right.")).toBeVisible();
+
+  await page.getByLabel("Host password").fill(process.env.ADMIN_PASSWORD!);
+  await page.getByRole("button", { name: /Open the darkroom/ }).click();
+  await expect(page.getByLabel("Host password")).toBeHidden();
+  await page.goto(`/admin?event=${e.code}`);
+  await expect(page.getByRole("heading", { name: "E2E Party" })).toBeVisible();
+
+  await expect(page.locator("svg").filter({ has: page.locator("path") }).first()).toBeVisible(); // QR code
+  await page.getByRole("button", { name: "☆ Star" }).click();
+  await expect(page.getByRole("button", { name: "★ Starred" })).toBeVisible();
+  await page.getByRole("button", { name: "Release the roll now" }).click();
+  await expect(page.getByRole("button", { name: "Hide the roll again" })).toBeVisible();
+  expect(await frames(a, e, "picks")).toBe(1);
+
+  // hiding takes a frame off the guests' roll
+  expect(await frames(a, e)).toBe(1);
+  await page.getByRole("button", { name: "Hide", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Unhide" })).toBeVisible();
+  expect(await frames(a, e)).toBe(0);
+});

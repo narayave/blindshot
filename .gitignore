@@ -43,3 +43,7 @@ next-env.d.ts
 
 # film lab: personal photos never get committed
 /lab/
+
+# playwright
+/test-results/
+/playwright-report/

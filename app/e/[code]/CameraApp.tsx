@@ -358,7 +358,9 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
                 w.moved += dx;
                 addWind(dx);
               }}
-              onPointerUp={() => { if (windRef.current.moved < 4) addWind(40); windRef.current.lastX = null; }}
+              onPointerUp={() => { windRef.current.lastX = null; }}
+              // A tap winds a notch. On click, not pointerup: screen readers, Enter/Space and some browsers send only click.
+              onClick={() => { if (windRef.current.moved < 4) addWind(40); windRef.current.moved = 0; }}
               onKeyDown={(e) => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); addWind(40); } }}
             />
             <span className="tiny">{wound ? "Wound" : "Wind ←"}</span>
