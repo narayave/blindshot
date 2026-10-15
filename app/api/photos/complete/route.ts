@@ -21,7 +21,11 @@ export async function POST(req: Request) {
   if (session?.id !== p.session_id) return NextResponse.json({ error: "Not your photo" }, { status: 403 });
   if (p.status === "done") return NextResponse.json({ ok: true });
 
-  const captured = typeof body?.capturedAt === "string" && !isNaN(Date.parse(body.capturedAt)) ? new Date(body.capturedAt) : null;
+  // Shift the phone's capture time by how far its clock is off ours, so shots from different phones
+  // line up (wigglegrams are found by matching capture times across guests).
+  const time = (v: unknown) => (typeof v === "string" && !isNaN(Date.parse(v)) ? Date.parse(v) : null);
+  const at = time(body?.capturedAt), sent = time(body?.sentAt);
+  const captured = at === null ? null : new Date(sent === null ? at : at + (Date.now() - sent));
   await sql`
     update photos set status = 'uploaded', uploaded_at = now(), captured_at = ${captured},
       width = ${int(body?.width)}, height = ${int(body?.height)},

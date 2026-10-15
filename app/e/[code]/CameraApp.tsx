@@ -281,7 +281,7 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
         setLeft((l) => Math.min(l, shotsLeft));
         const put = await fetch(uploadUrl, { method: "PUT", headers: { "x-ms-blob-type": "BlockBlob", "Content-Type": type }, body: blob });
         if (!put.ok) throw new Error(`upload ${put.status}`);
-        const done = await postJSON("/api/photos/complete", { photoId, capturedAt: capturedAt.toISOString(), width: w || undefined, height: h || undefined });
+        const done = await postJSON("/api/photos/complete", { photoId, capturedAt: capturedAt.toISOString(), sentAt: new Date().toISOString(), width: w || undefined, height: h || undefined });
         if (!done.ok) throw new Error(`complete ${done.status}`);
         return;
       } catch {
