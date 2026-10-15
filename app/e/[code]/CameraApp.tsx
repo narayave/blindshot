@@ -110,8 +110,10 @@ function Join({ event, onJoined }: { event: EventInfo; onJoined: (g: Guest) => v
 /* ---------------- camera ---------------- */
 
 const WIND_PX = 120;
-// How long the phone light burns before the shot: LEDs need a moment, then auto-exposure settles. Tune per phone.
-const TORCH_MS = 600;
+// Torch fallback: the light burns at least TORCH_MIN_MS (LED warm-up), then until brightness stops changing
+// (auto-exposure has caught up), but never longer than TORCH_MAX_MS. Tune per phone.
+const TORCH_MIN_MS = 700;
+const TORCH_MAX_MS = 2000;
 
 function Camera({ event, me }: { event: EventInfo; me: Guest }) {
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
@@ -214,17 +216,30 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     fx.classList.add("go");
   }
 
-  async function grab(): Promise<{ blob: Blob; w: number; h: number }> {
+  // `snap` plays the shutter sound and screen flash, timed to the moment the picture is really taken.
+  async function grab(snap: () => void): Promise<{ blob: Blob; w: number; h: number }> {
     const v = videoRef.current!;
     const track = streamRef.current?.getVideoTracks()[0];
-    // Real flash where the browser allows it (Android Chrome); iPhones get the screen flash only.
-    const torch = flash && charged && !!track && !!(track.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
+    const fire = flash && charged && !!track;
+    // Best: the phone's own flash through ImageCapture (Android Chrome). The phone meters with a pre-flash
+    // like its native camera app and returns a full-resolution photo.
+    if (fire && typeof ImageCapture !== "undefined") {
+      const ic = new ImageCapture(track!);
+      const caps = await ic.getPhotoCapabilities().catch(() => null);
+      if (caps?.fillLightMode?.includes("flash")) {
+        snap();
+        const blob = await ic.takePhoto({ fillLightMode: "flash" }).catch(() => null);
+        if (blob) return { blob, w: 0, h: 0 };
+      }
+    }
+    // Fallback: hold the phone light on until auto-exposure settles, then grab a frame.
+    const torch = fire && !!(track!.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
     if (torch) {
       await track!.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] }).catch(() => {});
-      await sleep(TORCH_MS);
-      await nextFrame(v); // make sure the frame we grab was captured after the wait, with the light on
+      await exposureSettled(v);
     }
     try {
+      snap();
       const c = document.createElement("canvas");
       c.width = v.videoWidth;
       c.height = v.videoHeight;
@@ -247,11 +262,13 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     if (!file && cam !== "live") return;
     busy.current = true;
     const fired = flash && charged;
-    click();
-    buzz(18);
-    flashFx(fired);
+    const snap = () => {
+      click();
+      buzz(18);
+      flashFx(fired);
+    };
     try {
-      const shot = file ? { blob: file as Blob, w: 0, h: 0 } : await grab();
+      const shot = file ? (snap(), { blob: file as Blob, w: 0, h: 0 }) : await grab(snap);
       setWound(false);
       setLeft((l) => l - 1);
       setStatus(left - 1 === 0 ? ["That's the roll", "Developing…"] : ["Saved", "Wind on for the next shot."]);
@@ -406,6 +423,28 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
 /* ---------------- helpers ---------------- */
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function exposureSettled(v: HTMLVideoElement) {
+  const c = document.createElement("canvas");
+  c.width = 32;
+  c.height = 24;
+  const g = c.getContext("2d", { willReadFrequently: true })!;
+  const luma = () => {
+    g.drawImage(v, 0, 0, 32, 24);
+    const d = g.getImageData(0, 0, 32, 24).data;
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+    return sum / ((d.length / 4) * 765);
+  };
+  const start = performance.now();
+  let prev = luma(), calm = 0;
+  while (performance.now() - start < TORCH_MAX_MS) {
+    await nextFrame(v);
+    const l = luma();
+    calm = performance.now() - start > TORCH_MIN_MS && Math.abs(l - prev) < 0.01 ? calm + 1 : 0;
+    if (calm >= 4) return; // four steady frames in a row
+    prev = l;
+  }
+}
 const nextFrame = (v: HTMLVideoElement) =>
   new Promise<void>((r) => {
     setTimeout(r, 200); // never hang if the video stalls
