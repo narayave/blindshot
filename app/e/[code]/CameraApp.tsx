@@ -285,7 +285,8 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     const photoId = crypto.randomUUID();
     setPending((p) => p + 1);
     queue.current = queue.current
-      .then(() => upload(photoId, blob, w, h, capturedAt))
+      .then(() => shrink(blob, w, h))
+      .then((s) => upload(photoId, s.blob, s.w, s.h, capturedAt))
       .finally(() => setPending((p) => p - 1));
   }
 
@@ -423,6 +424,27 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
 /* ---------------- helpers ---------------- */
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Real-flash and picked photos come in at full sensor size (~4 MB); the film filter outputs 2000px, so send
+// at most UPLOAD_EDGE to keep party-wifi uploads quick. Anything we can't decode goes up as-is.
+const UPLOAD_EDGE = 2400;
+async function shrink(blob: Blob, w: number, h: number): Promise<{ blob: Blob; w: number; h: number }> {
+  if (w && Math.max(w, h) <= UPLOAD_EDGE) return { blob, w, h };
+  try {
+    const bmp = await createImageBitmap(blob, { imageOrientation: "from-image" });
+    const k = UPLOAD_EDGE / Math.max(bmp.width, bmp.height);
+    if (k >= 1) return { blob, w: bmp.width, h: bmp.height };
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k);
+    c.height = Math.round(bmp.height * k);
+    c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close();
+    const out = await new Promise<Blob | null>((ok) => c.toBlob(ok, "image/jpeg", 0.92));
+    return out ? { blob: out, w: c.width, h: c.height } : { blob, w, h };
+  } catch {
+    return { blob, w, h };
+  }
+}
+
 async function exposureSettled(v: HTMLVideoElement) {
   const c = document.createElement("canvas");
   c.width = 32;
