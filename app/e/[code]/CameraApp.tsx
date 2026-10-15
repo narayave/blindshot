@@ -110,6 +110,8 @@ function Join({ event, onJoined }: { event: EventInfo; onJoined: (g: Guest) => v
 /* ---------------- camera ---------------- */
 
 const WIND_PX = 120;
+// How long the phone light burns before the shot: LEDs need a moment, then auto-exposure settles. Tune per phone.
+const TORCH_MS = 600;
 
 function Camera({ event, me }: { event: EventInfo; me: Guest }) {
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
@@ -219,7 +221,8 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     const torch = flash && charged && !!track && !!(track.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
     if (torch) {
       await track!.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] }).catch(() => {});
-      await sleep(250);
+      await sleep(TORCH_MS);
+      await nextFrame(v); // make sure the frame we grab was captured after the wait, with the light on
     }
     try {
       const c = document.createElement("canvas");
@@ -403,6 +406,11 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
 /* ---------------- helpers ---------------- */
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const nextFrame = (v: HTMLVideoElement) =>
+  new Promise<void>((r) => {
+    setTimeout(r, 200); // never hang if the video stalls
+    if ("requestVideoFrameCallback" in v) v.requestVideoFrameCallback(() => r());
+  });
 const postJSON = (url: string, body: unknown) =>
   fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 const formatWhen = (iso: string) =>
