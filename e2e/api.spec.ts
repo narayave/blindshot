@@ -8,7 +8,7 @@ type Ev = { id: string; code: string };
 
 async function guest(baseURL: string, e: Ev, extra: Record<string, unknown> = {}) {
   const api = await pwRequest.newContext({ baseURL });
-  const r = await api.post("/api/session", { data: { eventCode: e.code, name: "Api", email: "api@example.com", consent: true, ...extra } });
+  const r = await api.post("/api/session", { data: { eventCode: e.code, name: "Api", consent: true, ...extra } });
   expect(r.status()).toBe(200);
   return api;
 }
@@ -37,8 +37,18 @@ test("unknown event is a 404", async ({ request }) => {
 });
 
 test("joining needs consent", async ({ request }) => {
-  const r = await request.post("/api/session", { data: { eventCode: e.code, name: "A", email: "a@example.com" } });
+  const r = await request.post("/api/session", { data: { eventCode: e.code, name: "A" } });
   expect(r.status()).toBe(400);
+});
+
+test("Instagram is optional, tidied to a bare handle, and nonsense is refused", async ({ request }) => {
+  const join = (instagram?: string) => request.post("/api/session", { data: { eventCode: e.code, name: "Ig", consent: true, instagram } });
+  expect((await join()).status()).toBe(200);
+  expect((await join("@Some.One_")).status()).toBe(200);
+  expect((await join("https://www.instagram.com/other.one/?hl=en")).status()).toBe(200);
+  expect((await join("not a handle!")).status()).toBe(400);
+  const rows = await sql<{ instagram: string | null }[]>`select instagram from sessions where event_id = ${e.id} order by created_at`;
+  expect(rows.map((r) => r.instagram)).toEqual([null, "some.one_", "other.one"]);
 });
 
 test("shot limit is enforced on the server, and retries don't burn shots", async ({ baseURL }) => {

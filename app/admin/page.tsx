@@ -11,7 +11,7 @@ export const metadata = { title: "Darkroom · blindshot" };
 
 type Row = {
   id: string; filtered_path: string | null; original_path: string; status: string; error: string | null;
-  starred: boolean; hidden: boolean; shot_number: number; name: string; no_promo: boolean; private_roll: boolean;
+  starred: boolean; hidden: boolean; shot_number: number; name: string; instagram: string | null; no_promo: boolean; private_roll: boolean;
 };
 const VIEWS = ["all", "starred", "hidden", "problems"] as const;
 
@@ -44,7 +44,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
     from photos where event_id = ${event.id}`;
   const rows = await sql<Row[]>`
     select p.id, p.filtered_path, p.original_path, p.status, p.error, p.starred, p.hidden, p.shot_number,
-           s.name, s.no_promo, s.private_roll
+           s.name, s.instagram, s.no_promo, s.private_roll
     from photos p join sessions s on s.id = p.session_id
     where p.event_id = ${event.id}
       ${view === "starred" ? sql`and p.starred` : view === "hidden" ? sql`and p.hidden` : view === "problems" ? sql`and p.status <> 'done'` : sql``}
@@ -111,7 +111,10 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
                   <a href={original(r.original_path)} target="_blank" rel="noreferrer" title="Open the untouched original"><img src={filtered(thumbPath(r.filtered_path))} alt={`${r.name}, shot ${r.shot_number}`} loading="lazy" /></a>
                 : <div className="card-status">{r.status === "failed" ? "Filter failed" : "Developing…"}</div>}
               <div className="card-meta">
-                <span>{r.name} · {r.shot_number}</span>
+                <span>
+                  {r.name} · {r.shot_number}
+                  {r.instagram && <> · <a href={`https://instagram.com/${r.instagram}`} target="_blank" rel="noreferrer">@{r.instagram}</a></>}
+                </span>
                 <span className="badges">
                   {r.no_promo && <i title="Don't use for promotion">no promo</i>}
                   {r.private_roll && <i title="Kept out of the shared roll">private</i>}

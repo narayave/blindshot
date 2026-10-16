@@ -13,9 +13,10 @@ Grouped by persona. Each story lists its acceptance criteria and how it's tested
 ## Guest
 
 ### G1. Join without an account
-As a guest, I want to join from a QR code with just my name and email, so that I can start shooting in seconds.
+As a guest, I want to join from a QR code with just my name (and my Instagram, if I want to be tagged), so that I can start shooting in seconds.
 - The event link opens in the phone's browser; no app install, no password.
-- Name, email and the consent tick are required; joining without consent is refused.
+- Name and the consent tick are required; joining without consent is refused.
+- Instagram is optional. "@Name", "name" or a profile link all become the bare handle; anything else is refused.
 - Joining sets a cookie, so reopening the link resumes my roll with the same shots left.
 - An unknown event code shows a not-found page.
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { instagramHandle } from "@/lib/config";
 
 type EventInfo = {
   code: string;
@@ -41,9 +42,9 @@ function Join({ event, onJoined }: { event: EventInfo; onJoined: (g: Guest) => v
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const name = String(f.get("name") ?? "").trim();
-    const email = String(f.get("email") ?? "").trim();
+    const ig = String(f.get("instagram") ?? "").trim();
     if (!name) return setErr("Add your first name so your frames are credited to you.");
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setErr("That email doesn't look right. We need it to get you back into the roll.");
+    if (ig && !instagramHandle(ig)) return setErr("That Instagram handle doesn't look right. Leave it blank if you're not on Instagram.");
     if (f.get("consent") !== "on") return setErr("Tick the box to agree to how photos are shared.");
     setErr("");
     setBusy(true);
@@ -51,7 +52,7 @@ function Join({ event, onJoined }: { event: EventInfo; onJoined: (g: Guest) => v
     const res = await postJSON("/api/session", {
       eventCode: event.code,
       name,
-      email,
+      instagram: ig,
       consent: true,
       noPromo: f.get("noPromo") === "on",
       privateRoll: f.get("privateRoll") === "on",
@@ -72,8 +73,8 @@ function Join({ event, onJoined }: { event: EventInfo; onJoined: (g: Guest) => v
         <label className="field" htmlFor="name">First name
           <input id="name" name="name" autoComplete="given-name" required />
         </label>
-        <label className="field" htmlFor="email">Email, to get back into the roll later
-          <input id="email" name="email" type="email" inputMode="email" autoComplete="email" required />
+        <label className="field" htmlFor="instagram">Instagram, so the host can tag you (optional)
+          <input id="instagram" name="instagram" placeholder="@yourhandle" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
         </label>
         <div className="consent">
           <label className="check" htmlFor="consent">

@@ -33,7 +33,7 @@ async function join(code: string, i: number) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const r = await timed("join", () => fetch(`${BASE}/api/session`, {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ eventCode: code, name: `Load${i}`, email: `load${i}@example.com`, consent: true }),
+      body: JSON.stringify({ eventCode: code, name: `Load${i}`, instagram: `load${i}`, consent: true }),
     })).catch(() => null);
     if (r?.ok) return r.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
     fail(`join ${r?.status ?? "network"}`);

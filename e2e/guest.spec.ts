@@ -5,7 +5,7 @@ import { dropEvent, makeEvent, testJpeg, waitDeveloped } from "./support.ts";
 async function join(page: Page, code: string, name = "Tester") {
   await page.goto(`/e/${code}`);
   await page.getByLabel("First name").fill(name);
-  await page.getByLabel(/Email/).fill(`${name.toLowerCase()}@example.com`);
+  await page.getByLabel(/Instagram/).fill(`@${name.toLowerCase()}`);
   await page.locator("#consent").check();
   await page.locator("form button[type=submit]").click();
 }
@@ -40,7 +40,7 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
 
     // consent is required
     await page.getByLabel("First name").fill("Tester");
-    await page.getByLabel(/Email/).fill("tester@example.com");
+    await page.getByLabel(/Instagram/).fill("instagram.com/Tester.Shoots/");
     await page.locator("form button[type=submit]").click();
     await expect(page.getByText(/Tick the box/)).toBeVisible();
     await page.locator("#consent").check();

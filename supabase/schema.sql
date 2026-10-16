@@ -18,7 +18,8 @@ create table if not exists sessions (
   event_id uuid not null references events(id) on delete cascade,
   token_hash text unique not null,        -- sha256 of the cookie token
   name text not null,
-  email text,
+  email text,                             -- no longer asked at join (kept for older rows)
+  instagram text,                         -- optional handle, lowercase without the @, for tagging
   consent_at timestamptz not null,
   no_promo boolean not null default false,     -- don't use my photos for promotion
   private_roll boolean not null default false, -- keep my photos out of the shared roll (host still sees them)
@@ -53,6 +54,8 @@ create index if not exists photos_event_created on photos (event_id, created_at)
 
 -- Film-artifact overlays on ~1 in 12 frames (needs the overlays/ folder deployed with the worker).
 alter table events add column if not exists overlays boolean not null default false;
+
+alter table sessions add column if not exists instagram text;
 
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;

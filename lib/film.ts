@@ -21,6 +21,7 @@ export type FilmOptions = {
   softness: number; // blur sigma in px, 0 = off
   leak: { chance: number; strength: number; colors: string[] }; // light leak from the film edge
   overlay: Buffer | null; // a film-artifact image (burn, leak) screened over the frame instead of the drawn leak
+  shake: { chance: number; strength: number }; // dragged shutter: a shaken ghost of the scene over the sharp frame
   dust: number; // dust specks and hairs, 0 = clean scan
   scratches: number; // chance of a long scratch
   dateStamp: Date | null; // orange LED date in the corner
@@ -49,6 +50,7 @@ export const DEFAULT_FILM: FilmOptions = {
   softness: 0.4,
   leak: { chance: 0.25, strength: 0.5, colors: ["#ff6a3d", "#ff9a6b", "#ff8fa3", "#ffd27a"] },
   overlay: null,
+  shake: { chance: 0.12, strength: 1 },
   dust: 2.6,
   scratches: 0.3,
   dateStamp: null,
@@ -103,6 +105,9 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const { width: w, height: h } = info;
   const n = w * h;
   const long = Math.max(w, h);
+  // Own random stream, so a shaken frame doesn't change any other frame's grain, leaks or dust.
+  const shakeRand = mulberry32(o.seed ^ 0x51ed27);
+  if (shakeRand() < o.shake.chance) dragShutter(data, w, h, long, shakeRand, o.shake.strength);
   const raw1 = { raw: { width: w, height: h, channels: 1 as const } };
   const raw3 = { raw: { width: w, height: h, channels: 3 as const } };
 
@@ -190,6 +195,31 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
     img = img.composite(layers);
   }
   return img.jpeg({ quality: o.quality, mozjpeg: true }).toBuffer(); // sharp drops EXIF (incl. GPS)
+}
+
+// A party disposable with the shutter dragging: the flash freezes the scene sharp while the open shutter adds a
+// ghost of it, shaken along a short curved path (12-28 px on a 2000 px frame). Blends in place.
+function dragShutter(px: Buffer, w: number, h: number, long: number, rand: () => number, strength: number) {
+  const steps = 10;
+  const len = long * (0.006 + rand() * 0.008) * strength;
+  const a = rand() * Math.PI, bend = (rand() - 0.5) * 0.6; // direction, and how much the hand curves
+  const mix = 0.45 + rand() * 0.25; // how strong the ghost is
+  const sum = new Uint32Array(px.length);
+  for (let s = 0; s < steps; s++) {
+    const t = s / (steps - 1) - 0.5, side = bend * len * (1 - 4 * t * t);
+    const dx = Math.round(t * len * Math.cos(a) - side * Math.sin(a));
+    const dy = Math.round(t * len * Math.sin(a) + side * Math.cos(a));
+    for (let y = 0; y < h; y++) {
+      const row = Math.min(h - 1, Math.max(0, y + dy)) * w;
+      for (let x = 0; x < w; x++) {
+        const si = (row + Math.min(w - 1, Math.max(0, x + dx))) * 3, di = (y * w + x) * 3;
+        sum[di] += px[si];
+        sum[di + 1] += px[si + 1];
+        sum[di + 2] += px[si + 2];
+      }
+    }
+  }
+  for (let i = 0; i < px.length; i++) px[i] = px[i] * (1 - mix) + (sum[i] / steps) * mix + 0.5;
 }
 
 // Random RGB noise at reduced resolution, upscaled so grain clumps instead of being per-pixel.

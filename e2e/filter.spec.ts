@@ -74,3 +74,14 @@ test("an overlay is screened on, placed the same way for the same seed and diffe
   const mean = async (b: Buffer) => (await sharp(b).stats()).channels.slice(0, 3).reduce((s, c) => s + c.mean, 0);
   expect(await mean(a)).toBeGreaterThan(await mean(none));
 });
+
+test("a dragged shutter ghosts the frame, the same way for the same seed", async () => {
+  const src = await testJpeg(800, 600);
+  const still = await applyFilmFilter(src, { seed: 4, shake: { chance: 0, strength: 1 } });
+  const shaken = await applyFilmFilter(src, { seed: 4, shake: { chance: 1, strength: 1 } });
+  expect(shaken.equals(still)).toBe(false);
+  expect((await applyFilmFilter(src, { seed: 4, shake: { chance: 1, strength: 1 } })).equals(shaken)).toBe(true);
+  // the ghost smears edges: less fine detail than the still frame
+  const detail = async (b: Buffer) => (await sharp(b).greyscale().stats()).sharpness;
+  expect(await detail(shaken)).toBeLessThan(await detail(still));
+});
