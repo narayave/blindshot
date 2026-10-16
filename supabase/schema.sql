@@ -50,3 +50,6 @@ create table if not exists photos (
 );
 
 create index if not exists photos_event_created on photos (event_id, created_at);
+
+-- Worker tries per photo: transient failures are retried, the third failure sticks.
+alter table photos add column if not exists attempts int not null default 0;

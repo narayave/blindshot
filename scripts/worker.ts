@@ -10,7 +10,7 @@ process.on("SIGTERM", () => { stop = true; });
 console.log("worker: developing uploads (Ctrl-C to stop)");
 while (!stop) {
   const t = Date.now();
-  const n = await develop(30_000).catch((e) => (console.error("worker:", e), 0));
+  const n = await develop(30_000, 3).catch((e) => (console.error("worker:", e), 0));
   if (n) console.log(`worker: developed ${n} in ${((Date.now() - t) / 1000).toFixed(1)}s`);
   else await new Promise((r) => setTimeout(r, 2_000));
 }

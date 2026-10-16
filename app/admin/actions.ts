@@ -30,6 +30,6 @@ export async function setRelease(eventId: string, when: "now" | "hold") {
 // Back in the queue: the worker develops it again.
 export async function reprocess(photoId: string) {
   await guard();
-  await sql`update photos set status = 'uploaded', processed_at = null where id = ${photoId} and status <> 'pending'`;
+  await sql`update photos set status = 'uploaded', processed_at = null, attempts = 0 where id = ${photoId} and status <> 'pending'`;
   revalidatePath("/admin");
 }

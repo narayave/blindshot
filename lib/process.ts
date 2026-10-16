@@ -5,7 +5,7 @@ import { sql } from "./db.ts";
 import { DEFAULT_FILM, applyFilmFilter } from "./film.ts";
 import { download, upload } from "./storage.ts";
 
-// Original in, filtered copy out. Kept apart from the route so it can move to a queue/worker later.
+// Original in, filtered copy out.
 export async function processPhoto(photoId: string): Promise<void> {
   const [p] = await sql<{ original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; captured_at: Date | null }[]>`
     select p.original_path, p.shot_number, e.max_shots, e.date_stamp, p.captured_at
@@ -33,7 +33,10 @@ export async function processPhoto(photoId: string): Promise<void> {
         exif = ${exif ? sql.json(JSON.parse(JSON.stringify(exif))) : null}
       where id = ${photoId}`;
   } catch (e) {
-    await sql`update photos set status = 'failed', error = ${String(e).slice(0, 500)} where id = ${photoId}`;
+    // A storage or database blip shouldn't cost a frame: back in the queue (the 2-min claim spaces the tries out),
+    // and only after the third try is it 'failed', for the darkroom's Retry button.
+    await sql`update photos set status = case when attempts >= 3 then 'failed' else 'uploaded' end,
+      error = ${String(e).slice(0, 500)} where id = ${photoId}`;
   }
 }
 
@@ -41,24 +44,28 @@ export async function processPhoto(photoId: string): Promise<void> {
 // machine: on the free Azure host, 100 uploads filtering at once took the whole site down (npm run load).
 let busy = false;
 
-// Develop queued photos, oldest first, for about budgetMs; returns how many. Safe to run from several processes at once.
-export async function develop(budgetMs: number): Promise<number> {
+// Develop queued photos, oldest first, `lanes` at a time (downloads and uploads overlap the filtering), for about
+// budgetMs; returns how many. Safe to run from several processes at once.
+export async function develop(budgetMs: number, lanes = 1): Promise<number> {
   if (busy) return 0;
   busy = true;
   const end = Date.now() + budgetMs;
   let n = 0;
-  try {
+  const lane = async () => {
     while (Date.now() < end) {
-      // processed_at is the claim while status is still 'uploaded'; a server that died mid-filter frees it after 2 min.
+      // processed_at is the claim while status is still 'uploaded'; a worker that died mid-filter frees it after 2 min.
       const [p] = await sql<{ id: string }[]>`
-        update photos set processed_at = now() where id = (
+        update photos set processed_at = now(), attempts = attempts + 1 where id = (
           select id from photos where status = 'uploaded' and (processed_at is null or processed_at < now() - interval '2 minutes')
           order by uploaded_at limit 1 for update skip locked)
         returning id`;
-      if (!p) break;
+      if (!p) return;
       await processPhoto(p.id);
       n++;
     }
+  };
+  try {
+    await Promise.all(Array.from({ length: lanes }, lane));
   } finally {
     busy = false;
   }

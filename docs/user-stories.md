@@ -182,4 +182,4 @@ As the product owner, I want 100 guests pressing the shutter at the same moment 
 - 100 simultaneous shots all upload with no failures, and the site stays responsive during and after.
 - Every one of them is developed within minutes. Developing never slows down uploads: it runs on a separate worker.
 
-Coverage: `load` (100/100 uploaded within 18 s, all developed in about 4 min, on the live site)
+Coverage: `load`, on the live site: 100 at once all uploaded within 18 s and developed in about 4 min; 200 guests × 3 bursts (600 photos) all uploaded within 41 s each and developed at about 30 a minute, with no failures.

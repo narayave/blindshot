@@ -80,7 +80,7 @@ flowchart LR
 
 **The website never touches an image.** Phones upload straight to Azure with a short-lived URL that can write exactly one file and read nothing. The website only issues those URLs and records metadata, which is cheap enough for a whole party pressing the shutter at once.
 
-**Filtering runs on a separate worker.** An Azure Function wakes every minute and develops the queue, oldest first, one photo at a time. The queue is just the `photos` table: rows with `status = 'uploaded'`, claimed with `for update skip locked`, so a second worker (or a test) can run alongside safely. This split is the result of a load test: when 100 uploads ran the filter on the website's own free backend, every request timed out and the site stayed down until redeployed. With the worker, 100 simultaneous shots all upload within 18 s and are developed about 4 minutes later (`npm run load`).
+**Filtering runs on a separate worker.** An Azure Function wakes every minute and develops the queue, oldest first, one photo at a time. The queue is just the `photos` table: rows with `status = 'uploaded'`, claimed with `for update skip locked`, so a second worker (or a test) can run alongside safely. This split is the result of a load test: when 100 uploads ran the filter on the website's own free backend, every request timed out and the site stayed down until redeployed. With the worker, 100 simultaneous shots all upload within 18 s and are developed about 4 minutes later. At event scale, 200 guests firing three bursts (600 photos) all upload within 41 s each, and the worker develops about 30 a minute, three at a time. A 200-guest night averages about 11 a minute (`npm run load`).
 
 ### Lifecycle of one shot
 
@@ -278,6 +278,16 @@ The website doesn't filter photos; this worker does. Flex Consumption is pay-per
 3. Deploy (needs Azure Functions Core Tools, `func`): `scripts/deploy-worker.sh`. Re-run it whenever `lib/` changes.
 
 Hybrid Next.js on Static Web Apps is a Microsoft preview feature, its backend times out requests at 45 s, and it has little CPU. That's why no image work runs there. The first request after a restart can be slow; phones retry on their own. If it misbehaves, the same build runs unchanged on Azure App Service (`node server.js` from `.next/standalone`).
+
+### On the night
+
+Uploads and developing are separate, so a worker problem never loses a photo: every original is in storage before anything develops, and the roll is held until release anyway. A worker problem only means photos develop later.
+
+- **The day before:** `npm run load` against the live site. It exercises site, storage, database and worker end to end on a throwaway event, then deletes it. Supabase's free tier pauses a project after a week without activity, so check its dashboard too.
+- **During:** keep the darkroom open. *Shots* minus *developed* is the queue, and it should drain within a few minutes even after a rush. *Need a look* counts anything still undeveloped after 10 minutes.
+- **If the queue stops draining:** `az functionapp restart -g <resource-group> -n blindshot-worker`, or run `npm run worker` on any laptop with `.env.local`. It works alongside the Azure worker, since each photo is claimed by exactly one of them.
+- **Failures:** a photo that fails to develop is retried twice, two minutes apart, before it shows up as failed with a Retry button. A run that crashes or hangs is simply replaced by the next minute's run, and its claimed photos come free again after 2 minutes.
+- **Logs:** Azure portal → `blindshot-worker` → Application Insights → Logs.
 
 ### Testing on a phone
 

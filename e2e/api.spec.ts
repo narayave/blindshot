@@ -1,6 +1,7 @@
 // Server rules that must hold whatever the browser does: shot limits, ownership, what the roll shows, the host gate.
 import { randomUUID } from "node:crypto";
 import { expect, test, request as pwRequest, type APIRequestContext } from "@playwright/test";
+import { develop } from "../lib/process.ts";
 import { dropEvent, makeEvent, photos, sql, testJpeg, waitDeveloped } from "./support.ts";
 
 type Ev = { id: string; code: string };
@@ -85,6 +86,28 @@ test("capture times are corrected for a phone clock that's off", async ({ baseUR
   await shoot(a, e, undefined, { capturedAt: hourAgo, sentAt: hourAgo });
   const [p] = await photos(e.id);
   expect(Math.abs(p.captured_at!.getTime() - Date.now())).toBeLessThan(60_000);
+});
+
+test("a failed develop is retried, and only the third failure sticks", async ({ baseURL }) => {
+  test.skip(!!process.env.BASE_URL, "drives the worker code directly");
+  const a = await guest(baseURL!, e);
+  const id = randomUUID();
+  await a.post("/api/photos/init", { data: { eventCode: e.code, photoId: id } });
+  // completed, but the original never reached storage: every develop of it fails
+  expect((await a.post("/api/photos/complete", { data: { photoId: id } })).status()).toBe(200);
+  const state = async () => (await sql<{ status: string; attempts: number; error: string | null }[]>`select status, attempts, error from photos where id = ${id}`)[0];
+  const again = async () => {
+    await sql`update photos set processed_at = null where id = ${id}`; // skip the 2-min wait between tries
+    await develop(10_000);
+  };
+
+  await again();
+  expect(await state()).toMatchObject({ status: "uploaded", attempts: 1 });
+  expect((await state()).error).toBeTruthy();
+  await again();
+  expect(await state()).toMatchObject({ status: "uploaded", attempts: 2 });
+  await again();
+  expect(await state()).toMatchObject({ status: "failed", attempts: 3 });
 });
 
 test("darkroom: password gate, star a frame, release the roll", async ({ page, baseURL }) => {
