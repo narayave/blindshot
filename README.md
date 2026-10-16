@@ -166,6 +166,8 @@ If the signal drops, the phone keeps retrying the same `photoId`. Because the id
 7. Defects drawn as SVG layers: dust, curly fibres, the odd scratch, light leaks on about 25% of frames (most likely on the first and last frame, as on a real roll), optional LED date stamp (bottom-left, off by default)
 8. Credit watermark, bottom-right, set in Special Elite and pre-traced to SVG paths (no fonts needed on the server). Its tone flips light or dark from the brightness behind it, with an opposite-tone halo, so it stays readable on any frame.
 
+**Overlays (optional, per event).** Events created with `--overlays` get a film-artifact image (a burn, a light streak) screened over about 1 frame in 12, instead of the drawn leak. Each use is zoomed into a different part, mirrored, tilted and faded, so no two frames match. The images come from a licensed pack, so they are never committed: `npm run overlays -- "<pack folder>" 38 17 08` copies your picks into the gitignored `overlays/`, and `scripts/deploy-worker.sh` ships them inside the worker only. Check the pack's license before using it at a commercial event.
+
 A local film lab (`npm run lab`) runs it over a folder of photos so the look can be tuned without running the app. `npm run watermark -- --font Font.ttf --text "@handle"` regenerates the watermark.
 
 ---

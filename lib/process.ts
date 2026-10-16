@@ -1,3 +1,4 @@
+import { readFile, readdir } from "node:fs/promises";
 import exifr from "exifr";
 import sharp from "sharp";
 import { FILTERED, ORIGINALS, thumbPath } from "./config.ts";
@@ -7,8 +8,8 @@ import { download, upload } from "./storage.ts";
 
 // Original in, filtered copy out.
 export async function processPhoto(photoId: string): Promise<void> {
-  const [p] = await sql<{ original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; captured_at: Date | null }[]>`
-    select p.original_path, p.shot_number, e.max_shots, e.date_stamp, p.captured_at
+  const [p] = await sql<{ original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; overlays: boolean; captured_at: Date | null }[]>`
+    select p.original_path, p.shot_number, e.max_shots, e.date_stamp, e.overlays, p.captured_at
     from photos p join events e on e.id = p.event_id where p.id = ${photoId}`;
   if (!p) return;
   try {
@@ -16,8 +17,10 @@ export async function processPhoto(photoId: string): Promise<void> {
     const exif = await exifr.parse(original, { gps: true }).catch(() => null);
     // Like a real roll, leaks are most likely on the first and last frames.
     const edgeFrame = p.shot_number === 1 || p.shot_number === p.max_shots;
+    const seed = seedOf(photoId);
     const filtered = await applyFilmFilter(original, {
-      seed: seedOf(photoId),
+      seed,
+      overlay: p.overlays ? await pickOverlay(seed) : null,
       ...(edgeFrame && { leak: { ...DEFAULT_FILM.leak, chance: 0.8 } }),
       dateStamp: p.date_stamp ? (p.captured_at ?? new Date()) : null,
     });
@@ -70,6 +73,20 @@ export async function develop(budgetMs: number, lanes = 1): Promise<number> {
     busy = false;
   }
   return n;
+}
+
+// About 1 frame in 12 of an event with overlays on gets one of the film-artifact images in overlays/
+// (licensed, so never in git: npm run overlays). No folder, no overlays.
+const OVERLAY_ONE_IN = 12;
+let overlayFiles: Promise<Buffer[]> | undefined;
+async function pickOverlay(seed: number): Promise<Buffer | null> {
+  if ((seed >>> 0) % OVERLAY_ONE_IN) return null;
+  const dir = new URL("../overlays/", import.meta.url);
+  overlayFiles ??= readdir(dir)
+    .then((fs) => Promise.all(fs.filter((f) => /\.jpe?g$/i.test(f)).sort().map((f) => readFile(new URL(f, dir)))))
+    .catch(() => []);
+  const all = await overlayFiles;
+  return all.length ? all[(seed >>> 8) % all.length] : null;
 }
 
 const seedOf = (id: string) => [...id].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);

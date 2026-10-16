@@ -51,5 +51,8 @@ create table if not exists photos (
 
 create index if not exists photos_event_created on photos (event_id, created_at);
 
+-- Film-artifact overlays on ~1 in 12 frames (needs the overlays/ folder deployed with the worker).
+alter table events add column if not exists overlays boolean not null default false;
+
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;

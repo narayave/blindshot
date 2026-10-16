@@ -20,6 +20,7 @@ export type FilmOptions = {
   vignette: number; // 0..1 corner darkening
   softness: number; // blur sigma in px, 0 = off
   leak: { chance: number; strength: number; colors: string[] }; // light leak from the film edge
+  overlay: Buffer | null; // a film-artifact image (burn, leak) screened over the frame instead of the drawn leak
   dust: number; // dust specks and hairs, 0 = clean scan
   scratches: number; // chance of a long scratch
   dateStamp: Date | null; // orange LED date in the corner
@@ -47,6 +48,7 @@ export const DEFAULT_FILM: FilmOptions = {
   vignette: 0.45,
   softness: 0.4,
   leak: { chance: 0.25, strength: 0.5, colors: ["#ff6a3d", "#ff9a6b", "#ff8fa3", "#ffd27a"] },
+  overlay: null,
   dust: 2.6,
   scratches: 0.3,
   dateStamp: null,
@@ -174,7 +176,8 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const base = o.softness >= 0.3 ? await sharp(out, raw3).blur(o.softness).raw().toBuffer() : out;
   const rand = mulberry32(o.seed ^ 0x9e3779b9);
   const layers: OverlayOptions[] = [];
-  if (rand() < o.leak.chance) layers.push({ input: Buffer.from(leakSvg(w, h, rand, o.leak)), blend: "screen" });
+  if (o.overlay) layers.push({ input: await placeOverlay(o.overlay, w, h, rand), raw: raw3.raw, blend: "screen" });
+  else if (rand() < o.leak.chance) layers.push({ input: Buffer.from(leakSvg(w, h, rand, o.leak)), blend: "screen" });
   if (o.dust > 0 || o.scratches > 0) layers.push({ input: Buffer.from(dustSvg(w, h, rand, o.dust, rand() < o.scratches)) });
   if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h)) });
   let img = sharp(base, raw3);
@@ -199,6 +202,38 @@ async function grainNoise(w: number, h: number, size: number, seed: number): Pro
     .resize(w, h, { kernel: "cubic", fit: "fill" })
     .raw()
     .toBuffer();
+}
+
+// One artifact image, a different frame every time: zoomed into a random part, mirrored, tilted, faded.
+// Tilting zooms in just enough that the overlay's edges never show, and most of the overlay's own black level
+// is taken out so it adds light without fogging the frame.
+async function placeOverlay(src: Buffer, w: number, h: number, rand: () => number): Promise<Buffer> {
+  const { width: sw, height: sh } = await sharp(src).metadata();
+  const zoom = 1 + rand() * 0.35;
+  const cw = Math.round(sw / zoom), ch = Math.round(sh / zoom);
+  const crop = { left: Math.floor(rand() * (sw - cw)), top: Math.floor(rand() * (sh - ch)), width: cw, height: ch };
+  const flop = rand() < 0.5, flip = rand() < 0.5;
+  const tilt = (rand() - 0.5) * 24; // degrees
+  const opacity = 0.65 + rand() * 0.35;
+  const t = (Math.abs(tilt) * Math.PI) / 180;
+  const cover = Math.cos(t) + (Math.max(w, h) / Math.min(w, h)) * Math.sin(t); // scale so a tilted frame still fills
+  const part = await sharp(src).extract(crop).flop(flop).flip(flip).rotate(h > w ? 90 : 0).toBuffer(); // portrait: streaks along the long side
+  const big = await sharp(part).resize(Math.ceil(w * cover), Math.ceil(h * cover), { fit: "cover" })
+    .rotate(tilt, { background: "#000" }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const floor = await blackLevel(big.data, big.info.width, big.info.height);
+  return sharp(big.data, { raw: { width: big.info.width, height: big.info.height, channels: 3 } })
+    .extract({ left: Math.floor((big.info.width - w) / 2), top: Math.floor((big.info.height - h) / 2), width: w, height: h })
+    .linear([opacity, opacity, opacity], floor.map((f) => -0.7 * f * opacity)) // under screen: darker = fainter
+    .raw()
+    .toBuffer();
+}
+
+// The overlay's darkest tone per channel (from a small copy, so one dark speck doesn't count).
+async function blackLevel(rgb: Buffer, w: number, h: number): Promise<number[]> {
+  const small = await sharp(rgb, { raw: { width: w, height: h, channels: 3 } }).resize(32, 32, { fit: "fill" }).raw().toBuffer();
+  const f = [255, 255, 255];
+  for (let i = 0; i < small.length; i += 3) if (small[i] + small[i + 1] + small[i + 2] < f[0] + f[1] + f[2]) f.splice(0, 3, small[i], small[i + 1], small[i + 2]);
+  return f;
 }
 
 // Soft blobs bleeding in from one film edge, composited with "screen".

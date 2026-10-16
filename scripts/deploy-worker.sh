@@ -8,4 +8,5 @@ mkdir -p "$OUT/worker" "$OUT/lib"
 cp worker/index.ts "$OUT/worker/"
 cp worker/package.json worker/host.json "$OUT/"
 cp lib/*.ts "$OUT/lib/"
+[ -d overlays ] && cp -r overlays "$OUT/" # licensed, gitignored: shipped only inside the worker package
 cd "$OUT" && func azure functionapp publish "$APP" --javascript --build remote

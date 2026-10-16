@@ -21,6 +21,7 @@ export type Event = {
   release_at: Date | null;
   allow_opt_outs: boolean;
   date_stamp: boolean;
+  overlays: boolean;
 };
 
 export async function getEvent(code: string): Promise<Event | null> {
