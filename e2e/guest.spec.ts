@@ -77,6 +77,15 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     // nothing was saved on the phone
     expect(downloads).toEqual([]);
     expect(await page.evaluate(() => localStorage.length)).toBe(0);
+
+    // ...until the guest saves a developed frame: on phones that's the share sheet ("Save Image")
+    await page.evaluate(() => {
+      navigator.canShare = () => true;
+      navigator.share = async (d?: ShareData) => { (window as unknown as { saved: string }).saved = d!.files![0].name; };
+    });
+    await page.locator(".frame").first().click();
+    await page.getByRole("button", { name: "Save photo" }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { saved?: string }).saved)).toMatch(new RegExp(`^${e.code}-you-\\d\\.jpg$`));
   } finally {
     await dropEvent(e);
   }

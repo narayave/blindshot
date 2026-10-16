@@ -156,8 +156,9 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .lightbox { position: fixed; inset: 0; background: rgba(0, 10, 20, 0.95); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; }
 .lightbox img { max-width: 100%; max-height: 72vh; border-radius: 4px; }
 .lightbox p { color: #F3EEDD; font-size: 13px; margin: 0; opacity: 0.8; text-align: center; }
-.lightbox .lb-bar { display: flex; gap: 10px; }
+.lightbox .lb-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .lightbox a, .lightbox button { background: #F7B526; color: #001F3B; border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 600; text-decoration: none; }
+.lightbox button:disabled { opacity: 0.6; }
 
 @media (prefers-reduced-motion: reduce) {
   .strip { transition: none; }

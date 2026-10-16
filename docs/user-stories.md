@@ -86,6 +86,7 @@ As a guest, I want to see everyone's photos after the party, so that I get the w
 - After release: Everyone, Host picks and Mine tabs.
 - Hidden frames and other guests' private-roll frames never appear; my own private frames appear in Mine.
 - Grids load thumbnails; tapping opens the full frame.
+- Any frame I can see, I can save: on phones the share sheet ("Save Image" puts it in the camera roll), elsewhere a download.
 - Only people who joined the event can open the roll.
 
 Coverage: `e2e` `api`

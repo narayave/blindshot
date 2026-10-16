@@ -29,7 +29,7 @@ The longer-term aim is a product hosts can buy per event: one camera, with a **t
 | **Load film** | First name, an optional Instagram handle (so the host can tag you; shown in the darkroom), one consent tick, and two optional opt-outs (no promotional use; keep my photos out of the shared roll). |
 | **Shoot** | A camera body on screen: 1-inch live viewfinder, a thumbwheel you drag to wind on, a flash switch, a mechanical shot counter. Shutter → click, flash, vibration, "Saved". Never the photo. |
 | **Wrap** | After 13 shots: "That's a wrap", and when the roll develops. |
-| **Develop** | At the release time, the shared roll opens: everyone's frames, host picks, your own. |
+| **Develop** | At the release time, the shared roll opens: everyone's frames, host picks, your own. Any frame can be saved to the phone's camera roll. |
 
 The host gets a **darkroom** (`/admin`): every frame as it arrives, star and hide, the untouched originals, guests' opt-outs, the QR code to print, and the switch that releases the roll.
 
