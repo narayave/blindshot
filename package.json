@@ -11,7 +11,8 @@
     "setup": "node --env-file-if-exists=.env.local scripts/setup.ts",
     "event": "node --env-file-if-exists=.env.local scripts/event.ts",
     "watermark": "node scripts/watermark.ts",
-    "test": "playwright test"
+    "test": "playwright test",
+    "load": "node --env-file-if-exists=.env.local scripts/load.ts"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.34.0",

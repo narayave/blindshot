@@ -130,6 +130,7 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
   const fxRef = useRef<HTMLDivElement>(null);
   const wheelRef = useRef<HTMLButtonElement>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
+  const nudging = useRef(false);
   const busy = useRef(false);
   const windRef = useRef({ acc: 0, pos: 0, lastX: null as number | null, moved: 0 });
 
@@ -281,7 +282,23 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     queue.current = queue.current
       .then(() => shrink(blob, w, h))
       .then((s) => upload(photoId, s.blob, s.w, s.h, capturedAt))
+      .then(() => void develop())
       .finally(() => setPending((p) => p - 1));
+  }
+
+  // After a rush the server has a queue to develop. Whichever phones are still open take turns nudging it along.
+  async function develop() {
+    if (nudging.current) return;
+    nudging.current = true;
+    try {
+      for (;;) {
+        await sleep(5_000 + Math.random() * 10_000);
+        const r = await postJSON("/api/develop", { eventCode: event.code }).then((r) => r.json()).catch(() => null);
+        if (r?.queued === 0) return;
+      }
+    } finally {
+      nudging.current = false;
+    }
   }
 
   // Keeps retrying while the page is open: venue signal comes and goes.

@@ -37,4 +37,34 @@ export async function processPhoto(photoId: string): Promise<void> {
   }
 }
 
+// One filter at a time per server. The free Azure host has about one core: 100 uploads filtering at once
+// timed out every request and took the site down (npm run load). So uploads queue as 'uploaded' and develop in order.
+let busy = false;
+
+// Develop queued photos, oldest first, for about budgetMs. Returns at once if this server is already at it.
+export async function develop(budgetMs: number): Promise<void> {
+  if (busy) return;
+  busy = true;
+  const end = Date.now() + budgetMs;
+  try {
+    while (Date.now() < end) {
+      // processed_at is the claim while status is still 'uploaded'; a server that died mid-filter frees it after 2 min.
+      const [p] = await sql<{ id: string }[]>`
+        update photos set processed_at = now() where id = (
+          select id from photos where status = 'uploaded' and (processed_at is null or processed_at < now() - interval '2 minutes')
+          order by uploaded_at limit 1 for update skip locked)
+        returning id`;
+      if (!p) return;
+      await processPhoto(p.id);
+    }
+  } finally {
+    busy = false;
+  }
+}
+
+export async function queued(eventId: string): Promise<number> {
+  const [r] = await sql<{ n: number }[]>`select count(*)::int as n from photos where event_id = ${eventId} and status = 'uploaded'`;
+  return r.n;
+}
+
 const seedOf = (id: string) => [...id].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);
