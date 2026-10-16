@@ -20,7 +20,7 @@ export type FilmOptions = {
   vignette: number; // 0..1 corner darkening
   softness: number; // blur sigma in px, 0 = off
   leak: { chance: number; strength: number; colors: string[] }; // light leak from the film edge
-  overlay: Buffer | null; // a film-artifact image (burn, leak) screened over the frame instead of the drawn leak
+  overlay: { image: Buffer; strength: number } | null; // a film artifact or burn screened over the frame instead of the drawn leak
   shake: { chance: number; strength: number }; // dragged shutter: a shaken ghost of the scene over the sharp frame
   dust: number; // dust specks and hairs, 0 = clean scan
   scratches: number; // chance of a long scratch
@@ -181,7 +181,7 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const base = o.softness >= 0.3 ? await sharp(out, raw3).blur(o.softness).raw().toBuffer() : out;
   const rand = mulberry32(o.seed ^ 0x9e3779b9);
   const layers: OverlayOptions[] = [];
-  if (o.overlay) layers.push({ input: await placeOverlay(o.overlay, w, h, rand), raw: raw3.raw, blend: "screen" });
+  if (o.overlay) layers.push({ input: await placeOverlay(o.overlay.image, w, h, rand, o.overlay.strength), raw: raw3.raw, blend: "screen" });
   else if (rand() < o.leak.chance) layers.push({ input: Buffer.from(leakSvg(w, h, rand, o.leak)), blend: "screen" });
   if (o.dust > 0 || o.scratches > 0) layers.push({ input: Buffer.from(dustSvg(w, h, rand, o.dust, rand() < o.scratches)) });
   if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h)) });
@@ -237,14 +237,14 @@ async function grainNoise(w: number, h: number, size: number, seed: number): Pro
 // One artifact image, a different frame every time: zoomed into a random part, mirrored, tilted, faded.
 // Tilting zooms in just enough that the overlay's edges never show, and most of the overlay's own black level
 // is taken out so it adds light without fogging the frame.
-async function placeOverlay(src: Buffer, w: number, h: number, rand: () => number): Promise<Buffer> {
+async function placeOverlay(src: Buffer, w: number, h: number, rand: () => number, strength: number): Promise<Buffer> {
   const { width: sw, height: sh } = await sharp(src).metadata();
   const zoom = 1 + rand() * 0.35;
   const cw = Math.round(sw / zoom), ch = Math.round(sh / zoom);
   const crop = { left: Math.floor(rand() * (sw - cw)), top: Math.floor(rand() * (sh - ch)), width: cw, height: ch };
   const flop = rand() < 0.5, flip = rand() < 0.5;
   const tilt = (rand() - 0.5) * 24; // degrees
-  const opacity = 0.65 + rand() * 0.35;
+  const opacity = (0.65 + rand() * 0.35) * strength;
   const t = (Math.abs(tilt) * Math.PI) / 180;
   const cover = Math.cos(t) + (Math.max(w, h) / Math.min(w, h)) * Math.sin(t); // scale so a tilted frame still fills
   const part = await sharp(src).extract(crop).flop(flop).flip(flip).rotate(h > w ? 90 : 0).toBuffer(); // portrait: streaks along the long side

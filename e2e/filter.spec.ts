@@ -66,10 +66,10 @@ test("an overlay is screened on, placed the same way for the same seed and diffe
     .composite([{ input: Buffer.from('<svg width="1600" height="900"><rect x="300" y="0" width="250" height="900" fill="#ff7a3d"/></svg>') }])
     .jpeg().toBuffer();
   const none = await applyFilmFilter(src, { seed: 9, leak: { chance: 0, strength: 0, colors: [] } });
-  const a = await applyFilmFilter(src, { seed: 9, overlay });
+  const a = await applyFilmFilter(src, { seed: 9, overlay: { image: overlay, strength: 1 } });
   expect(a.equals(none)).toBe(false);
-  expect((await applyFilmFilter(src, { seed: 9, overlay })).equals(a)).toBe(true);
-  expect((await applyFilmFilter(src, { seed: 10, overlay })).equals(a)).toBe(false);
+  expect((await applyFilmFilter(src, { seed: 9, overlay: { image: overlay, strength: 1 } })).equals(a)).toBe(true);
+  expect((await applyFilmFilter(src, { seed: 10, overlay: { image: overlay, strength: 1 } })).equals(a)).toBe(false);
   // screen only adds light: the frame never gets darker on average
   const mean = async (b: Buffer) => (await sharp(b).stats()).channels.slice(0, 3).reduce((s, c) => s + c.mean, 0);
   expect(await mean(a)).toBeGreaterThan(await mean(none));

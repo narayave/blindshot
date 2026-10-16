@@ -75,18 +75,26 @@ export async function develop(budgetMs: number, lanes = 1): Promise<number> {
   return n;
 }
 
-// About 1 frame in 12 of an event with overlays on gets one of the film-artifact images in overlays/
-// (licensed, so never in git: npm run overlays). No folder, no overlays.
-const OVERLAY_ONE_IN = 12;
-let overlayFiles: Promise<Buffer[]> | undefined;
-async function pickOverlay(seed: number): Promise<Buffer | null> {
-  if ((seed >>> 0) % OVERLAY_ONE_IN) return null;
-  const dir = new URL("../overlays/", import.meta.url);
-  overlayFiles ??= readdir(dir)
-    .then((fs) => Promise.all(fs.filter((f) => /\.jpe?g$/i.test(f)).sort().map((f) => readFile(new URL(f, dir)))))
-    .catch(() => []);
-  const all = await overlayFiles;
-  return all.length ? all[(seed >>> 8) % all.length] : null;
+// On events with overlays on, some frames get an image from overlays/<kind>/ (licensed packs, so never in git:
+// npm run overlays). Out of every 60 frames: 5 get a film artifact (~1 in 12), 6 a softer film burn (~1 in 10),
+// never both. A missing folder just means no overlays of that kind.
+const KINDS = [
+  { kind: "artifacts", slots: 5, strength: 1 },
+  { kind: "burns", slots: 6, strength: 0.7 },
+];
+const overlayFiles = new Map<string, Promise<Buffer[]>>();
+async function pickOverlay(seed: number): Promise<{ image: Buffer; strength: number } | null> {
+  let slot = (seed >>> 0) % 60;
+  const k = KINDS.find((k) => (slot -= k.slots) < 0);
+  if (!k) return null;
+  if (!overlayFiles.has(k.kind)) {
+    const dir = new URL(`../overlays/${k.kind}/`, import.meta.url);
+    overlayFiles.set(k.kind, readdir(dir)
+      .then((fs) => Promise.all(fs.filter((f) => /\.jpe?g$/i.test(f)).sort().map((f) => readFile(new URL(f, dir)))))
+      .catch(() => []));
+  }
+  const all = await overlayFiles.get(k.kind)!;
+  return all.length ? { image: all[(seed >>> 8) % all.length], strength: k.strength } : null;
 }
 
 const seedOf = (id: string) => [...id].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);
