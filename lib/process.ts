@@ -80,7 +80,7 @@ export async function develop(budgetMs: number, lanes = 1): Promise<number> {
 // never both. A missing folder just means no overlays of that kind.
 const KINDS = [
   { kind: "artifacts", slots: 5, strength: 1 },
-  { kind: "burns", slots: 6, strength: 0.7 },
+  { kind: "burns", slots: 6, strength: 0.5 },
 ];
 const overlayFiles = new Map<string, Promise<Buffer[]>>();
 async function pickOverlay(seed: number): Promise<{ image: Buffer; strength: number } | null> {

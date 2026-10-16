@@ -1,8 +1,8 @@
 // Copy chosen images from a licensed overlay pack into overlays/<kind>/ (gitignored: never commit or share them),
 // flattened on black and shrunk to 2400 px so the worker loads them fast. Kinds and how often they appear on events
 // with overlays switched on (npm run event -- … --overlays) are in lib/process.ts.
-//   npm run overlays -- artifacts "<pack folder>" 08 17 35
-//   npm run overlays -- burns "<pack folder>" 01 03 15 47 58
+//   npm run overlays -- artifacts "<pack folder>" 08 17
+//   npm run overlays -- burns "<pack folder>" 01 15 47 58
 import { mkdir, readdir, rm } from "node:fs/promises";
 import sharp from "sharp";
 
