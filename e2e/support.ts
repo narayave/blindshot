@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import sharp from "sharp";
 import { FILTERED, ORIGINALS } from "../lib/config.ts";
 import { sql } from "../lib/db.ts";
+import { develop } from "../lib/process.ts";
 import { storageClient } from "../lib/storage.ts";
 
 export { sql };
@@ -33,7 +34,8 @@ export async function photos(eventId: string) {
     select id, status, session_id, captured_at, error from photos where event_id = ${eventId} order by shot_number`;
 }
 
-// Poll until every photo of the event is filtered (or one fails).
+// Poll until every photo of the event is filtered (or one fails). Locally the test is the worker;
+// against a deployment (BASE_URL) the real worker has to do it.
 export async function waitDeveloped(eventId: string, count: number, ms = 60_000) {
   const end = Date.now() + ms;
   for (;;) {
@@ -41,7 +43,7 @@ export async function waitDeveloped(eventId: string, count: number, ms = 60_000)
     if (ps.some((p) => p.status === "failed")) throw new Error(`processing failed: ${ps.find((p) => p.error)?.error}`);
     if (ps.length === count && ps.every((p) => p.status === "done")) return ps;
     if (Date.now() > end) throw new Error(`developed ${ps.filter((p) => p.status === "done").length}/${count}`);
-    await new Promise((r) => setTimeout(r, 1000));
+    if (process.env.BASE_URL || !(await develop(5_000))) await new Promise((r) => setTimeout(r, 1000));
   }
 }
 

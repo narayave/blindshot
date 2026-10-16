@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { sql } from "@/lib/db";
-import { processPhoto } from "@/lib/process";
 import { adminLogin, isAdmin } from "@/lib/session";
 
 async function guard() {
@@ -28,8 +27,9 @@ export async function setRelease(eventId: string, when: "now" | "hold") {
   revalidatePath("/admin");
 }
 
+// Back in the queue: the worker develops it again.
 export async function reprocess(photoId: string) {
   await guard();
-  await processPhoto(photoId);
+  await sql`update photos set status = 'uploaded', processed_at = null where id = ${photoId} and status <> 'pending'`;
   revalidatePath("/admin");
 }

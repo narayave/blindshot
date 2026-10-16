@@ -1,6 +1,6 @@
 // Party-rush test: N guests join a throwaway event, then all press the shutter at the same moment.
-// Each upload follows the phone's own path: init → PUT to blob → complete, retrying with backoff,
-// then nudging /api/develop until the event's queue is empty, all like CameraApp.
+// Each upload follows the phone's own path (init → PUT to blob → complete, retrying with backoff like CameraApp),
+// then it waits for the worker to develop them all. Start a worker first (npm run worker) or nothing develops.
 //   npm run load                  → 100 guests against BASE_URL (default: the live site)
 //   npm run load -- 200 2         → 200 guests, 2 shots each
 // The event, its rows and its blobs are deleted afterwards.
@@ -20,7 +20,7 @@ for (let i = 0; i < noise.length; i++) noise[i] = 90 + Math.random() * 80;
 const jpeg = await sharp(noise, { raw: { width: W, height: H, channels: 3 } }).blur(1.2).jpeg({ quality: 92 }).toBuffer();
 
 const t = () => performance.now();
-const stats: Record<string, number[]> = { join: [], init: [], put: [], complete: [], develop: [], uploaded: [], developed: [] };
+const stats: Record<string, number[]> = { join: [], init: [], put: [], complete: [], uploaded: [] };
 const errors: Record<string, number> = {};
 const fail = (what: string) => { errors[what] = (errors[what] ?? 0) + 1; };
 
@@ -57,13 +57,6 @@ async function shoot(code: string, cookie: string) {
       const done = await timed("complete", () => post("/api/photos/complete", { photoId: id, capturedAt, sentAt: new Date().toISOString(), width: W, height: H }));
       if (!done.ok) throw new Error(`complete ${done.status}`);
       stats.uploaded.push(t() - start);
-      for (;;) {
-        await new Promise((s) => setTimeout(s, 5_000 + Math.random() * 10_000));
-        const r = await timed("develop", () => post("/api/develop", { eventCode: code })).catch(() => null);
-        if (!r?.ok) { fail(`develop ${r?.status ?? "network"}`); continue; }
-        if ((await r.json()).queued === 0) break;
-      }
-      stats.developed.push(t() - start);
       return attempt;
     } catch (e) {
       fail(e instanceof TypeError ? "network" : (e as Error).message);
@@ -91,7 +84,16 @@ try {
   }
   console.log(`all uploads settled in ${s(t() - w)}`);
 
-  const ps = await photos(e.id);
+  // The worker runs elsewhere: watch the database until the queue is empty (or stops moving for 2 min).
+  let ps = await photos(e.id), last = -1, still = t();
+  for (;;) {
+    const n = ps.filter((p) => p.status === "done" || p.status === "failed").length;
+    if (n === ps.length) break;
+    if (n !== last) { last = n; still = t(); } else if (t() - still > 120_000) { console.log("worker stopped developing"); break; }
+    await new Promise((r) => setTimeout(r, 2_000));
+    ps = await photos(e.id);
+  }
+  console.log(`all developed ${s(t() - w)} after the shutter`);
   const done = ps.filter((p) => p.status === "done").length;
   console.log(`\ndeveloped ${done}/${GUESTS * SHOTS}, failed ${ps.filter((p) => p.status === "failed").length}, needed a retry ${retries.filter((n) => n > 0).length}`);
   console.log("stage      n     p50    p90    p99    max");

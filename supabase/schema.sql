@@ -4,7 +4,7 @@ create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   code text unique not null,              -- the /e/{code} in the QR link
   name text not null,
-  subtitle text,                          -- e.g. "Nov 7 · The Shop · Seattle"
+  subtitle text,                          -- e.g. "Nov 7 · Seattle"     
   theme text not null default 'base',     -- see lib/themes.ts
   max_shots int not null default 13,
   release_at timestamptz,                 -- when the shared roll develops; null = held until the host releases it

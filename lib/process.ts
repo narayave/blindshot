@@ -1,9 +1,9 @@
 import exifr from "exifr";
 import sharp from "sharp";
-import { FILTERED, ORIGINALS, thumbPath } from "./config";
-import { sql } from "./db";
-import { DEFAULT_FILM, applyFilmFilter } from "./film";
-import { download, upload } from "./storage";
+import { FILTERED, ORIGINALS, thumbPath } from "./config.ts";
+import { sql } from "./db.ts";
+import { DEFAULT_FILM, applyFilmFilter } from "./film.ts";
+import { download, upload } from "./storage.ts";
 
 // Original in, filtered copy out. Kept apart from the route so it can move to a queue/worker later.
 export async function processPhoto(photoId: string): Promise<void> {
@@ -37,15 +37,16 @@ export async function processPhoto(photoId: string): Promise<void> {
   }
 }
 
-// One filter at a time per server. The free Azure host has about one core: 100 uploads filtering at once
-// timed out every request and took the site down (npm run load). So uploads queue as 'uploaded' and develop in order.
+// The website only queues uploads (status 'uploaded'). Filtering runs in the worker (scripts/worker.ts), on another
+// machine: on the free Azure host, 100 uploads filtering at once took the whole site down (npm run load).
 let busy = false;
 
-// Develop queued photos, oldest first, for about budgetMs. Returns at once if this server is already at it.
-export async function develop(budgetMs: number): Promise<void> {
-  if (busy) return;
+// Develop queued photos, oldest first, for about budgetMs; returns how many. Safe to run from several processes at once.
+export async function develop(budgetMs: number): Promise<number> {
+  if (busy) return 0;
   busy = true;
   const end = Date.now() + budgetMs;
+  let n = 0;
   try {
     while (Date.now() < end) {
       // processed_at is the claim while status is still 'uploaded'; a server that died mid-filter frees it after 2 min.
@@ -54,17 +55,14 @@ export async function develop(budgetMs: number): Promise<void> {
           select id from photos where status = 'uploaded' and (processed_at is null or processed_at < now() - interval '2 minutes')
           order by uploaded_at limit 1 for update skip locked)
         returning id`;
-      if (!p) return;
+      if (!p) break;
       await processPhoto(p.id);
+      n++;
     }
   } finally {
     busy = false;
   }
-}
-
-export async function queued(eventId: string): Promise<number> {
-  const [r] = await sql<{ n: number }[]>`select count(*)::int as n from photos where event_id = ${eventId} and status = 'uploaded'`;
-  return r.n;
+  return n;
 }
 
 const seedOf = (id: string) => [...id].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);

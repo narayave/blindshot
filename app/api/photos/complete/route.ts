@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { sql } from "@/lib/db";
-import { develop } from "@/lib/process";
 import { currentSession } from "@/lib/session";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const int = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 && (v as number) < 100_000 ? (v as number) : null);
 
 // The phone finished uploading the original: record it and queue it for the film filter.
-// If this server isn't developing already, this request develops the queue for a while before answering
-// (inside the request rather than after(), so it works on any host; the phone uploads in the background anyway).
+// The worker (scripts/worker.ts) develops it; this request never touches the image, so uploads stay fast in a rush.
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const photoId = typeof body?.photoId === "string" && UUID.test(body.photoId) ? body.photoId.toLowerCase() : null;
@@ -32,6 +30,5 @@ export async function POST(req: Request) {
       width = ${int(body?.width)}, height = ${int(body?.height)},
       device = ${(await headers()).get("user-agent")?.slice(0, 300) ?? null}
     where id = ${photoId}`;
-  await develop(20_000);
   return NextResponse.json({ ok: true });
 }

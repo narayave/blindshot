@@ -1,5 +1,5 @@
 // Create or update an event (matched by --code).
-//   npm run event -- --code diwali --name "Diwali Carnival × Indo Warehouse" --subtitle "Nov 7 · The Shop · Seattle" \
+//   npm run event -- --code diwali --name "Diwali Night" --subtitle "Nov 7 · Seattle" \
 //     --theme diwali --release 2026-11-09T18:00:00-08:00
 // Options: --shots 13, --no-opt-outs (hide the opt-out boxes at join), --date-stamp (LED date on photos).
 // Leave out --release to hold the shared roll until you release it from /admin.

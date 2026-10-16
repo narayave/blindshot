@@ -10,6 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "setup": "node --env-file-if-exists=.env.local scripts/setup.ts",
     "event": "node --env-file-if-exists=.env.local scripts/event.ts",
+    "reset": "node --env-file-if-exists=.env.local scripts/reset.ts",
+    "worker": "node --env-file-if-exists=.env.local scripts/worker.ts",
     "watermark": "node scripts/watermark.ts",
     "test": "playwright test",
     "load": "node --env-file-if-exists=.env.local scripts/load.ts"
