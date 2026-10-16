@@ -11,7 +11,7 @@ const fakeCamera = { args: ["--use-fake-ui-for-media-stream", "--use-fake-device
 
 export default defineConfig({
   testDir: "e2e",
-  timeout: 90_000,
+  timeout: process.env.BASE_URL ? 300_000 : 90_000, // a deployment develops on the worker's minute timer
   expect: { timeout: 15_000 },
   retries: process.env.BASE_URL ? 1 : 0, // a cold Azure function can eat one attempt
   reporter: [["list"]],

@@ -36,7 +36,7 @@ export async function photos(eventId: string) {
 
 // Poll until every photo of the event is filtered (or one fails). Locally the test is the worker;
 // against a deployment (BASE_URL) the real worker has to do it.
-export async function waitDeveloped(eventId: string, count: number, ms = 60_000) {
+export async function waitDeveloped(eventId: string, count: number, ms = process.env.BASE_URL ? 150_000 : 60_000) {
   const end = Date.now() + ms;
   for (;;) {
     const ps = await photos(eventId);

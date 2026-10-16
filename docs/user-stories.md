@@ -5,6 +5,7 @@ Grouped by persona. Each story lists its acceptance criteria and how it's tested
 - `e2e`: Playwright on emulated mobile Chrome, Samsung Internet, Safari (WebKit) and Firefox with a fake camera
 - `api`: HTTP tests against the running app (route handlers, roll pages)
 - `unit`: the film filter and other pure functions
+- `load`: `npm run load`, many guests shooting at once against a deployment
 - `manual (real phone)`: what emulators can't reach: the phone light, real camera hardware, OS permission prompts
 
 ---
@@ -110,6 +111,7 @@ Coverage: `e2e`
 As a host, I want to see stats and every frame as it arrives, so that I know the camera is being used.
 - Counts of guests, shots and processed frames per event.
 - New frames appear with thumbnails, the guest's name and their opt-out flags.
+- A frame is developed within about a minute of landing, and within a few minutes after a rush (the worker runs every minute).
 
 Coverage: `manual`
 
@@ -170,7 +172,14 @@ Coverage: `manual` (tests run the Diwali theme)
 
 ### P4. Free to run
 As the product owner, I want the stack to cost close to nothing between events, so that small events are worth doing.
-- Hosting on the Azure Static Web Apps Free plan, database on Supabase free tier, storage billed per GB.
-- Deploys from `main` with no manual steps; pull requests get preview URLs.
+- Hosting on the Azure Static Web Apps Free plan, database on Supabase free tier, storage billed per GB, filtering on pay-per-use Azure Functions.
+- Deploys from `main` with no manual steps; pull requests get preview URLs. The worker deploys with `scripts/deploy-worker.sh`.
 
 Coverage: `manual` (deploy pipeline)
+
+### P5. Survives the party rush
+As the product owner, I want 100 guests pressing the shutter at the same moment to all get their photo in, so that the busiest moment of the night is the one that works.
+- 100 simultaneous shots all upload with no failures, and the site stays responsive during and after.
+- Every one of them is developed within minutes. Developing never slows down uploads: it runs on a separate worker.
+
+Coverage: `load` (100/100 uploaded within 18 s, all developed in about 4 min, on the live site)

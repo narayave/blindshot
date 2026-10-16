@@ -47,7 +47,10 @@ flowchart LR
   subgraph Web["Azure Static Web Apps (Free) · Next.js App Router"]
     API["Route handlers<br/>/api/session · /api/photos/init · /api/photos/complete"]
     PAGES["Server components<br/>/e/[code] · /e/[code]/roll · /admin"]
-    PROC["processPhoto()<br/>sharp film filter<br/>+ thumbnail + watermark"]
+  end
+
+  subgraph Worker["Azure Functions (Flex Consumption) · timer, every minute"]
+    PROC["develop() → processPhoto()<br/>sharp film filter<br/>+ thumbnail + watermark"]
   end
 
   subgraph Data["Data"]
@@ -65,8 +68,8 @@ flowchart LR
   CAM --> UI
   UI -- "join · reserve shot · complete" --> API
   UI -- "PUT original via<br/>write-only SAS URL" --> ORIG
-  API --> PG
-  API --> PROC
+  API -- "queue: status = uploaded" --> PG
+  PG -- "claim oldest queued" --> PROC
   PROC -- read --> ORIG
   PROC -- write --> FILT
   PROC --> PG
@@ -75,7 +78,9 @@ flowchart LR
   HOST --> PAGES
 ```
 
-**The app server never handles image uploads.** Phones upload straight to Azure with a short-lived URL that can write exactly one file and read nothing. The server only issues those URLs, records metadata, and runs the filter.
+**The website never touches an image.** Phones upload straight to Azure with a short-lived URL that can write exactly one file and read nothing. The website only issues those URLs and records metadata, which is cheap enough for a whole party pressing the shutter at once.
+
+**Filtering runs on a separate worker.** An Azure Function wakes every minute and develops the queue, oldest first, one photo at a time. The queue is just the `photos` table: rows with `status = 'uploaded'`, claimed with `for update skip locked`, so a second worker (or a test) can run alongside safely. This split is the result of a load test: when 100 uploads ran the filter on the website's own free backend, every request timed out and the site stayed down until redeployed. With the worker, 100 simultaneous shots all upload within 18 s and are developed about 4 minutes later (`npm run load`).
 
 ### Lifecycle of one shot
 
@@ -86,6 +91,7 @@ sequenceDiagram
   participant A as Next.js API
   participant DB as Postgres
   participant S as Azure storage
+  participant W as Worker
 
   P->>P: Flash on: phone light held until exposure settles
   P->>P: Shutter: click + grab frame from the live stream into memory (JPEG)
@@ -96,12 +102,13 @@ sequenceDiagram
   P->>S: PUT originals/{event}/{guest}/{photo}.jpg
   P->>A: POST /api/photos/complete { photoId, capturedAt, sentAt }
   A->>DB: status = uploaded, capture time corrected for phone clock skew
-  A->>S: read original
-  A->>A: film filter (sharp): tone curve, colour, grain, dust, leaks, watermark
-  A->>S: write filtered/…/{photo}.jpg + {photo}_thumb.jpg (no EXIF/GPS)
-  A->>DB: status = done
   A-->>P: 200
   Note over P: uploads run in a background queue,<br/>so the guest keeps shooting meanwhile
+  W->>DB: within a minute: claim the oldest queued photo
+  W->>S: read original
+  W->>W: film filter (sharp): tone curve, colour, grain, dust, leaks, watermark
+  W->>S: write filtered/…/{photo}.jpg + {photo}_thumb.jpg (no EXIF/GPS)
+  W->>DB: status = done
 ```
 
 If the signal drops, the phone keeps retrying the same `photoId`. Because the id is made on the phone, a retry gets a fresh upload URL for the same frame instead of spending another shot.
@@ -116,7 +123,7 @@ If the signal drops, the phone keeps retrying the same `photoId`. Because the id
 | Hosting | **Azure Static Web Apps** (Free plan, hybrid Next.js) | $0. Server-rendered pages and API routes run on a managed backend. Push to `main` deploys; pull requests get preview URLs, which double as HTTPS phone test builds (the camera needs HTTPS). Custom subdomain through a Cloudflare `CNAME`. |
 | Database | **Supabase Postgres** via `postgres.js` | Plain SQL. The shot limit is one atomic statement, so two fast taps can't overrun it. Connected through the transaction pooler: the direct `db.*.supabase.co` host is IPv6-only, and Azure's backend can't reach it. |
 | Photo storage | **Azure Blob Storage** (StorageV2, LRS) | Cheap bulk storage (a few GB a party); SAS URLs give phones scoped, expiring upload rights. |
-| Image processing | **sharp** (libvips) | Fast native processing in Node: about 0.3 to 0.6 s per photo at 2000 px. Every photo is filtered on arrival and gets a 640 px thumbnail, so grids load ~60 KB per frame instead of ~700 KB. |
+| Image processing | **sharp** (libvips) on **Azure Functions** (Flex Consumption, Node 24) | Native processing in Node, about 1 to 2.5 s per photo end to end. Runs in the worker, never on the website. Every photo also gets a 640 px thumbnail, so grids load ~60 KB per frame instead of ~700 KB. Pay-per-use: a party's worth of photos fits in the free monthly grant. |
 | Camera | **getUserMedia** + canvas | Live 1-inch viewfinder; frames stay in memory, so nothing lands in the camera roll. The phone light acts as the flash where the browser exposes it. |
 | Styling | Plain CSS with design tokens | Each event theme is a token set; no UI framework to fight. |
 
@@ -165,7 +172,9 @@ A local film lab (`npm run lab`) runs it over a folder of photos so the look can
 
 ## Testing
 
-`npm test` runs Playwright end-to-end tests on emulated mobile Chrome, Samsung Internet (Chromium engine), Safari (WebKit) and Firefox with a fake camera, plus API and filter tests. `BASE_URL=https://… npm test` runs the same suite against a deployment.
+`npm test` runs Playwright end-to-end tests on emulated mobile Chrome, Samsung Internet (Chromium engine), Safari (WebKit) and Firefox with a fake camera, plus API and filter tests. `BASE_URL=https://… npm test` runs the same suite against a deployment. Locally the tests develop the queue themselves; against a deployment they wait for the real worker.
+
+`npm run load` is the party-rush test: 100 guests join a throwaway event and press the shutter at the same moment (`npm run load -- 200 2` for 200 guests, 2 shots each). It reports each stage's latency and how long the worker took to develop everything, then deletes the event.
 
 What emulators can't cover (the real phone light, real camera hardware, the iOS permission UI) is checked by hand on real phones.
 
@@ -180,9 +189,9 @@ User stories and their test coverage: [docs/user-stories.md](docs/user-stories.m
 | **0 · Film lab** | ✅ Done | Filter as a pure function, local lab script, tuned against real disposable scans over several rounds. |
 | **1 · Interactive mocks** | ✅ Done | Clickable prototype of the guest flow; desi-retro event theme alongside the base look; community roll. |
 | **2 · MVP** | ✅ Done | Camera, direct-to-storage uploads, server-enforced roll limit, filtering, shared roll, darkroom, event themes. Tested end to end against local emulators. |
-| **3 · Deploy and demo** | ✅ Live | Supabase + Azure Static Web Apps + Azure storage on a custom subdomain. Real-phone testing and flash tuning under way; demo to the event partner next. |
+| **3 · Deploy and demo** | ✅ Live | Supabase + Azure Static Web Apps + Azure storage + Azure Functions worker on a custom subdomain. Load-tested at 100 simultaneous shots. Real-phone testing and flash tuning under way; demo to the event partner next. |
 | **4 · First live event** | 📅 Nov 2026 | ~200 guests, ~2,600 photos. Watch upload success rate, processing time, drop-offs at the camera permission prompt. |
-| **5 · Hardening** | Planned | Emailed 4-digit codes to find your roll on any device, upload retry that survives closing the page, rate limiting, queue-based processing for bursts. |
+| **5 · Hardening** | Planned | Emailed 4-digit codes to find your roll on any device, upload retry that survives closing the page, rate limiting. |
 | **6 · Product** | Planned | Host sign-up and self-serve events, theme builder, per-event pricing, bulk download for hosts, wigglegram builder from shots taken together. |
 
 ---
@@ -195,15 +204,16 @@ app/
   admin/               the darkroom: page, server actions, login
   api/session          join an event
   api/photos/init      reserve a frame, issue upload URL
-  api/photos/complete  record metadata, run the filter
+  api/photos/complete  record metadata, queue the photo for the worker
 lib/
   film.ts              the film filter (pure function)
   watermark.ts         pre-traced watermark paths (generated)
-  process.ts           original → filtered pipeline
+  process.ts           original → filtered pipeline, and the queue (develop)
   storage.ts           Azure SAS URLs, upload, download
   db.ts  session.ts    Postgres, guest + host sessions
   themes.ts            event themes
-scripts/               setup, event creation, film lab, watermark
+worker/                Azure Functions entry: develop the queue every minute
+scripts/               setup, event creation and reset, worker, load test, film lab, watermark
 supabase/schema.sql    tables
 docs/                  user stories
 ```
@@ -228,7 +238,8 @@ You need **Supabase** (database, free tier) and **Azure** (photo storage + Stati
      --theme diwali --release 2026-11-09T18:00:00-08:00
    ```
    Leave out `--release` to hold the roll until you release it from `/admin`. Other flags: `--shots 11`, `--no-opt-outs`, `--date-stamp`.
-6. **Run it:** `npm run dev`, then open `http://localhost:3000/e/diwali` and `http://localhost:3000/admin`.
+   To start a roll over (deletes every photo and guest; the link stays): `npm run reset -- diwali`, optionally with `--shots 6`.
+6. **Run it:** `npm run dev` and, in a second terminal, `npm run worker` (it develops the photos). Then open `http://localhost:3000/e/diwali` and `http://localhost:3000/admin`.
 
 ### Deploy to Azure Static Web Apps (Free)
 
@@ -251,7 +262,22 @@ Deploys run from [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
 5. Run `npm run setup` locally with the same `SITE_URL`, so storage CORS accepts uploads from the domain.
 6. Push to `main`, then open `/admin` and print the QR code.
 
-Hybrid Next.js on Static Web Apps is a Microsoft preview feature, and its backend times out requests at 45 s. The first request after a restart can be slow; phones retry on their own. If it misbehaves, the same build runs unchanged on Azure App Service (`node server.js` from `.next/standalone`).
+### Deploy the worker to Azure Functions
+
+The website doesn't filter photos; this worker does. Flex Consumption is pay-per-use, so an idle worker costs next to nothing.
+
+1. Create the app next to the storage account (it also creates an Application Insights resource for its logs):
+   ```bash
+   az functionapp create -g <resource-group> -n blindshot-worker --flexconsumption-location westus2 \
+     --runtime node --runtime-version 24 --storage-account <storage-account> --instance-memory 2048
+   ```
+2. Give it the same `DATABASE_URL`, `AZURE_STORAGE_ACCOUNT` and `AZURE_STORAGE_KEY`:
+   ```bash
+   az functionapp config appsettings set -g <resource-group> -n blindshot-worker --settings DATABASE_URL=... AZURE_STORAGE_ACCOUNT=... AZURE_STORAGE_KEY=...
+   ```
+3. Deploy (needs Azure Functions Core Tools, `func`): `scripts/deploy-worker.sh`. Re-run it whenever `lib/` changes.
+
+Hybrid Next.js on Static Web Apps is a Microsoft preview feature, its backend times out requests at 45 s, and it has little CPU. That's why no image work runs there. The first request after a restart can be slow; phones retry on their own. If it misbehaves, the same build runs unchanged on Azure App Service (`node server.js` from `.next/standalone`).
 
 ### Testing on a phone
 
