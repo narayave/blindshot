@@ -18,6 +18,17 @@ async function wind(page: Page) {
 
 // Playwright's WebKit has no fake camera device: feed it a moving test pattern through the same API.
 // Camera stubs go on MediaDevices.prototype: WebKit hasn't built navigator.mediaDevices yet when init scripts run.
+// Silent test runs: every audio context stays suspended, so no shutter clicks out of the laptop's speakers.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const Real = window.AudioContext;
+    window.AudioContext = class extends Real {
+      constructor(o?: AudioContextOptions) { super(o); void this.suspend(); }
+      resume() { return Promise.resolve(); }
+    };
+  });
+});
+
 test.beforeEach(async ({ page, browserName }) => {
   if (browserName !== "webkit") return;
   await page.addInitScript(() => {
