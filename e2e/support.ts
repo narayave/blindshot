@@ -8,12 +8,12 @@ import { storageClient } from "../lib/storage.ts";
 
 export { sql };
 
-export async function makeEvent(o: { shots?: number; released?: boolean; optOuts?: boolean } = {}) {
+export async function makeEvent(o: { shots?: number; released?: boolean; optOuts?: boolean; newRolls?: boolean } = {}) {
   const code = `e2e-${randomBytes(4).toString("hex")}`;
   const [e] = await sql<{ id: string; code: string }[]>`
-    insert into events (code, name, subtitle, theme, max_shots, release_at, allow_opt_outs)
+    insert into events (code, name, subtitle, theme, max_shots, release_at, allow_opt_outs, new_rolls)
     values (${code}, 'E2E Party', 'automated test', 'diwali', ${o.shots ?? 2},
-            ${o.released === false ? null : new Date(Date.now() - 60_000)}, ${o.optOuts ?? true})
+            ${o.released === false ? null : new Date(Date.now() - 60_000)}, ${o.optOuts ?? true}, ${o.newRolls ?? false})
     returning id, code`;
   return e;
 }

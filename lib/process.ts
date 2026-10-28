@@ -16,7 +16,8 @@ export async function processPhoto(photoId: string): Promise<void> {
     const original = await download(ORIGINALS, p.original_path);
     const exif = await exifr.parse(original, { gps: true }).catch(() => null);
     // Like a real roll, leaks are most likely on the first and last frames.
-    const edgeFrame = p.shot_number === 1 || p.shot_number === p.max_shots;
+    const frame = ((p.shot_number - 1) % p.max_shots) + 1; // within its roll
+    const edgeFrame = frame === 1 || frame === p.max_shots;
     const seed = seedOf(photoId);
     const filtered = await applyFilmFilter(original, {
       seed,

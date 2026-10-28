@@ -63,6 +63,26 @@ test("shot limit is enforced on the server, and retries don't burn shots", async
   expect(over.status()).toBe(409);
 });
 
+test("new rolls: only on events that allow them, only once the roll is shot, and the limit grows by one roll", async ({ baseURL }) => {
+  const a = await guest(baseURL!, e);
+  const init = async () => (await a.post("/api/photos/init", { data: { eventCode: e.code, photoId: randomUUID() } }));
+  const roll = () => a.post("/api/session/roll", { data: { eventCode: e.code } });
+  expect((await roll()).status()).toBe(403); // this event is one roll per guest
+
+  await sql`update events set new_rolls = true where id = ${e.id}`;
+  expect((await roll()).status()).toBe(409); // roll not finished yet
+  await init();
+  await init();
+  expect((await init()).status()).toBe(409);
+  expect((await roll()).status()).toBe(200);
+  expect((await roll()).status()).toBe(409); // a double tap doesn't stack rolls
+  expect((await (await init()).json()).shotsLeft).toBe(1);
+  expect((await (await init()).json()).shotsLeft).toBe(0);
+  expect((await init()).status()).toBe(409);
+  const shots = await sql<{ shot_number: number }[]>`select shot_number from photos where event_id = ${e.id} order by 1`;
+  expect(shots.map((s) => s.shot_number)).toEqual([1, 2, 3, 4]);
+});
+
 test("upload links can write but not read; strangers can't touch photos", async ({ baseURL, request }) => {
   const a = await guest(baseURL!, e);
   const { id, uploadUrl } = await shoot(a, e);

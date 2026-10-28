@@ -28,6 +28,23 @@
   --hl-font: var(--font-rozha), Georgia, serif; --hl-weight: 400; --hl-stretch: 100%;
   color-scheme: dark;
 }
+/* Halloween: night black-purple, pumpkin, slime green, bone white */
+.theme-halloween {
+  --bg: #120A1C; --bg-2: #1D1030; --fg: #F2E8D5; --muted: #A99BBF; --line: rgba(242, 232, 213, 0.16);
+  --dots: rgba(255, 122, 26, 0.10); --dots-2: rgba(155, 226, 45, 0.08);
+  --body: #24123A; --body-2: #34204F; --well: #07030C; --cam-fg: #F2E8D5; --cam-muted: #A99BBF;
+  --ridge: #4A2F6E; --ridge-ready: #8A4A12; --vf-ring: #FF7A1A;
+  --accent: #FF7A1A; --accent-2: #9BE22D; --hot: #6B2FA3; --on-accent: #120A1C;
+  --cta: #FF7A1A; --cta-ink: #120A1C; --cta-shadow: #6B2FA3;
+  --shutter: #FF7A1A; --shutter-deep: #A3460A; --shutter-ink: #120A1C; --shutter-ring: #9BE22D;
+  --hl-em: #9BE22D; --hl-shadow: 3px 3px 0 #6B2FA3;
+  --band: linear-gradient(#FF7A1A 0 33.3%, #6B2FA3 0 66.6%, #9BE22D 0);
+  --chip-bg: #120A1C; --chip-fg: #FF7A1A; --leaf: #9BE22D; --flash: #FFF3E0;
+  --hl-font: var(--font-creepster), "Arial Black", sans-serif; --hl-weight: 400; --hl-stretch: 100%;
+  color-scheme: dark;
+}
+.theme-halloween .wordmark { font-family: var(--font-creepster), sans-serif; letter-spacing: 0.02em; }
+.theme-halloween .stripes i:nth-child(1) { background: #FF7A1A; } .theme-halloween .stripes i:nth-child(2) { background: #6B2FA3; } .theme-halloween .stripes i:nth-child(3) { background: #9BE22D; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }

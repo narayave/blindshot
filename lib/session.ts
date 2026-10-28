@@ -8,7 +8,8 @@ export type Session = {
   id: string;
   event_id: string;
   name: string;
-  shot_count: number;
+  shot_count: number; // across all of this guest's rolls
+  rolls: number; // rolls loaded so far: this guest may shoot max_shots × rolls
   private_roll: boolean;
   no_promo: boolean;
 };
@@ -20,7 +21,7 @@ export async function currentSession(eventId: string, eventCode: string): Promis
   const token = (await cookies()).get(cookieName(eventCode))?.value;
   if (!token) return null;
   const [s] = await sql<Session[]>`
-    select id, event_id, name, shot_count, private_roll, no_promo
+    select id, event_id, name, shot_count, rolls, private_roll, no_promo
     from sessions where token_hash = ${hash(token)} and event_id = ${eventId}`;
   return s ?? null;
 }

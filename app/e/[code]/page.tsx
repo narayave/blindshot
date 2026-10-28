@@ -27,8 +27,9 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           released: isReleased(event),
           chip: theme(event.theme).chip,
           decor: theme(event.theme).decor,
+          newRolls: event.new_rolls,
         }}
-        guest={session ? { name: session.name, shotsUsed: session.shot_count } : null}
+        guest={session ? { name: session.name, shotsUsed: session.shot_count - event.max_shots * (session.rolls - 1) } : null}
       />
     </div>
   );

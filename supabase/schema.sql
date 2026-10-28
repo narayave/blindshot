@@ -57,5 +57,9 @@ alter table events add column if not exists overlays boolean not null default fa
 
 alter table sessions add column if not exists instagram text;
 
+-- New rolls: when on, a guest who finishes a roll can load another (sessions.rolls counts them).
+alter table events add column if not exists new_rolls boolean not null default false;
+alter table sessions add column if not exists rolls int not null default 1;
+
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;

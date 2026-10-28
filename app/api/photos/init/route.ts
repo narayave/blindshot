@@ -20,26 +20,26 @@ export async function POST(req: Request) {
 
   const path = `${event.id}/${session.id}/${photoId}.${ext}`;
   // Atomic: bump the counter only while under the limit, and only for a photo id we haven't seen.
-  const [made] = await sql<{ shot_number: number }[]>`
+  const [made] = await sql<{ shot_number: number; rolls: number }[]>`
     with s as (
       update sessions set shot_count = shot_count + 1
-      where id = ${session.id} and shot_count < ${event.max_shots}
+      where id = ${session.id} and shot_count < ${event.max_shots} * rolls
         and not exists (select 1 from photos where id = ${photoId})
-      returning shot_count
+      returning shot_count, rolls
     )
     insert into photos (id, event_id, session_id, shot_number, original_path)
     select ${photoId}, ${event.id}, ${session.id}, shot_count, ${path} from s
-    returning shot_number`;
+    returning shot_number, (select rolls from s)`;
 
   if (made) {
-    return NextResponse.json({ uploadUrl: uploadUrl(ORIGINALS, path), shotsLeft: event.max_shots - made.shot_number });
+    return NextResponse.json({ uploadUrl: uploadUrl(ORIGINALS, path), shotsLeft: event.max_shots * made.rolls - made.shot_number });
   }
   // Retry of a shot we already reserved: hand out a fresh URL for the same path.
   const [existing] = await sql<{ original_path: string; status: string }[]>`
     select original_path, status from photos where id = ${photoId} and session_id = ${session.id}`;
   if (existing) {
-    const [s] = await sql<{ shot_count: number }[]>`select shot_count from sessions where id = ${session.id}`;
-    return NextResponse.json({ uploadUrl: uploadUrl(ORIGINALS, existing.original_path), shotsLeft: event.max_shots - s.shot_count, status: existing.status });
+    const [s] = await sql<{ shot_count: number; rolls: number }[]>`select shot_count, rolls from sessions where id = ${session.id}`;
+    return NextResponse.json({ uploadUrl: uploadUrl(ORIGINALS, existing.original_path), shotsLeft: event.max_shots * s.rolls - s.shot_count, status: existing.status });
   }
   return NextResponse.json({ error: "That's the whole roll.", shotsLeft: 0 }, { status: 409 });
 }

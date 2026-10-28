@@ -13,6 +13,7 @@ type EventInfo = {
   released: boolean;
   chip: string;
   decor: boolean;
+  newRolls: boolean;
 };
 type Guest = { name: string; shotsUsed: number };
 
@@ -398,6 +399,18 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
 }
 
 function RollDone({ event, uploading }: { event: EventInfo; uploading: number }) {
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  // Same guest, fresh roll: the server adds a roll, and reloading picks it up with the camera ready.
+  // Waits for uploads, since reloading would drop any still in flight.
+  async function newRoll() {
+    setLoading(true);
+    setErr("");
+    const r = await postJSON("/api/session/roll", { eventCode: event.code }).catch(() => null);
+    if (r?.ok) return location.reload();
+    setLoading(false);
+    setErr((await r?.json().catch(() => null))?.error ?? "Couldn't connect. Check your signal and try again.");
+  }
   return (
     <section className="stack">
       <p className="big-zero" aria-hidden>0</p>
@@ -413,6 +426,15 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
           <span suppressHydrationWarning>{event.releaseAt ? formatWhen(event.releaseAt) : "When the host releases it"}</span>
         </div>
       </div>
+      {event.newRolls && (
+        <>
+          <button className="cta" type="button" onClick={newRoll} disabled={loading || uploading > 0}>
+            <span>{uploading ? "Saving your shots…" : loading ? "Loading film…" : `Load a new roll · ${event.maxShots} shots`}</span>
+            <span aria-hidden>↻</span>
+          </button>
+          <p className="err" role="alert">{err}</p>
+        </>
+      )}
       {event.released && <a className="cta" href={`/e/${event.code}/roll`}><span>See the roll</span><span aria-hidden>→</span></a>}
     </section>
   );

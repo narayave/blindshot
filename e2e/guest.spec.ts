@@ -66,7 +66,7 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
 
     await wind(page);
     await page.getByRole("button", { name: "SHOOT" }).click();
-    await expect(page.getByText(/That.s a/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: /wrap/ })).toBeVisible();
 
     // both frames upload, get the film look, and show on the roll
     const ps = await waitDeveloped(e.id, 2);
@@ -86,6 +86,27 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     await page.locator(".frame").first().click();
     await page.getByRole("button", { name: "Save photo" }).click();
     await expect.poll(() => page.evaluate(() => (window as unknown as { saved?: string }).saved)).toMatch(new RegExp(`^${e.code}-you-\\d\\.jpg$`));
+  } finally {
+    await dropEvent(e);
+  }
+});
+
+test("finished roll → load a new roll without joining again", async ({ page }) => {
+  const e = await makeEvent({ shots: 1, newRolls: true });
+  const live = () => expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+  const wrap = page.getByRole("heading", { name: /wrap/ });
+  try {
+    await join(page, e.code);
+    await live();
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(wrap).toBeVisible();
+    await page.getByRole("button", { name: /Load a new roll/ }).click();
+    await expect(page.getByLabel("1 shots left")).toBeVisible();
+    await expect(page.getByLabel("First name")).toHaveCount(0); // still the same guest
+    await live();
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(wrap).toBeVisible();
+    await waitDeveloped(e.id, 2);
   } finally {
     await dropEvent(e);
   }

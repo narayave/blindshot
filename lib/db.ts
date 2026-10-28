@@ -22,6 +22,7 @@ export type Event = {
   allow_opt_outs: boolean;
   date_stamp: boolean;
   overlays: boolean;
+  new_rolls: boolean; // a guest who finishes a roll can load another
 };
 
 export async function getEvent(code: string): Promise<Event | null> {
