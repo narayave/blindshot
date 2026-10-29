@@ -85,3 +85,17 @@ test("a dragged shutter ghosts the frame, the same way for the same seed", async
   const detail = async (b: Buffer) => (await sharp(b).greyscale().stats()).sharpness;
   expect(await detail(shaken)).toBeLessThan(await detail(still));
 });
+
+test("a panned frame smears the edges and keeps the middle (where the subject is) mostly sharp", async () => {
+  // fine vertical stripes everywhere: a sideways smear erases them, so remaining contrast = remaining sharpness
+  const W = 900, H = 600;
+  const stripes = await sharp({ create: { width: W, height: H, channels: 3, background: "#808080" } })
+    .composite([{ input: Buffer.from(`<svg width="${W}" height="${H}">${Array.from({ length: W / 6 }, (_, i) => `<rect x="${i * 6}" width="3" height="${H}" fill="#202020"/>`).join("")}</svg>`) }])
+    .jpeg({ quality: 95 }).toBuffer();
+  const plain = { leak: { chance: 0, strength: 0, colors: [] }, shake: { chance: 0, strength: 1 }, dust: 0, scratches: 0, watermark: false, grain: { amount: 0, size: 1, shadowBoost: 0, chroma: 0 } };
+  const panned = await applyFilmFilter(stripes, { ...plain, seed: 3, pan: { chance: 1, strength: 1 } });
+  expect((await applyFilmFilter(stripes, { ...plain, seed: 3, pan: { chance: 1, strength: 1 } })).equals(panned)).toBe(true);
+  const contrast = async (left: number) =>
+    (await sharp(await sharp(panned).extract({ left, top: H / 2 - 50, width: 100, height: 100 }).greyscale().toBuffer()).stats()).channels[0].stdev; // stats() reads its input, so crop first
+  expect(await contrast(W / 2 - 50)).toBeGreaterThan((await contrast(10)) * 1.5); // middle vs left edge
+});

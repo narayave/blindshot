@@ -22,6 +22,7 @@ export type FilmOptions = {
   leak: { chance: number; strength: number; colors: string[] }; // light leak from the film edge
   overlay: { image: Buffer; strength: number } | null; // a film artifact or burn screened over the frame instead of the drawn leak
   shake: { chance: number; strength: number }; // dragged shutter: a shaken ghost of the scene over the sharp frame
+  pan: { chance: number; strength: number }; // long exposure while the camera pans: the room smears sideways, the subject stays
   dust: number; // dust specks and hairs, 0 = clean scan
   scratches: number; // chance of a long scratch
   dateStamp: Date | null; // orange LED date in the corner
@@ -51,6 +52,7 @@ export const DEFAULT_FILM: FilmOptions = {
   leak: { chance: 0.25, strength: 0.5, colors: ["#ff6a3d", "#ff9a6b", "#ff8fa3", "#ffd27a"] },
   overlay: null,
   shake: { chance: 0.12, strength: 1 },
+  pan: { chance: 0.1, strength: 1 },
   dust: 2.6,
   scratches: 0.3,
   dateStamp: null,
@@ -107,7 +109,10 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const long = Math.max(w, h);
   // Own random stream, so a shaken frame doesn't change any other frame's grain, leaks or dust.
   const shakeRand = mulberry32(o.seed ^ 0x51ed27);
-  if (shakeRand() < o.shake.chance) dragShutter(data, w, h, long, shakeRand, o.shake.strength);
+  // A panned frame is already all motion, so it never gets the shake as well.
+  const panRand = mulberry32(o.seed ^ 0x7f4a7c15);
+  if (panRand() < o.pan.chance) panBlur(data, w, h, panRand, o.pan.strength);
+  else if (shakeRand() < o.shake.chance) dragShutter(data, w, h, long, shakeRand, o.shake.strength);
   const raw1 = { raw: { width: w, height: h, channels: 1 as const } };
   const raw3 = { raw: { width: w, height: h, channels: 3 as const } };
 
@@ -220,6 +225,35 @@ function dragShutter(px: Buffer, w: number, h: number, long: number, rand: () =>
     }
   }
   for (let i = 0; i < px.length; i++) px[i] = px[i] * (1 - mix) + (sum[i] / steps) * mix + 0.5;
+}
+
+// The camera swept sideways during a long exposure: each row smears one way (a running sum, so the smear length
+// doesn't change the cost), a little brighter for the extra light. The subject is nearly always near the middle,
+// so the smear is light there and full toward the edges: the person stays readable while the room streaks past.
+function panBlur(px: Buffer, w: number, h: number, rand: () => number, strength: number) {
+  const len = Math.max(2, Math.round(w * (0.04 + rand() * 0.05) * strength)); // 4-9% of the width
+  const dir = rand() < 0.5 ? 1 : -1;
+  const mix = Math.min(0.85, (0.6 + rand() * 0.2) * Math.sqrt(strength)); // at the edges
+  const keep = 0.25 + rand() * 0.1; // share of `mix` left in the middle
+  const lift = 1.06 + rand() * 0.06;
+  const row = new Float64Array(w * 3);
+  const at = (q: number) => (dir === 1 ? Math.min(w - 1, q) : Math.max(0, w - 1 - q)); // walk the row in sweep order
+  for (let y = 0; y < h; y++) {
+    const o = y * w * 3, dy = (y / h - 0.5) / 0.42;
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (let k = 0; k < len; k++) sum += px[o + at(k) * 3 + c];
+      for (let q = 0; q < w; q++) {
+        row[at(q) * 3 + c] = sum / len; // mean of the next len pixels along the sweep
+        sum += px[o + at(q + len) * 3 + c] - px[o + at(q) * 3 + c];
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      const dx = (x / w - 0.5) / 0.36, r = Math.min(1, Math.sqrt(dx * dx + dy * dy));
+      const m = mix * (keep + (1 - keep) * r * r * (3 - 2 * r)); // smoothstep from the middle out
+      for (let c = 0; c < 3; c++) { const i = o + x * 3 + c; px[i] = Math.min(255, px[i] * (1 - m) + row[x * 3 + c] * m * lift + 0.5); }
+    }
+  }
 }
 
 // Random RGB noise at reduced resolution, upscaled so grain clumps instead of being per-pixel.
