@@ -22,6 +22,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
       <div className="app">
         <header className="top">
           <a className="wordmark" href={`/e/${event.code}`}>blindshot</a>
+          {admin && <a className="back" href={`/admin?event=${event.code}`}>← Darkroom</a>}
           <div className="event"><b>{event.name}</b>{event.subtitle && <><br />{event.subtitle}</>}</div>
         </header>
         {body}

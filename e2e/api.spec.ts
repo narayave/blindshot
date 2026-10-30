@@ -196,4 +196,8 @@ test("darkroom: password gate, star a frame, release the roll", async ({ page, b
   await page.getByRole("button", { name: "Hide", exact: true }).click();
   await expect(page.getByRole("button", { name: "Unhide" })).toBeVisible();
   expect(await frames(a, e)).toBe(0);
+
+  // the way back to every event
+  await page.getByRole("link", { name: "← All events" }).click();
+  await expect(page).toHaveURL(/\/e\/admin$/);
 });

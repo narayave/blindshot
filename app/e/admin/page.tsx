@@ -14,7 +14,7 @@ export default async function EventsAdmin() {
     <div className="shell theme-base">
       <div className="admin">
         <header className="top">
-          <span className="wordmark">blindshot</span>
+          <a className="wordmark" href="/e/admin">blindshot</a>
           <nav className="admin-events"><a href="/e/admin" aria-current="page">Events</a><a href="/admin">Darkroom</a></nav>
         </header>
         {body}

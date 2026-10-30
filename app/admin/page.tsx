@@ -61,8 +61,9 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
     <div className="shell theme-base">
       <div className="admin">
         <header className="top">
-          <span className="wordmark">blindshot</span>
+          <a className="wordmark" href="/e/admin" title="All events">blindshot</a>
           <nav className="admin-events">
+            <a className="back" href="/e/admin">← All events</a>
             {events.map((e) => <a key={e.id} href={`?event=${e.code}`} aria-current={e.id === event.id ? "page" : undefined}>{e.name}</a>)}
           </nav>
         </header>
@@ -86,7 +87,6 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
                 <button className="ghost" type="submit">{released ? "Hide the roll again" : "Release the roll now"}</button>
               </form>
               <a className="fine" href={`/e/${event.code}/roll`}>Preview the roll as a guest →</a>
-              <a className="fine" href="/e/admin">Every event on one page →</a>
             </div>
           </div>
           <figure className="qr">
