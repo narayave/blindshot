@@ -26,9 +26,9 @@ The longer-term aim is a product hosts can buy per event: one camera, with a **t
 | Moment | What the guest sees |
 |---|---|
 | **Scan** | A QR code at the venue opens `/e/{event}` in the phone's browser. No app, no account. |
-| **Load film** | First name, an optional Instagram handle (so the host can tag you; shown in the darkroom), one consent tick, and two optional opt-outs (no promotional use; keep my photos out of the shared roll). |
+| **Load film** | First name, an optional Instagram handle (so the host can tag you; shown in the darkroom; the same name + Instagram on another phone or visit brings your earlier shots back under Mine), one consent tick, and two optional opt-outs (no promotional use; keep my photos out of the shared roll). |
 | **Shoot** | A camera body on screen: 1-inch live viewfinder, a thumbwheel you drag to wind on, a flash switch, a mechanical shot counter. Shutter → click, flash, vibration, "Saved". Never the photo. |
-| **Wrap** | After 13 shots: "That's a wrap", and when the roll develops. On events with new rolls on (`--new-rolls`), a **Load a new roll** button gives the same guest a fresh roll, no rejoining. |
+| **Wrap** | After the last shot: "That's a wrap", when the roll develops, and **Load a new roll** for a fresh roll, no rejoining. After the event's closing time: "The night's over", no more shots. |
 | **Develop** | At the release time, the shared roll opens: everyone's frames, host picks, your own. Any frame can be saved to the phone's camera roll. |
 
 The host gets an **events page** (`/e/admin`, host password): every event with two switches: **Event** (off = the link is a 404 for everyone but the host; new events start off) and **Roll** (whether its guests can see the roll), plus its guest link and darkroom. And a **darkroom** (`/admin`): every frame as it arrives, star and hide, the untouched originals, guests' opt-outs, the QR code to print, and the switch that releases the roll.
@@ -133,7 +133,7 @@ If the signal drops, the phone keeps retrying the same `photoId`. Because the id
 
 **Nothing is stored on the guest's phone.** Shots are taken from the camera stream in memory and uploaded. The trade-off is that a shot still uploading is lost if the page closes, so the page warns before closing.
 
-**The flash is the phone light, timed by the picture.** Browsers can only turn the phone light on or off. With the flash on, the light comes on first and stays on until frame brightness stops changing (auto-exposure has caught up, 0.7 to 2 s), then the click, screen flash and capture happen together. The phone's real strobe through `ImageCapture.takePhoto({ fillLightMode: "flash" })` was tried and dropped: on Android it often didn't fire, and its pre-flash landed after the click. Browsers that don't expose the light (Firefox, some iOS versions) get the screen flash only.
+**The flash is the phone light, timed by the picture.** Browsers can only turn the phone light on or off. With the flash on, the light comes on first and stays on until frame brightness stops changing (auto-exposure has caught up, 0.7 to 2 s), then the click, screen flash and capture happen together. The phone's real strobe through `ImageCapture.takePhoto({ fillLightMode: "flash" })` was tried and dropped: on Android it often didn't fire, and its pre-flash landed after the click. Browsers that don't expose the light (Firefox, some iOS versions) get the screen flash only. Browsers don't report "focus locked", so events with `focus_check` on (a trial, on the test event) also wait until the centre of the frame stops getting sharper and, on Android phones that report it, the lens stops moving; and if the grabbed frame isn't brighter than before the light came on, they take the next frame instead. Still capped at 2 s.
 
 **The camera never gets stuck.** If the viewfinder hasn't opened after 8 seconds (another tab holding the camera, a lost permission prompt), the app falls back to the phone's own camera app through a file input, and switches to live if the stream turns up later.
 
@@ -241,9 +241,11 @@ You need **Supabase** (database, free tier) and **Azure** (photo storage + Stati
 5. **Create an event:**
    ```bash
    npm run event -- --code diwali --name "Diwali Night" --subtitle "Nov 7 · Seattle" \
-     --theme diwali --release 2026-11-09T18:00:00-08:00
+     --theme diwali --shots 13 --overlays --opens "2026-11-07 18:00"
    ```
-   Leave out `--release` to hold the roll until you release it from `/admin`. Other flags: `--shots 11`, `--no-opt-outs`, `--date-stamp`.
+   The event opens itself at `--opens` (Pacific), shooting stops at 2am the next morning and the roll is released at
+   8am; override with `--closes` / `--release`. Without `--opens` the event starts off until you switch it on at
+   `/e/admin`. Other flags: `--no-opt-outs`, `--date-stamp`.
    To start a roll over (deletes every photo and guest; the link stays): `npm run reset -- diwali`, optionally with `--shots 6`.
 6. **Run it:** `npm run dev` and, in a second terminal, `npm run worker` (it develops the photos). Then open `http://localhost:3000/e/diwali` and `http://localhost:3000/admin`.
 

@@ -123,6 +123,34 @@ test("finished roll → load a new roll without joining again", async ({ page })
   }
 });
 
+for (const focusCheck of [false, true]) {
+  test(`with the phone light${focusCheck ? " and the focus check" : ""}: the shot waits for the light, then saves`, async ({ page }) => {
+    const e = await makeEvent({ shots: 2, focusCheck });
+    // Emulators have no torch: pretend this camera has one, and log what the app asks of it.
+    await page.addInitScript(() => {
+      const w = window as unknown as { torch: boolean[] };
+      w.torch = [];
+      MediaStreamTrack.prototype.getCapabilities = function () { return { torch: true } as MediaTrackCapabilities; };
+      MediaStreamTrack.prototype.applyConstraints = async function (c?: MediaTrackConstraints) {
+        const t = (c?.advanced?.[0] as { torch?: boolean } | undefined)?.torch;
+        if (t !== undefined) w.torch.push(t);
+      };
+    });
+    try {
+      await join(page, e.code);
+      await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+      const t = Date.now();
+      await page.getByRole("button", { name: "SHOOT" }).click();
+      await expect(page.getByLabel("1 shots left")).toBeVisible();
+      expect(Date.now() - t).toBeLessThan(5_000); // capped wait: never feels stuck
+      expect(await page.evaluate(() => (window as unknown as { torch: boolean[] }).torch)).toEqual([true, false]); // on, then off
+      await waitDeveloped(e.id, 1);
+    } finally {
+      await dropEvent(e);
+    }
+  });
+}
+
 test("no camera access → falls back to the camera-app picker", async ({ page }) => {
   const e = await makeEvent({ shots: 2 });
   await page.addInitScript(() => {

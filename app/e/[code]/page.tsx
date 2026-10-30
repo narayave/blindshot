@@ -32,6 +32,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           chip: theme(event.theme).chip,
           decor: theme(event.theme).decor,
           closed: isClosed(event),
+          focusCheck: event.focus_check,
           closesAt: event.closes_at?.toISOString() ?? null,
         }}
         qr={qr}

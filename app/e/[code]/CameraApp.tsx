@@ -14,6 +14,7 @@ type EventInfo = {
   chip: string;
   decor: boolean;
   closed: boolean; // shooting has ended for the night
+  focusCheck: boolean; // camera trial (see settle)
   closesAt: string | null;
 };
 type Guest = { name: string; shotsUsed: number };
@@ -235,9 +236,13 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     // The phone light stays on until auto-exposure settles, then we grab a frame: light first, then the shot.
     // (ImageCapture's real flash was tried: on Android it often doesn't fire, and its pre-flash lags our click.)
     const torch = flash && charged && !!track && !!(track.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
+    let before = 0;
     if (torch) {
+      before = luma(v);
       await track!.applyConstraints({ advanced: [{ torch: true } as MediaTrackConstraintSet] }).catch(() => {});
-      await exposureSettled(v);
+      await settle(v, track!, event.focusCheck);
+      // Did the light actually reach the frame? If this frame isn't brighter than before it came on, take the next one.
+      if (event.focusCheck && luma(v) < before + 0.015) await nextFrame(v);
     }
     try {
       snap();
@@ -469,26 +474,46 @@ async function shrink(blob: Blob, w: number, h: number): Promise<{ blob: Blob; w
   }
 }
 
-async function exposureSettled(v: HTMLVideoElement) {
-  const c = document.createElement("canvas");
-  c.width = 32;
-  c.height = 24;
-  const g = c.getContext("2d", { willReadFrequently: true })!;
-  const luma = () => {
-    g.drawImage(v, 0, 0, 32, 24);
-    const d = g.getImageData(0, 0, 32, 24).data;
-    let sum = 0;
-    for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
-    return sum / ((d.length / 4) * 765);
+// A tiny copy of the current video frame, for quick measurements.
+const probe = (() => {
+  let g: CanvasRenderingContext2D | null = null;
+  return (v: HTMLVideoElement) => {
+    g ??= Object.assign(document.createElement("canvas"), { width: 64, height: 48 }).getContext("2d", { willReadFrequently: true })!;
+    g.drawImage(v, 0, 0, 64, 48);
+    return g.getImageData(0, 0, 64, 48).data;
   };
+})();
+// Mean brightness, 0..1.
+function luma(v: HTMLVideoElement) {
+  const d = probe(v);
+  let sum = 0;
+  for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+  return sum / ((d.length / 4) * 765);
+}
+// How crisp the middle of the frame is: edge contrast in the centre, which rises as focus lands (contrast autofocus).
+function sharpness(v: HTMLVideoElement) {
+  const d = probe(v);
+  const at = (x: number, y: number) => { const i = (y * 64 + x) * 4; return d[i] + d[i + 1] + d[i + 2]; };
+  let sum = 0;
+  for (let y = 12; y < 36; y++) for (let x = 16; x < 48; x++) sum += Math.abs(at(x + 1, y) - at(x, y)) + Math.abs(at(x, y + 1) - at(x, y));
+  return sum;
+}
+// The phone light is on: wait until the picture settles before grabbing it. Always brightness (auto-exposure catching up);
+// with the focus check also sharpness that has stopped improving and, on phones that report it, a lens that has
+// stopped moving. Never shorter than TORCH_MIN_MS (LED warm-up) or longer than TORCH_MAX_MS.
+async function settle(v: HTMLVideoElement, track: MediaStreamTrack, focus: boolean) {
+  const lens = () => (track.getSettings?.() as { focusDistance?: number } | undefined)?.focusDistance;
   const start = performance.now();
-  let prev = luma(), calm = 0;
+  let prev = luma(v), prevSharp = sharpness(v), prevLens = lens(), calm = 0;
   while (performance.now() - start < TORCH_MAX_MS) {
     await nextFrame(v);
-    const l = luma();
-    calm = performance.now() - start > TORCH_MIN_MS && Math.abs(l - prev) < 0.01 ? calm + 1 : 0;
+    const l = luma(v), s = sharpness(v), f = lens();
+    const steady = Math.abs(l - prev) < 0.01 && (!focus || (s <= prevSharp * 1.03 && f === prevLens));
+    calm = performance.now() - start > TORCH_MIN_MS && steady ? calm + 1 : 0;
     if (calm >= 4) return; // four steady frames in a row
     prev = l;
+    prevSharp = s;
+    prevLens = f;
   }
 }
 const nextFrame = (v: HTMLVideoElement) =>

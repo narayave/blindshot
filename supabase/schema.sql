@@ -69,5 +69,8 @@ alter table events add column if not exists closes_at timestamptz;
 -- Off = the event doesn't exist for guests (404); the host still sees it. New events start off (scripts/event.ts).
 alter table events add column if not exists online boolean not null default true;
 
+-- Camera trial: with the phone light on, also wait for focus to settle and check the light actually reached the frame.
+alter table events add column if not exists focus_check boolean not null default false;
+
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;
