@@ -36,6 +36,12 @@ test("unknown event is a 404", async ({ request }) => {
   expect((await request.get("/e/no-such-party")).status()).toBe(404);
 });
 
+test("the join page carries a QR code friends can scan to join", async ({ request }) => {
+  const html = await (await request.get(`/e/${e.code}`)).text();
+  expect(html).toContain(`QR code to join E2E Party`);
+  expect(html).toMatch(/<figure class="share-qr">.*<svg/s);
+});
+
 test("joining needs consent", async ({ request }) => {
   const r = await request.post("/api/session", { data: { eventCode: e.code, name: "A" } });
   expect(r.status()).toBe(400);

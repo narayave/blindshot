@@ -211,6 +211,9 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .stats { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
 .stats b { color: var(--fg); font-size: 20px; font-variant-numeric: tabular-nums; }
 .stats .warn b { color: var(--hot); }
+.share-qr { margin: 8px auto 0; width: 168px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.share-qr svg { width: 100%; height: auto; display: block; background: #fff; padding: 8px; border-radius: 12px; }
+.share-qr figcaption { font-size: 13px; color: var(--muted); text-align: center; }
 .qr { margin: 0; width: 180px; display: flex; flex-direction: column; gap: 6px; }
 .qr svg { width: 100%; height: auto; background: #fff; border-radius: 8px; }
 .qr figcaption { font-size: 11px; word-break: break-all; color: var(--muted); }

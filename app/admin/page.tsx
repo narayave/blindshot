@@ -1,7 +1,6 @@
-import { headers } from "next/headers";
-import QRCode from "qrcode";
 import { FILTERED, ORIGINALS, thumbPath } from "@/lib/config";
 import { isReleased, sql, type Event } from "@/lib/db";
+import { eventLink } from "@/lib/qr";
 import { isAdmin } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
 import { reprocess, setRelease, toggle } from "./actions";
@@ -50,10 +49,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
       ${view === "starred" ? sql`and p.starred` : view === "hidden" ? sql`and p.hidden` : view === "problems" ? sql`and p.status <> 'done'` : sql``}
     order by p.created_at desc limit 500`;
 
-  const h = await headers();
-  const origin = process.env.SITE_URL ?? `${h.get("x-forwarded-proto") ?? "http"}://${h.get("host")}`;
-  const link = `${origin}/e/${event.code}`;
-  const qr = await QRCode.toString(link, { type: "svg", margin: 1 });
+  const { link, qr } = await eventLink(event.code);
   const filtered = readUrls(FILTERED), original = readUrls(ORIGINALS);
   const released = isReleased(event);
 

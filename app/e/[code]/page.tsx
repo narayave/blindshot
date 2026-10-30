@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isReleased } from "@/lib/db";
+import { eventLink } from "@/lib/qr";
 import { currentSession, openEvent } from "@/lib/session";
 import { theme, themeClass } from "@/lib/themes";
 import CameraApp from "./CameraApp";
@@ -14,6 +15,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
   const event = await openEvent((await params).code);
   if (!event) notFound();
   const session = await currentSession(event.id, event.code);
+  const { qr } = await eventLink(event.code);
   return (
     <div className={`shell ${themeClass(event.theme)}`}>
       <CameraApp
@@ -29,6 +31,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           decor: theme(event.theme).decor,
           newRolls: event.new_rolls,
         }}
+        qr={qr}
         guest={session ? { name: session.name, shotsUsed: session.shot_count - event.max_shots * (session.rolls - 1) } : null}
       />
     </div>

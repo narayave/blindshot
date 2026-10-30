@@ -17,7 +17,7 @@ type EventInfo = {
 };
 type Guest = { name: string; shotsUsed: number };
 
-export default function CameraApp({ event, guest }: { event: EventInfo; guest: Guest | null }) {
+export default function CameraApp({ event, guest, qr }: { event: EventInfo; guest: Guest | null; qr: string }) {
   const [me, setMe] = useState(guest);
   return (
     <div className="app">
@@ -28,14 +28,14 @@ export default function CameraApp({ event, guest }: { event: EventInfo; guest: G
           {event.subtitle && <><br />{event.subtitle}</>}
         </div>
       </header>
-      {me ? <Camera event={event} me={me} /> : <Join event={event} onJoined={setMe} />}
+      {me ? <Camera event={event} me={me} /> : <Join event={event} qr={qr} onJoined={setMe} />}
     </div>
   );
 }
 
 /* ---------------- join ---------------- */
 
-function Join({ event, onJoined }: { event: EventInfo; onJoined: (g: Guest) => void }) {
+function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined: (g: Guest) => void }) {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -105,6 +105,10 @@ function Join({ event, onJoined }: { event: EventInfo; onJoined: (g: Guest) => v
         </button>
         <p className="fine">No password. This phone remembers you for the night.</p>
       </form>
+      <figure className="share-qr">
+        <div dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label={`QR code to join ${event.name}`} />
+        <figcaption>Friends can scan this to join</figcaption>
+      </figure>
     </section>
   );
 }
