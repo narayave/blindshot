@@ -42,7 +42,9 @@ roll, QR code, lock and darkroom view, so photos from two nights never mix.
    ```bash
    node --env-file=.env.local .claude/skills/blindshot-new-event/scripts/check-event.ts halloween-fri
    ```
-6. **Hand over** two links: the guest link `https://<site>/e/<code>` (also on the darkroom's printable QR code) and the
+6. **Switch it on when it's time.** New events start **off**: the guest link is a 404 for everyone but the host, so
+   sharing one night's link never exposes another. The host turns it on at `/e/admin` (Event switch).
+7. **Hand over** two links: the guest link `https://<site>/e/<code>` (also on the darkroom's printable QR code) and the
    host link `https://<site>/admin?event=<code>`, which shows every photo about a minute after it's taken, even while
    the roll is locked.
 

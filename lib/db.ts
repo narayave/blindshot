@@ -23,6 +23,7 @@ export type Event = {
   date_stamp: boolean;
   overlays: boolean;
   new_rolls: boolean; // a guest who finishes a roll can load another
+  online: boolean; // off: guests get a 404 everywhere; the host still sees it
 };
 
 export async function getEvent(code: string): Promise<Event | null> {

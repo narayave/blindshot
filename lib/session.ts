@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { sql } from "./db";
+import { getEvent, sql, type Event } from "./db";
 
 // Guests have no accounts: joining an event sets an httpOnly cookie holding a random token.
 // Only its hash is stored. One cookie per event so a phone can join several events.
@@ -36,6 +36,12 @@ export async function newSessionToken(eventCode: string): Promise<string> {
     maxAge: 60 * 60 * 24 * 180,
   });
   return hash(token);
+}
+
+// An event as guests may reach it: an offline event doesn't exist for anyone but the host.
+export async function openEvent(code: string): Promise<Event | null> {
+  const e = await getEvent(code);
+  return e && (e.online || (await isAdmin())) ? e : null;
 }
 
 // Host admin: one shared password from ADMIN_PASSWORD; the cookie holds an HMAC of it, never the password.

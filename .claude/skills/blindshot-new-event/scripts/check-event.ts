@@ -16,8 +16,15 @@ const released = isReleased(event);
 console.log(`${event.code}: "${event.name}"${event.subtitle ? ` · ${event.subtitle}` : ""}`);
 console.log(`  theme ${event.theme} · ${event.max_shots} shots · new rolls ${event.new_rolls ? "on" : "off"} · overlays ${event.overlays ? "on" : "off"} · roll ${released ? "RELEASED" : event.release_at ? `locked until ${event.release_at.toISOString()}` : "locked until the host releases it"}`);
 
+console.log(`  event is ${event.online ? "ON (guests can reach it)" : "OFF (guests get a 404; switch it on at /e/admin)"}`);
 const page = await fetch(`${base}/e/${event.code}`);
 const html = await page.text();
+if (!event.online) {
+  ok(page.status === 404 && !html.includes(event.name), `guest link is a dead end (${page.status}) and doesn't reveal the name`);
+  await sql.end();
+  console.log(`\nhost:    ${base}/e/admin  (switch the event on there when it's time)`);
+  process.exit(problems.length ? 1 : 0);
+}
 ok(page.status === 200, `camera page loads (${page.status})`);
 ok(html.includes(`theme-${event.theme}`), `page uses the ${event.theme} theme (unknown theme names fall back to base)`);
 

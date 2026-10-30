@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { FILTERED, thumbPath } from "@/lib/config";
-import { getEvent, isReleased, sql } from "@/lib/db";
-import { currentSession, isAdmin } from "@/lib/session";
+import { isReleased, sql } from "@/lib/db";
+import { currentSession, isAdmin, openEvent } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
 import { themeClass } from "@/lib/themes";
 import Sheet from "./Sheet";
@@ -10,7 +10,7 @@ const PAGE = 40;
 type Tab = "all" | "picks" | "mine";
 
 export default async function RollPage({ params, searchParams }: PageProps<"/e/[code]/roll">) {
-  const event = await getEvent((await params).code);
+  const event = await openEvent((await params).code);
   if (!event) notFound();
   const sp = await searchParams;
   const tab: Tab = sp.tab === "picks" || sp.tab === "mine" ? sp.tab : "all";

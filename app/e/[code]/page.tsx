@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getEvent, isReleased } from "@/lib/db";
-import { currentSession } from "@/lib/session";
+import { isReleased } from "@/lib/db";
+import { currentSession, openEvent } from "@/lib/session";
 import { theme, themeClass } from "@/lib/themes";
 import CameraApp from "./CameraApp";
 
 export async function generateMetadata({ params }: PageProps<"/e/[code]">): Promise<Metadata> {
-  const event = await getEvent((await params).code);
+  const event = await openEvent((await params).code);
   return { title: event ? `${event.name} · blindshot` : "blindshot" };
 }
 
 export default async function EventPage({ params }: PageProps<"/e/[code]">) {
-  const event = await getEvent((await params).code);
+  const event = await openEvent((await params).code);
   if (!event) notFound();
   const session = await currentSession(event.id, event.code);
   return (

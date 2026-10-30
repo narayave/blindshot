@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ORIGINALS } from "@/lib/config";
-import { getEvent, sql } from "@/lib/db";
-import { currentSession } from "@/lib/session";
+import { sql } from "@/lib/db";
+import { currentSession, openEvent } from "@/lib/session";
 import { uploadUrl } from "@/lib/storage";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -13,8 +13,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const photoId = typeof body?.photoId === "string" && UUID.test(body.photoId) ? body.photoId.toLowerCase() : null;
   const ext = EXT[body?.contentType] ?? "jpg";
-  const event = typeof body?.eventCode === "string" ? await getEvent(body.eventCode) : null;
-  if (!photoId || !event) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  const event = typeof body?.eventCode === "string" ? await openEvent(body.eventCode) : null;
+  if (!photoId) return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  if (!event) return NextResponse.json({ error: "This event isn't open." }, { status: 404 });
   const session = await currentSession(event.id, event.code);
   if (!session) return NextResponse.json({ error: "Join the event first." }, { status: 401 });
 

@@ -5,6 +5,7 @@
 //   --overlays (film-artifact overlays on ~1 in 12 frames; see scripts/overlays.ts),
 //   --new-rolls (a guest who finishes a roll can load another).
 // Leave out --release to hold the shared roll until you release it from /admin.
+// A new event starts offline (guests get a 404) until the host switches it on at /e/admin; updates keep its state.
 import { parseArgs } from "node:util";
 import { MAX_SHOTS } from "../lib/config.ts";
 import { sql } from "../lib/db.ts";
@@ -24,9 +25,9 @@ const release = v.release ? new Date(v.release) : null;
 if (release && isNaN(release.getTime())) { console.error("--release must be a date like 2026-11-09T18:00:00-08:00"); process.exit(1); }
 
 const [e] = await sql`
-  insert into events (code, name, subtitle, theme, max_shots, release_at, allow_opt_outs, date_stamp, overlays, new_rolls)
+  insert into events (code, name, subtitle, theme, max_shots, release_at, allow_opt_outs, date_stamp, overlays, new_rolls, online)
   values (${v.code}, ${v.name}, ${v.subtitle ?? null}, ${v.theme!}, ${Number(v.shots ?? MAX_SHOTS)}, ${release},
-          ${!v["no-opt-outs"]}, ${!!v["date-stamp"]}, ${!!v.overlays}, ${!!v["new-rolls"]})
+          ${!v["no-opt-outs"]}, ${!!v["date-stamp"]}, ${!!v.overlays}, ${!!v["new-rolls"]}, false)
   on conflict (code) do update set name = excluded.name, subtitle = excluded.subtitle, theme = excluded.theme,
     max_shots = excluded.max_shots, release_at = excluded.release_at, allow_opt_outs = excluded.allow_opt_outs, date_stamp = excluded.date_stamp, overlays = excluded.overlays, new_rolls = excluded.new_rolls
   returning code, name, theme, max_shots, release_at`;

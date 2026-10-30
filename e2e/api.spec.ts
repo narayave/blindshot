@@ -154,7 +154,7 @@ test("rolls page: one switch per event turns the guests' view on and off", async
   await page.getByRole("button", { name: /Open the darkroom/ }).click();
   await expect(page).toHaveURL(/\/e\/admin$/); // login comes back here, not to the darkroom
   const row = page.locator(".roll-row").filter({ hasText: `/e/${e.code}` });
-  const toggle = row.getByRole("switch");
+  const toggle = row.getByRole("switch", { name: /guests see the roll/ });
   await expect(toggle).toHaveAttribute("aria-checked", "false");
 
   await toggle.click();
@@ -164,6 +164,29 @@ test("rolls page: one switch per event turns the guests' view on and off", async
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   expect(await (await a.get(`/e/${e.code}/roll`)).text()).toContain("developing.");
+});
+
+test("an event switched off is a 404 for guests (pages, joining, shooting), but not for the host", async ({ baseURL, request, page }) => {
+  const a = await guest(baseURL!, e);
+  await sql`update events set online = false where id = ${e.id}`;
+  expect((await request.get(`/e/${e.code}`)).status()).toBe(404);
+  expect((await request.get(`/e/${e.code}/roll`)).status()).toBe(404);
+  expect((await request.post("/api/session", { data: { eventCode: e.code, name: "B", consent: true } })).status()).toBe(404);
+  expect((await a.post("/api/photos/init", { data: { eventCode: e.code, photoId: randomUUID() } })).status()).toBe(404);
+  expect(await (await request.get(`/e/${e.code}`)).text()).not.toContain("E2E Party"); // not even the name
+
+  test.skip(!process.env.ADMIN_PASSWORD, "needs ADMIN_PASSWORD");
+  await page.goto("/e/admin");
+  await page.getByLabel("Host password").fill(process.env.ADMIN_PASSWORD!);
+  await page.getByRole("button", { name: /Open the darkroom/ }).click();
+  await expect(page.getByLabel("Host password")).toBeHidden(); // logged in
+  expect((await page.goto(`/e/${e.code}`))!.status()).toBe(200); // the host can still look
+  await page.goto("/e/admin");
+  const live = page.locator(".roll-row").filter({ hasText: `/e/${e.code}` }).getByRole("switch", { name: /event is live/ });
+  await expect(live).toHaveAttribute("aria-checked", "false");
+  await live.click();
+  await expect(live).toHaveAttribute("aria-checked", "true");
+  expect((await request.get(`/e/${e.code}`)).status()).toBe(200); // back for everyone
 });
 
 test("darkroom: password gate, star a frame, release the roll", async ({ page, baseURL }) => {

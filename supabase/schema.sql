@@ -61,5 +61,8 @@ alter table sessions add column if not exists instagram text;
 alter table events add column if not exists new_rolls boolean not null default false;
 alter table sessions add column if not exists rolls int not null default 1;
 
+-- Off = the event doesn't exist for guests (404); the host still sees it. New events start off (scripts/event.ts).
+alter table events add column if not exists online boolean not null default true;
+
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;

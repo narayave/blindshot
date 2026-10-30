@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { instagramHandle } from "@/lib/config";
-import { getEvent, sql } from "@/lib/db";
-import { newSessionToken } from "@/lib/session";
+import { sql } from "@/lib/db";
+import { newSessionToken, openEvent } from "@/lib/session";
 
 // Join an event: name + consent, optional Instagram handle and opt-outs. Sets the guest cookie.
 export async function POST(req: Request) {
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   if (ig && !instagram) return NextResponse.json({ error: "That Instagram handle doesn't look right." }, { status: 400 });
   if (body?.consent !== true) return NextResponse.json({ error: "Tick the box to agree to how photos are shared." }, { status: 400 });
 
-  const event = await getEvent(code);
+  const event = await openEvent(code);
   if (!event) return NextResponse.json({ error: "This event doesn't exist." }, { status: 404 });
 
   const optOuts = event.allow_opt_outs;
