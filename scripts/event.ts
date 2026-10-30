@@ -15,6 +15,7 @@ const { values: v } = parseArgs({
     release: { type: "string" }, shots: { type: "string" }, "no-opt-outs": { type: "boolean" }, "date-stamp": { type: "boolean" }, overlays: { type: "boolean" }, "new-rolls": { type: "boolean" },
   },
 });
+if (v.code === "admin") { console.error('"admin" is taken: /e/admin is the host\'s events page.'); process.exit(1); }
 if (!v.code || !/^[a-z0-9-]{2,40}$/.test(v.code) || !v.name) {
   console.error("Need --code (lowercase letters, digits, dashes) and --name.");
   process.exit(1);

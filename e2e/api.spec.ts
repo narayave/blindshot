@@ -140,6 +140,32 @@ test("a failed develop is retried, and only the third failure sticks", async ({ 
   expect(await state()).toMatchObject({ status: "failed", attempts: 3 });
 });
 
+test("rolls page: one switch per event turns the guests' view on and off", async ({ page, baseURL }) => {
+  test.skip(!process.env.ADMIN_PASSWORD, "needs ADMIN_PASSWORD");
+  await sql`update events set release_at = null where id = ${e.id}`;
+  const a = await guest(baseURL!, e);
+  await shoot(a, e);
+  await waitDeveloped(e.id, 1);
+  expect(await (await a.get(`/e/${e.code}/roll`)).text()).toContain("developing.");
+
+  await page.goto("/e/admin");
+  await expect(page.locator(".roll-row")).toHaveCount(0); // nothing about any event before the password
+  await page.getByLabel("Host password").fill(process.env.ADMIN_PASSWORD!);
+  await page.getByRole("button", { name: /Open the darkroom/ }).click();
+  await expect(page).toHaveURL(/\/e\/admin$/); // login comes back here, not to the darkroom
+  const row = page.locator(".roll-row").filter({ hasText: `/e/${e.code}` });
+  const toggle = row.getByRole("switch");
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  expect(await frames(a, e)).toBe(1); // guests see it now
+
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  expect(await (await a.get(`/e/${e.code}/roll`)).text()).toContain("developing.");
+});
+
 test("darkroom: password gate, star a frame, release the roll", async ({ page, baseURL }) => {
   test.skip(!process.env.ADMIN_PASSWORD, "needs ADMIN_PASSWORD");
   await sql`update events set release_at = null where id = ${e.id}`;

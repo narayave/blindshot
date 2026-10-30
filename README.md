@@ -31,7 +31,7 @@ The longer-term aim is a product hosts can buy per event: one camera, with a **t
 | **Wrap** | After 13 shots: "That's a wrap", and when the roll develops. On events with new rolls on (`--new-rolls`), a **Load a new roll** button gives the same guest a fresh roll, no rejoining. |
 | **Develop** | At the release time, the shared roll opens: everyone's frames, host picks, your own. Any frame can be saved to the phone's camera roll. |
 
-The host gets a **darkroom** (`/admin`): every frame as it arrives, star and hide, the untouched originals, guests' opt-outs, the QR code to print, and the switch that releases the roll.
+The host gets an **events page** (`/e/admin`, host password): every event with an On/Off switch for whether its guests can see the roll, plus its guest link and darkroom. And a **darkroom** (`/admin`): every frame as it arrives, star and hide, the untouched originals, guests' opt-outs, the QR code to print, and the switch that releases the roll.
 
 ---
 

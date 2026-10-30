@@ -48,8 +48,9 @@ roll, QR code, lock and darkroom view, so photos from two nights never mix.
 
 ## Later in an event's life
 
-- **Unlock for guests:** darkroom → **Release the roll now** (or `update events set release_at = now()`).
-- **Lock again:** darkroom → **Hide the roll again**.
+- **Unlock / lock for guests:** the host's events page `https://<site>/e/admin` (host password) has an On/Off switch per
+  event. The darkroom's **Release the roll now** / **Hide the roll again** do the same for one event. Never create an
+  event with the code `admin`: that address is the events page (`scripts/event.ts` refuses it).
 - **Start over** (demo photos out, fresh rolls): `npm run reset -- <code> [--shots N]`. It deletes every photo and
   guest of that event and can't be undone, so confirm with the user first.
 - **Demo vs real night:** a demo usually runs released with few shots; before the real night set the shots back,

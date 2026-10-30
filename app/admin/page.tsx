@@ -86,6 +86,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
                 <button className="ghost" type="submit">{released ? "Hide the roll again" : "Release the roll now"}</button>
               </form>
               <a className="fine" href={`/e/${event.code}/roll`}>Preview the roll as a guest →</a>
+              <a className="fine" href="/e/admin">Every event on one page →</a>
             </div>
           </div>
           <figure className="qr">
