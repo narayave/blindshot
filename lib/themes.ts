@@ -3,6 +3,7 @@ export const THEMES = {
   base: { chip: "NO PEEKING", decor: false },
   diwali: { chip: "SHOOT OK PLEASE", decor: true },
   halloween: { chip: "TRICK OR SHOOT", decor: false },
+  haunted: { chip: "SAY BOO", decor: false },
 } as const;
 
 export type ThemeName = keyof typeof THEMES;

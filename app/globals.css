@@ -45,6 +45,23 @@
 }
 .theme-halloween .wordmark { font-family: var(--font-creepster), sans-serif; letter-spacing: 0.02em; }
 .theme-halloween .stripes i:nth-child(1) { background: #FF7A1A; } .theme-halloween .stripes i:nth-child(2) { background: #6B2FA3; } .theme-halloween .stripes i:nth-child(3) { background: #9BE22D; }
+/* Haunted: gothic house by candlelight. Ink black, blood red, candle gold, bone */
+.theme-haunted {
+  --bg: #0D0A0B; --bg-2: #1A1214; --fg: #ECE3D3; --muted: #A8968F; --line: rgba(236, 227, 211, 0.14);
+  --dots: rgba(200, 16, 46, 0.10); --dots-2: rgba(217, 194, 122, 0.07);
+  --body: #22171A; --body-2: #33232A; --well: #050304; --cam-fg: #ECE3D3; --cam-muted: #A8968F;
+  --ridge: #4A2A31; --ridge-ready: #7A5A1E; --vf-ring: #D9C27A;
+  --accent: #D9C27A; --accent-2: #C8102E; --hot: #5A0A12; --on-accent: #0D0A0B;
+  --cta: #C8102E; --cta-ink: #ECE3D3; --cta-shadow: #000000;
+  --shutter: #C8102E; --shutter-deep: #6E0A18; --shutter-ink: #ECE3D3; --shutter-ring: #D9C27A;
+  --hl-em: #C8102E; --hl-shadow: 2px 2px 0 #000000;
+  --band: linear-gradient(#C8102E 0 33.3%, #D9C27A 0 66.6%, #ECE3D3 0);
+  --chip-bg: #0D0A0B; --chip-fg: #D9C27A; --leaf: #6B7F4A; --flash: #FFF1DC;
+  --hl-font: var(--font-pirata), Georgia, serif; --hl-weight: 400; --hl-stretch: 100%;
+  color-scheme: dark;
+}
+.theme-haunted .wordmark { font-family: var(--font-pirata), serif; color: var(--accent); text-shadow: 2px 2px 0 var(--accent-2); }
+.theme-haunted .stripes i:nth-child(1) { background: #C8102E; } .theme-haunted .stripes i:nth-child(2) { background: #D9C27A; } .theme-haunted .stripes i:nth-child(3) { background: #ECE3D3; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
