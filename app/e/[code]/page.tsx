@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { isReleased } from "@/lib/db";
+import { isClosed, isReleased } from "@/lib/db";
 import { eventLink } from "@/lib/qr";
 import { currentSession, openEvent } from "@/lib/session";
 import { theme, themeClass } from "@/lib/themes";
@@ -31,7 +31,8 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           released: isReleased(event),
           chip: theme(event.theme).chip,
           decor: theme(event.theme).decor,
-          newRolls: event.new_rolls,
+          closed: isClosed(event),
+          closesAt: event.closes_at?.toISOString() ?? null,
         }}
         qr={qr}
         guest={session ? { name: session.name, shotsUsed: session.shot_count - event.max_shots * (session.rolls - 1) } : null}

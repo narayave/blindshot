@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { FILTERED, thumbPath } from "@/lib/config";
 import { isReleased, sql } from "@/lib/db";
-import { currentSession, isAdmin, openEvent } from "@/lib/session";
+import { currentSession, isAdmin, openEvent, sameGuest } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
 import { themeClass } from "@/lib/themes";
 import HostOnly from "../HostOnly";
@@ -51,18 +51,21 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
   }
 
   const me = session?.id ?? null;
+  // Yours: this visit, plus earlier visits (any phone) where you joined with the same first name and Instagram.
+  const who = session && sameGuest(session);
+  const mine = who ? sql`(s.id = ${me} or (s.instagram = ${who.instagram} and lower(trim(s.name)) = ${who.name}))` : sql`s.id = ${me}`;
   // Visible to guests: processed, not hidden by the host, and not from someone who kept their roll private (unless it's yours).
-  const visible = sql`p.event_id = ${event.id} and p.status = 'done' and not p.hidden and (not s.private_roll or s.id = ${me})`;
+  const visible = sql`p.event_id = ${event.id} and p.status = 'done' and not p.hidden and (not s.private_roll or ${mine})`;
   const [counts] = await sql<{ n_all: number; n_picks: number; n_mine: number }[]>`
     select count(*)::int as n_all,
            count(*) filter (where p.starred)::int as n_picks,
-           count(*) filter (where s.id = ${me})::int as n_mine
+           count(*) filter (where ${mine})::int as n_mine
     from photos p join sessions s on s.id = p.session_id where ${visible}`;
   const rows = await sql<{ id: string; filtered_path: string; name: string; shot_number: number; starred: boolean; mine: boolean }[]>`
-    select p.id, p.filtered_path, s.name, p.shot_number, p.starred, s.id = ${me} as mine
+    select p.id, p.filtered_path, s.name, p.shot_number, p.starred, ${mine} as mine
     from photos p join sessions s on s.id = p.session_id
     where ${visible}
-      ${tab === "picks" ? sql`and p.starred` : tab === "mine" ? sql`and s.id = ${me}` : sql``}
+      ${tab === "picks" ? sql`and p.starred` : tab === "mine" ? sql`and ${mine}` : sql``}
     order by p.captured_at desc nulls last, p.created_at desc
     limit ${limit}`;
   const url = readUrls(FILTERED);

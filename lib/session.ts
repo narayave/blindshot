@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { getEvent, sql, type Event } from "./db";
+import { getEvent, isOpen, sql, type Event } from "./db";
 
 // Guests have no accounts: joining an event sets an httpOnly cookie holding a random token.
 // Only its hash is stored. One cookie per event so a phone can join several events.
@@ -8,6 +8,7 @@ export type Session = {
   id: string;
   event_id: string;
   name: string;
+  instagram: string | null;
   shot_count: number; // across all of this guest's rolls
   rolls: number; // rolls loaded so far: this guest may shoot max_shots × rolls
   private_roll: boolean;
@@ -21,7 +22,7 @@ export async function currentSession(eventId: string, eventCode: string): Promis
   const token = (await cookies()).get(cookieName(eventCode))?.value;
   if (!token) return null;
   const [s] = await sql<Session[]>`
-    select id, event_id, name, shot_count, rolls, private_roll, no_promo
+    select id, event_id, name, instagram, shot_count, rolls, private_roll, no_promo
     from sessions where token_hash = ${hash(token)} and event_id = ${eventId}`;
   return s ?? null;
 }
@@ -38,11 +39,15 @@ export async function newSessionToken(eventCode: string): Promise<string> {
   return hash(token);
 }
 
-// An event as guests may reach it: an offline event doesn't exist for anyone but the host.
+// An event as guests may reach it: switched off or not open yet, it doesn't exist for anyone but the host.
 export async function openEvent(code: string): Promise<Event | null> {
   const e = await getEvent(code);
-  return e && (e.online || (await isAdmin())) ? e : null;
+  return e && (isOpen(e) || (await isAdmin())) ? e : null;
 }
+
+// A guest is "the same person" across phones and visits when they join with the same first name and Instagram.
+// Not a password: it only decides whose frames show under Mine (including their private ones).
+export const sameGuest = (s: { name: string; instagram: string | null }) => s.instagram ? { name: s.name.trim().toLowerCase(), instagram: s.instagram } : null;
 
 // Host admin: one shared password from ADMIN_PASSWORD; the cookie holds an HMAC of it, never the password.
 const ADMIN_COOKIE = "bs_admin";

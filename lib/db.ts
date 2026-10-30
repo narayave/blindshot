@@ -22,8 +22,9 @@ export type Event = {
   allow_opt_outs: boolean;
   date_stamp: boolean;
   overlays: boolean;
-  new_rolls: boolean; // a guest who finishes a roll can load another
   online: boolean; // off: guests get a 404 everywhere; the host still sees it
+  opens_at: Date | null; // guests can reach it from here (with online on)
+  closes_at: Date | null; // shooting stops here
 };
 
 export async function getEvent(code: string): Promise<Event | null> {
@@ -32,3 +33,7 @@ export async function getEvent(code: string): Promise<Event | null> {
 }
 
 export const isReleased = (e: Event) => !!e.release_at && e.release_at.getTime() <= Date.now();
+export const isOpen = (e: Event) => e.online && (!e.opens_at || e.opens_at.getTime() <= Date.now());
+// Shots taken just before closing are still uploading: the server takes them for a few more minutes.
+export const CLOSE_GRACE_MS = 15 * 60_000;
+export const isClosed = (e: Event, grace = 0) => !!e.closes_at && e.closes_at.getTime() + grace <= Date.now();

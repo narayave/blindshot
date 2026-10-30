@@ -1,4 +1,4 @@
-import { isReleased, sql, type Event } from "@/lib/db";
+import { isClosed, isOpen, isReleased, sql, type Event } from "@/lib/db";
 import { isAdmin } from "@/lib/session";
 import { setOnline, setRelease } from "@/app/admin/actions";
 import Login from "@/app/admin/Login";
@@ -46,7 +46,8 @@ export default async function EventsAdmin() {
                 <span className="fine"> {e.subtitle ? `${e.subtitle} · ` : ""}/e/{e.code}</span>
                 <div className="stats"><span><b>{e.guests}</b> guests</span><span><b>{e.photos}</b> photos</span></div>
                 <span className="fine">
-                  {e.online ? "Event is live. " : "Event is off: guests get a 404. "}
+                  {!e.online ? "Event is off: guests get a 404. " : !isOpen(e) ? `Opens by itself ${pt(e.opens_at!)} PT. ` : isClosed(e) ? "Shooting has ended. " : "Event is live. "}
+                  {e.closes_at && !isClosed(e) ? `Shooting stops ${pt(e.closes_at)} PT. ` : ""}
                   {on ? "Guests can see the roll." : e.release_at ? `Roll opens by itself ${pt(e.release_at)} PT.` : "Roll locked until you switch it on."}
                 </span>
                 <div className="roll-links">

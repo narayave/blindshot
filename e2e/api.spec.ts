@@ -69,13 +69,10 @@ test("shot limit is enforced on the server, and retries don't burn shots", async
   expect(over.status()).toBe(409);
 });
 
-test("new rolls: only on events that allow them, only once the roll is shot, and the limit grows by one roll", async ({ baseURL }) => {
+test("new rolls: only once the roll is shot, and the limit grows by one roll", async ({ baseURL }) => {
   const a = await guest(baseURL!, e);
   const init = async () => (await a.post("/api/photos/init", { data: { eventCode: e.code, photoId: randomUUID() } }));
   const roll = () => a.post("/api/session/roll", { data: { eventCode: e.code } });
-  expect((await roll()).status()).toBe(403); // this event is one roll per guest
-
-  await sql`update events set new_rolls = true where id = ${e.id}`;
   expect((await roll()).status()).toBe(409); // roll not finished yet
   await init();
   await init();
@@ -87,6 +84,35 @@ test("new rolls: only on events that allow them, only once the roll is shot, and
   expect((await init()).status()).toBe(409);
   const shots = await sql<{ shot_number: number }[]>`select shot_number from photos where event_id = ${e.id} order by 1`;
   expect(shots.map((s) => s.shot_number)).toEqual([1, 2, 3, 4]);
+});
+
+test("schedule: not reachable before it opens; after closing, no new shots or rolls (with a grace period for late uploads)", async ({ baseURL, request }) => {
+  const a = await guest(baseURL!, e);
+  const init = () => a.post("/api/photos/init", { data: { eventCode: e.code, photoId: randomUUID() } });
+
+  await sql`update events set opens_at = now() + interval '1 hour' where id = ${e.id}`;
+  expect((await request.get(`/e/${e.code}`)).status()).toBe(404);
+  await sql`update events set opens_at = now() - interval '1 hour' where id = ${e.id}`;
+  expect((await request.get(`/e/${e.code}`)).status()).toBe(200);
+
+  await sql`update events set closes_at = now() - interval '5 minutes' where id = ${e.id}`;
+  expect((await init()).status()).toBe(200); // shot just before closing, still uploading: accepted
+  expect(await (await a.get(`/e/${e.code}`)).text()).toContain("over."); // but the camera says the night's over
+  await sql`update events set closes_at = now() - interval '20 minutes' where id = ${e.id}`;
+  expect((await init()).status()).toBe(409);
+  expect((await a.post("/api/session/roll", { data: { eventCode: e.code } })).status()).toBe(409);
+});
+
+test("same first name + Instagram on another phone: earlier shots show under Mine", async ({ baseURL }) => {
+  const first = await guest(baseURL!, e, { name: "Maya", instagram: "@maya.shoots", privateRoll: true });
+  await shoot(first, e);
+  await shoot(first, e);
+  const otherPhone = await guest(baseURL!, e, { name: " maya ", instagram: "instagram.com/Maya.Shoots" });
+  const stranger = await guest(baseURL!, e, { name: "Not Maya", instagram: "@maya.shoots" }); // same handle, other name
+  await waitDeveloped(e.id, 2);
+  expect(await frames(otherPhone, e, "mine")).toBe(2); // private frames too: it's the same person
+  expect(await frames(stranger, e, "mine")).toBe(0);
+  expect(await frames(stranger, e)).toBe(0); // and private stays private
 });
 
 test("upload links can write but not read; strangers can't touch photos", async ({ baseURL, request }) => {

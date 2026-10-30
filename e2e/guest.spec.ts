@@ -103,7 +103,7 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
 });
 
 test("finished roll → load a new roll without joining again", async ({ page }) => {
-  const e = await makeEvent({ shots: 1, newRolls: true });
+  const e = await makeEvent({ shots: 1 });
   const live = () => expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
   const wrap = page.getByRole("heading", { name: /wrap/ });
   try {

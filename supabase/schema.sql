@@ -57,9 +57,14 @@ alter table events add column if not exists overlays boolean not null default fa
 
 alter table sessions add column if not exists instagram text;
 
--- New rolls: when on, a guest who finishes a roll can load another (sessions.rolls counts them).
-alter table events add column if not exists new_rolls boolean not null default false;
+-- A guest who finishes a roll can always load another; sessions.rolls counts them.
+-- (events.new_rolls from an earlier version is no longer read; harmless if it's still there.)
 alter table sessions add column if not exists rolls int not null default 1;
+
+-- Schedule: the event opens to guests at opens_at (with online on), shooting stops at closes_at,
+-- and the roll is released at release_at. Null = no time limit on that side.
+alter table events add column if not exists opens_at timestamptz;
+alter table events add column if not exists closes_at timestamptz;
 
 -- Off = the event doesn't exist for guests (404); the host still sees it. New events start off (scripts/event.ts).
 alter table events add column if not exists online boolean not null default true;

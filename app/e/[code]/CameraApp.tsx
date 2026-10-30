@@ -13,7 +13,8 @@ type EventInfo = {
   released: boolean;
   chip: string;
   decor: boolean;
-  newRolls: boolean;
+  closed: boolean; // shooting has ended for the night
+  closesAt: string | null;
 };
 type Guest = { name: string; shotsUsed: number };
 
@@ -74,7 +75,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
         <label className="field" htmlFor="name">First name
           <input id="name" name="name" autoComplete="given-name" required />
         </label>
-        <label className="field" htmlFor="instagram">Instagram, so the host can tag you (optional)
+        <label className="field" htmlFor="instagram">Instagram, so the host can tag you and you can find your shots again (optional)
           <input id="instagram" name="instagram" placeholder="@yourhandle" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
         </label>
         <div className="consent">
@@ -103,7 +104,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
           <span>{busy ? "Loading film…" : "Load film"}</span>
           <span aria-hidden>→</span>
         </button>
-        <p className="fine">No password. This phone remembers you for the night.</p>
+        <p className="fine">No password. Coming back later or on another phone? Use the same first name and Instagram, and your earlier shots are still yours.</p>
       </form>
       <figure className="share-qr">
         <div dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label={`QR code to join ${event.name}`} />
@@ -312,7 +313,7 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     }
   }
 
-  if (left === 0) return <RollDone event={event} uploading={pending} />;
+  if (left === 0 || event.closed) return <RollDone event={event} uploading={pending} />;
 
   const used = event.maxShots - left;
   return (
@@ -418,7 +419,7 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
   return (
     <section className="stack">
       <p className="big-zero" aria-hidden>0</p>
-      <h1 className="headline">That&apos;s a<br /><em>wrap.</em></h1>
+      <h1 className="headline">{event.closed ? <>The night&apos;s<br /><em>over.</em></> : <>That&apos;s a<br /><em>wrap.</em></>}</h1>
       <p className="lede">Your shots are in the party&apos;s roll with everyone else&apos;s. It all develops at once, and nobody sees a frame until then.</p>
       <div className="panel">
         <div className="row">
@@ -430,7 +431,7 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
           <span suppressHydrationWarning>{event.releaseAt ? formatWhen(event.releaseAt) : "When the host releases it"}</span>
         </div>
       </div>
-      {event.newRolls && (
+      {!event.closed && (
         <>
           <button className="cta" type="button" onClick={newRoll} disabled={loading || uploading > 0}>
             <span>{uploading ? "Saving your shots…" : loading ? "Loading film…" : `Load a new roll · ${event.maxShots} shots`}</span>

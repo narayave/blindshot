@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ORIGINALS } from "@/lib/config";
-import { sql } from "@/lib/db";
+import { CLOSE_GRACE_MS, isClosed, sql } from "@/lib/db";
 import { currentSession, openEvent } from "@/lib/session";
 import { uploadUrl } from "@/lib/storage";
 
@@ -16,6 +16,7 @@ export async function POST(req: Request) {
   const event = typeof body?.eventCode === "string" ? await openEvent(body.eventCode) : null;
   if (!photoId) return NextResponse.json({ error: "Bad request" }, { status: 400 });
   if (!event) return NextResponse.json({ error: "This event isn't open." }, { status: 404 });
+  if (isClosed(event, CLOSE_GRACE_MS)) return NextResponse.json({ error: "The night's over: no more shots.", shotsLeft: 0 }, { status: 409 });
   const session = await currentSession(event.id, event.code);
   if (!session) return NextResponse.json({ error: "Join the event first." }, { status: 401 });
 
