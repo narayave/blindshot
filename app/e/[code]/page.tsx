@@ -5,6 +5,7 @@ import { eventLink } from "@/lib/qr";
 import { currentSession, openEvent } from "@/lib/session";
 import { theme, themeClass } from "@/lib/themes";
 import CameraApp from "./CameraApp";
+import HostOnly from "./HostOnly";
 
 export async function generateMetadata({ params }: PageProps<"/e/[code]">): Promise<Metadata> {
   const event = await openEvent((await params).code);
@@ -18,6 +19,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
   const { qr } = await eventLink(event.code);
   return (
     <div className={`shell ${themeClass(event.theme)}`}>
+      {!event.online && <HostOnly />}
       <CameraApp
         event={{
           code: event.code,

@@ -4,6 +4,7 @@ import { isReleased, sql } from "@/lib/db";
 import { currentSession, isAdmin, openEvent } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
 import { themeClass } from "@/lib/themes";
+import HostOnly from "../HostOnly";
 import Sheet from "./Sheet";
 
 const PAGE = 40;
@@ -19,6 +20,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
 
   const shell = (body: React.ReactNode) => (
     <div className={`shell ${themeClass(event.theme)}`}>
+      {!event.online && <HostOnly />}
       <div className="app">
         <header className="top">
           <a className="wordmark" href={`/e/${event.code}`}>blindshot</a>

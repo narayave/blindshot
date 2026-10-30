@@ -211,6 +211,8 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .stats { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
 .stats b { color: var(--fg); font-size: 20px; font-variant-numeric: tabular-nums; }
 .stats .warn b { color: var(--hot); }
+.host-only { margin: 0; padding: 10px 16px; background: #F0A73A; color: #1A0A04; font-size: 14px; text-align: center; }
+.host-only a { font-weight: 700; }
 .share-qr { margin: 8px auto 0; width: 168px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .share-qr svg { width: 100%; height: auto; display: block; background: #fff; padding: 8px; border-radius: 12px; }
 .share-qr figcaption { font-size: 13px; color: var(--muted); text-align: center; }

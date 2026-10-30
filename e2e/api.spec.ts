@@ -187,6 +187,7 @@ test("an event switched off is a 404 for guests (pages, joining, shooting), but 
   await page.getByRole("button", { name: /Open the darkroom/ }).click();
   await expect(page.getByLabel("Host password")).toBeHidden(); // logged in
   expect((await page.goto(`/e/${e.code}`))!.status()).toBe(200); // the host can still look
+  await expect(page.getByText(/This event is OFF/)).toBeVisible(); // and is told guests can't
   await page.goto("/e/admin");
   const live = page.locator(".roll-row").filter({ hasText: `/e/${e.code}` }).getByRole("switch", { name: /event is live/ });
   await expect(live).toHaveAttribute("aria-checked", "false");
