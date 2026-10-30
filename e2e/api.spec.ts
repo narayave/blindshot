@@ -39,7 +39,7 @@ test("unknown event is a 404", async ({ request }) => {
 test("the join page carries a QR code friends can scan to join", async ({ request }) => {
   const html = await (await request.get(`/e/${e.code}`)).text();
   expect(html).toContain(`QR code to join E2E Party`);
-  expect(html).toMatch(/<figure class="share-qr">.*<svg/s);
+  expect(html).toMatch(/<figure class="share-qr">[\s\S]*<svg/);
 });
 
 test("joining needs consent", async ({ request }) => {
