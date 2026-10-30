@@ -120,8 +120,9 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
 const WIND_PX = 120;
 // Torch fallback: the light burns at least TORCH_MIN_MS (LED warm-up), then until brightness stops changing
 // (auto-exposure has caught up), but never longer than TORCH_MAX_MS. Tune per phone.
-const TORCH_MIN_MS = 700;
-const TORCH_MAX_MS = 2000;
+const TORCH_MIN_MS = 500;
+const TORCH_MAX_MS = 1500;
+const STEADY_FRAMES = 3; // in a row, before the shot
 
 function Camera({ event, me }: { event: EventInfo; me: Guest }) {
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
@@ -512,7 +513,7 @@ async function settle(v: HTMLVideoElement, track: MediaStreamTrack, focus: boole
     const l = luma(v), s = sharpness(v), f = lens();
     const steady = Math.abs(l - prev) < 0.01 && (!focus || (s <= prevSharp * 1.03 && f === prevLens));
     calm = performance.now() - start > TORCH_MIN_MS && steady ? calm + 1 : 0;
-    if (calm >= 4) return; // four steady frames in a row
+    if (calm >= STEADY_FRAMES) return;
     prev = l;
     prevSharp = s;
     prevLens = f;

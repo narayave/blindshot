@@ -85,6 +85,7 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     expect(ps.every((p) => p.captured_at)).toBe(true);
     await page.goto(`/e/${e.code}/roll?tab=mine`);
     await expect(page.locator(".frame")).toHaveCount(2);
+    await expect(page.getByRole("link", { name: "← Camera" })).toHaveAttribute("href", `/e/${e.code}`); // the way back
 
     // nothing was saved on the phone
     expect(downloads).toEqual([]);
