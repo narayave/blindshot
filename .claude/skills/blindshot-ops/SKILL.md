@@ -26,7 +26,7 @@ timed every request out and the site stayed down until redeployed. Keep image wo
 | `supabase/schema.sql` | add idempotent statements (`add column if not exists`), apply them to prod, then deploy code that uses them |
 
 Before shipping: `npx tsc --noEmit -p .` and `npm test` (all browsers; tests mute audio). Watch a deploy with
-`gh run watch $(gh run list -b main -L 1 --json databaseId -q '.[0].databaseId') --exit-status`. Then verify live:
+`gh run watch $(gh run list -b main -L 5 --json databaseId,headSha -q ".[] | select(.headSha==\"$(git rev-parse HEAD)\") | .databaseId") --exit-status` (wait a few seconds after pushing so the run exists; matching the commit avoids watching the previous deploy). Then verify live:
 `BASE_URL=https://<site> npx playwright test` (deployments develop on the worker's minute timer, so it's slower).
 
 Commits use the noreply email `3068089+narayave@users.noreply.github.com`. Dependency or security updates: branch → PR

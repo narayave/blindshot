@@ -37,7 +37,7 @@ roll, QR code, lock and darkroom view, so photos from two nights never mix.
    Event names can carry a partner's brand: that's fine in the database, but keep partner names out of anything
    committed (the repo is public), including examples in docs and skills.
 4. **Ship the theme** if you made one: typecheck, `npm test`, commit, push, wait for the deploy
-   (`gh run watch $(gh run list -b main -L 1 --json databaseId -q '.[0].databaseId') --exit-status`).
+   (`gh run watch $(gh run list -b main -L 5 --json databaseId,headSha -q ".[] | select(.headSha==\"$(git rev-parse HEAD)\") | .databaseId") --exit-status` (wait a few seconds after pushing so the run exists; matching the commit avoids watching the previous deploy)).
 5. **Check it live** with the bundled script. It joins as a throwaway guest, confirms the lock, and deletes that guest:
    ```bash
    node --env-file=.env.local .claude/skills/blindshot-new-event/scripts/check-event.ts halloween-fri
