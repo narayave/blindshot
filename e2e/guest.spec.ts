@@ -57,8 +57,9 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     await page.locator("#consent").check();
     await page.locator("form button[type=submit]").click();
 
-    // live viewfinder from the (fake) camera
+    // live viewfinder from the (fake) camera; the roll is already out, so it's one tap away
     await expect(page.getByLabel("2 shots left")).toBeVisible();
+    await expect(page.getByRole("link", { name: /See everyone/ })).toBeVisible();
     await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
 
     // a fresh roll comes wound: first shot is instant

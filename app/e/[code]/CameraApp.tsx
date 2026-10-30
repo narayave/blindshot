@@ -402,7 +402,9 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
           {pending > 0 && <small>{pending} uploading…</small>}
         </p>
       </div>
-      <p className="fine center">Every shot joins the party&apos;s shared roll after the event.</p>
+      {event.released
+        ? <a className="ghost" href={`/e/${event.code}/roll`}>The roll is out. See everyone&apos;s shots →</a>
+        : <p className="fine center">Every shot joins the party&apos;s shared roll after the event.</p>}
       <div className="flashfx" ref={fxRef} />
     </section>
   );

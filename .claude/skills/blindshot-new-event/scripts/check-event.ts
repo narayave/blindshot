@@ -41,7 +41,7 @@ try {
   if (released) ok(!/developing\./.test(roll), `roll is open to guests (${frames} frames showing)`);
   else ok(/developing\./.test(roll) && frames === 0, `roll is locked for guests ("Still developing", ${frames} frames showing)`);
   const cam = await (await fetch(`${base}/e/${event.code}`, { headers: { cookie } })).text();
-  ok(/See the roll/.test(cam) === released, `camera page ${released ? "links" : "doesn't link"} to the roll`);
+  ok(cam.includes(`/e/${event.code}/roll`) === released, `camera page ${released ? "links" : "doesn't link"} to the roll`);
 } finally {
   await sql`delete from sessions where event_id = ${event.id} and name = ${name}`; // the throwaway guest
   await sql.end();
