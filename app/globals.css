@@ -215,6 +215,11 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .stats .warn b { color: var(--hot); }
 .host-only { margin: 0; padding: 10px 16px; background: #F0A73A; color: #1A0A04; font-size: 14px; text-align: center; }
 .host-only a { font-weight: 700; }
+.night { display: flex; flex-direction: column; gap: 8px; }
+.night-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.night-grid div { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; }
+.night-grid b { font-size: 22px; font-variant-numeric: tabular-nums; color: var(--accent); }
+.night-grid span { font-size: 11px; color: var(--muted); text-align: center; }
 .share-qr { margin: 8px auto 0; width: 168px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .share-qr svg { width: 100%; height: auto; display: block; background: #fff; padding: 8px; border-radius: 12px; }
 .share-qr figcaption { font-size: 13px; color: var(--muted); text-align: center; }

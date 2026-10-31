@@ -137,6 +137,9 @@ test("roll: closed to non-guests, hidden until release, private rolls stay priva
   expect(await frames(a, e, "mine")).toBe(1);
   expect(await frames(a, e)).toBe(2); // you always see your own
   expect(await frames(b, e)).toBe(1); // a's private frame is not shared
+  const roll = await (await b.get(`/e/${e.code}/roll`)).text(); // the night in numbers, once it's out
+  expect(roll).toContain("The night in numbers");
+  expect(roll).toMatch(/<b>2<\/b><span>photos<\/span>/); // private frames count toward the night, though not shown
 
   await sql`update events set release_at = null where id = ${e.id}`;
   expect(await (await b.get(`/e/${e.code}/roll`)).text()).toContain("developing.");

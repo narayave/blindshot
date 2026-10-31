@@ -74,9 +74,12 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
     <a href={`?tab=${t}`} aria-current={tab === t ? "page" : undefined}>{label}<small>{n.toLocaleString()}</small></a>
   );
 
+  const night = await nightStats(event.id);
+
   return shell(
     <section className="stack">
       <h1 className="headline">The party&apos;s<br /><em>roll.</em></h1>
+      {night.photos > 0 && <NightStats s={night} />}
       <div className="tabs">
         {tabLink("all", "Everyone", counts.n_all)}
         {tabLink("picks", "Host picks", counts.n_picks)}
@@ -89,5 +92,49 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
         name={event.code}
       />
     </section>,
+  );
+}
+
+type Night = {
+  photos: number; guests: number; rolls: number; picks: number; first: Date | null; last: Date | null;
+  busiest: { hour: Date; n: number } | null; top: { name: string; n: number } | null;
+};
+
+// The night in numbers: everything developed and not hidden by the host.
+async function nightStats(eventId: string): Promise<Night> {
+  const [t] = await sql<{ photos: number; picks: number; first: Date | null; last: Date | null; guests: number; rolls: number }[]>`
+    select count(*)::int as photos, count(*) filter (where starred)::int as picks, min(captured_at) as first, max(captured_at) as last,
+           (select count(*)::int from sessions where event_id = ${eventId}) as guests,
+           (select coalesce(sum(rolls), 0)::int from sessions where event_id = ${eventId}) as rolls
+    from photos where event_id = ${eventId} and status = 'done' and not hidden`;
+  const [busiest] = await sql<{ hour: Date; n: number }[]>`
+    select date_trunc('hour', captured_at) as hour, count(*)::int as n from photos
+    where event_id = ${eventId} and status = 'done' and not hidden and captured_at is not null
+    group by 1 order by 2 desc, 1 limit 1`;
+  // the same person across phones (first name + Instagram) counts once
+  const [top] = await sql<{ name: string; n: number }[]>`
+    select min(s.name) as name, count(*)::int as n from photos p join sessions s on s.id = p.session_id
+    where p.event_id = ${eventId} and p.status = 'done' and not p.hidden
+    group by coalesce(s.instagram || '|' || lower(trim(s.name)), s.id::text) order by 2 desc limit 1`;
+  return { ...t, busiest: busiest ?? null, top: top ?? null };
+}
+
+function NightStats({ s }: { s: Night }) {
+  const time = (d: Date) => d.toLocaleString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", minute: "2-digit" });
+  const hour = (d: Date) => d.toLocaleString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric" });
+  return (
+    <section className="night" aria-label="The night in numbers">
+      <div className="night-grid">
+        <div><b>{s.photos.toLocaleString()}</b><span>photos</span></div>
+        <div><b>{s.guests}</b><span>cameras</span></div>
+        <div><b>{s.rolls}</b><span>rolls of film</span></div>
+        <div><b>{s.picks}</b><span>host picks</span></div>
+      </div>
+      <p className="fine">
+        {s.first && s.last && <>First shot {time(s.first)}, last {time(s.last)}. </>}
+        {s.busiest && <>Busiest hour: {hour(s.busiest.hour)}, with {s.busiest.n} shots. </>}
+        {s.top && s.top.n > 1 && <>Most film shot: {s.top.name}, {s.top.n} frames.</>}
+      </p>
+    </section>
   );
 }
