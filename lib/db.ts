@@ -25,6 +25,7 @@ export type Event = {
   online: boolean; // off: guests get a 404 everywhere; the host still sees it
   opens_at: Date | null; // guests can reach it from here (with online on)
   closes_at: Date | null; // shooting stops here
+  look: string | null; // named film look (LOOKS in lib/film.ts); null = default
   focus_check: boolean; // camera trial: wait for focus too, and re-grab if the light missed the frame
 };
 

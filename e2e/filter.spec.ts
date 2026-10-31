@@ -1,7 +1,7 @@
 // The film filter: one fixed recipe, repeatable per photo, sized for the roll, with its credit where it belongs.
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
-import { applyFilmFilter } from "../lib/film.ts";
+import { LOOKS, applyFilmFilter } from "../lib/film.ts";
 import { testJpeg } from "./support.ts";
 
 const raw = async (jpg: Buffer) => sharp(jpg).raw().toBuffer({ resolveWithObject: true });
@@ -98,4 +98,15 @@ test("a panned frame smears the edges and keeps the middle (where the subject is
   const contrast = async (left: number) =>
     (await sharp(await sharp(panned).extract({ left, top: H / 2 - 50, width: 100, height: 100 }).greyscale().toBuffer()).stats()).channels[0].stdev; // stats() reads its input, so crop first
   expect(await contrast(W / 2 - 50)).toBeGreaterThan((await contrast(10)) * 1.5); // middle vs left edge
+});
+
+test("the night look has deeper blacks and brighter brights than the default", async () => {
+  // a grey ramp from black to white
+  const ramp = await sharp(Buffer.from(Array.from({ length: 256 * 64 * 3 }, (_, i) => Math.floor(i / 3) % 256)), { raw: { width: 256, height: 64, channels: 3 } }).jpeg({ quality: 95 }).toBuffer();
+  const plain = { seed: 1, leak: { chance: 0, strength: 0, colors: [] }, shake: { chance: 0, strength: 1 }, pan: { chance: 0, strength: 1 }, dust: 0, scratches: 0, watermark: false, vignette: 0, grain: { amount: 0, size: 1, shadowBoost: 0, chroma: 0 } };
+  const level = async (b: Buffer, left: number) =>
+    (await sharp(await sharp(b).extract({ left, top: 16, width: 16, height: 32 }).greyscale().toBuffer()).stats()).channels[0].mean;
+  const day = await applyFilmFilter(ramp, plain), night = await applyFilmFilter(ramp, { ...plain, ...LOOKS.night });
+  expect(await level(night, 24)).toBeLessThan(await level(day, 24)); // shadows
+  expect(await level(night, 216)).toBeGreaterThan(await level(day, 216)); // highlights
 });

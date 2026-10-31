@@ -3,13 +3,13 @@ import exifr from "exifr";
 import sharp from "sharp";
 import { FILTERED, ORIGINALS, thumbPath } from "./config.ts";
 import { sql } from "./db.ts";
-import { DEFAULT_FILM, applyFilmFilter } from "./film.ts";
+import { DEFAULT_FILM, LOOKS, applyFilmFilter } from "./film.ts";
 import { download, upload } from "./storage.ts";
 
 // Original in, filtered copy out.
 export async function processPhoto(photoId: string): Promise<void> {
-  const [p] = await sql<{ original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; overlays: boolean; captured_at: Date | null }[]>`
-    select p.original_path, p.shot_number, e.max_shots, e.date_stamp, e.overlays, p.captured_at
+  const [p] = await sql<{ original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; overlays: boolean; look: string | null; captured_at: Date | null }[]>`
+    select p.original_path, p.shot_number, e.max_shots, e.date_stamp, e.overlays, e.look, p.captured_at
     from photos p join events e on e.id = p.event_id where p.id = ${photoId}`;
   if (!p) return;
   try {
@@ -20,6 +20,7 @@ export async function processPhoto(photoId: string): Promise<void> {
     const edgeFrame = frame === 1 || frame === p.max_shots;
     const seed = seedOf(photoId);
     const filtered = await applyFilmFilter(original, {
+      ...(p.look ? LOOKS[p.look] : undefined),
       seed,
       overlay: p.overlays ? await pickOverlay(seed) : null,
       ...(edgeFrame && { leak: { ...DEFAULT_FILM.leak, chance: 0.8 } }),

@@ -61,6 +61,16 @@ export const DEFAULT_FILM: FilmOptions = {
   quality: 86,
 };
 
+// Named looks an event can pick (events.look) on top of the default. Null/unknown = the default look.
+export const LOOKS: Record<string, Partial<FilmOptions>> = {
+  // For dark parties: deeper blacks, more contrast, brights that glow and clip a little.
+  night: {
+    exposure: 1.1, gamma: 1.12, shoulder: 0.95, contrast: 0.95,
+    blackPoint: [0.012, 0.02, 0.008], whitePoint: [1, 1, 0.97],
+    halation: { strength: 0.45, threshold: 0.85, radius: 0.01, color: [1, 0.32, 0.12] },
+  },
+};
+
 // Deep-merges one level so callers can pass e.g. { grain: { amount: 0.1 } }.
 export function filmOptions(partial: Partial<FilmOptions> = {}): FilmOptions {
   const o = { ...DEFAULT_FILM } as Record<string, unknown>;

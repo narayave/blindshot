@@ -72,5 +72,8 @@ alter table events add column if not exists online boolean not null default true
 -- Camera trial: with the phone light on, also wait for focus to settle and check the light actually reached the frame.
 alter table events add column if not exists focus_check boolean not null default false;
 
+-- A named look from LOOKS in lib/film.ts (e.g. 'night'); null = the default film look.
+alter table events add column if not exists look text;
+
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;
