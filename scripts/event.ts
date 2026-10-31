@@ -2,7 +2,8 @@
 //   npm run event -- --code halloween --name "Halloween Night" --subtitle "Sat Oct 31" --theme halloween \
 //     --shots 9 --overlays --opens "2026-10-31 18:00"
 // With --opens the event switches itself on at that time, shooting stops at 2am the next morning (--closes) and the
-// roll is released at 8am (--release); pass any of them to override. Without --opens a new event starts off (guests get
+// roll opens at midnight (--release), so everyone sees it together while the party's still on;
+// pass any of them to override. Without --opens a new event starts off (guests get
 // a 404) until the host switches it on at /e/admin, and nothing closes or releases by itself unless you pass the time.
 // Options: --shots 13, --no-opt-outs (hide the opt-out boxes at join), --date-stamp (LED date on photos),
 //   --overlays (film-artifact overlays and burns on some frames; see scripts/overlays.ts),
@@ -51,9 +52,9 @@ function nextMorning(opens: Date, h: number): Date {
 if (v.look && !(v.look in LOOKS)) fail(`--look must be one of: ${Object.keys(LOOKS).join(", ")}`);
 const opens = when(v.opens, "opens");
 const closes = when(v.closes, "closes") ?? (opens && nextMorning(opens, 2));
-const release = when(v.release, "release") ?? (opens && nextMorning(opens, 8));
+const release = when(v.release, "release") ?? (opens && nextMorning(opens, 0)); // midnight on the clock, even on a DST night
 if (opens && closes && closes <= opens) fail("--closes must be after --opens");
-if (closes && release && release < closes) console.warn("note: the roll is released before shooting stops");
+if (opens && release && release < opens) console.warn("note: the roll is released before the event opens");
 
 const [e] = await sql<{ code: string; name: string; max_shots: number; online: boolean; opens_at: Date | null; closes_at: Date | null; release_at: Date | null }[]>`
   insert into events (code, name, subtitle, theme, max_shots, opens_at, closes_at, release_at, allow_opt_outs, date_stamp, overlays, look, credit, online)

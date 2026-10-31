@@ -1,16 +1,25 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Frame = { id: string; thumb: string; src: string; by: string; n: number; star: boolean };
 
-export default function Sheet({ frames, moreHref, empty, name }: { frames: Frame[]; moreHref: string | null; empty: string; name: string }) {
+export default function Sheet({ frames, moreHref, empty, name, live }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean }) {
+  const router = useRouter();
   const [start, setStart] = useState<number | null>(null); // the frame tapped to open the viewer
   const [cur, setCur] = useState(0); // the frame on screen now
   const [file, setFile] = useState<File | null>(null);
   const track = useRef<HTMLDivElement>(null);
   const open = start !== null;
   const frame = open ? frames[cur] : null;
+
+  // While the party's still going, new frames keep developing: refresh every 30 s, but never under someone's swipe.
+  useEffect(() => {
+    if (!live || start !== null) return;
+    const t = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, 30_000);
+    return () => clearInterval(t);
+  }, [live, start, router]);
 
   // Land on the tapped frame, then let the guest swipe (scroll-snap does the swiping).
   useLayoutEffect(() => {

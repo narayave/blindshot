@@ -115,7 +115,8 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
 
 /* ---------------- camera ---------------- */
 
-const WIND_PX = 120;
+// One short swipe (or one tap) winds the film: winding is a ritual, not a chore, and it happens one-handed.
+const WIND_PX = 60;
 // Torch fallback: the light burns at least TORCH_MIN_MS (LED warm-up), then until brightness stops changing
 // (auto-exposure has caught up), but never longer than TORCH_MAX_MS. Tune per phone.
 const TORCH_MIN_MS = 500;
@@ -166,6 +167,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const facing = useRef<"environment" | "user">("environment");
   const [selfie, setSelfie] = useState(false);
   const [canFlip, setCanFlip] = useState(false);
+  const [ratio, setRatio] = useState(3 / 4); // the live picture's shape: the viewfinder follows it, upright or sideways
   const windRef = useRef({ acc: 0, pos: 0, lastX: null as number | null, moved: 0 });
 
   async function startCamera() {
@@ -184,6 +186,10 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
       streamRef.current = stream;
       const v = videoRef.current!;
       v.srcObject = stream;
+      // Phones swap the stream's width and height when turned: follow that, so sideways visibly means a wide shot.
+      const shape = () => v.videoWidth && v.videoHeight && setRatio(v.videoWidth / v.videoHeight);
+      v.onloadedmetadata = shape;
+      v.onresize = shape;
       await v.play();
       setCam("live");
     } catch {
@@ -201,6 +207,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   }
 
   useEffect(() => {
+    window.scrollTo(0, 0); // straight from the join form (scrolled down) to the camera at the top
     if (left > 0) startCamera();
     // phones kill the camera when you switch apps; bring it back when the page is visible again
     const onVisible = () => {
@@ -370,7 +377,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
         {event.decor && <div className="toran" aria-hidden />}
         <div className="cam-row">
           <div className="vf-wrap">
-            <div className="vf">
+            <div className="vf" style={{ ["--vf-ratio" as string]: ratio }}>
               <video ref={videoRef} className={selfie ? "mirror" : undefined} playsInline muted autoPlay aria-label="Viewfinder" />
               {cam !== "live" && (
                 <label className="vf-msg">
@@ -387,7 +394,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
                 </label>
               )}
             </div>
-            <span className="tiny">Viewfinder</span>
+            <span className="tiny">{ratio < 1 ? "Upright · turn sideways for wide" : "Wide shot · upright works too"}</span>
           </div>
           <div className="right">
             <div className="counter">
@@ -398,35 +405,11 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
                 </div>
               </div>
             </div>
-            <button
-              key={nudge}
-              ref={wheelRef}
-              className={`wheel${wound ? " ready" : ""}${nudge ? " nudge" : ""}`}
-              type="button"
-              aria-label="Wind the film. Drag sideways or tap."
-              onPointerDown={(e) => { windRef.current.lastX = e.clientX; windRef.current.moved = 0; e.currentTarget.setPointerCapture(e.pointerId); unlockAudio(); }}
-              onPointerMove={(e) => {
-                const w = windRef.current;
-                if (w.lastX === null) return;
-                const dx = Math.abs(w.lastX - e.clientX);
-                w.lastX = e.clientX;
-                w.moved += dx;
-                addWind(dx);
-              }}
-              onPointerUp={() => { windRef.current.lastX = null; }}
-              // A tap winds a notch. On click, not pointerup: screen readers, Enter/Space and some browsers send only click.
-              onClick={() => { if (windRef.current.moved < 4) addWind(40); windRef.current.moved = 0; }}
-              onKeyDown={(e) => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); addWind(40); } }}
-            />
-            <span className="tiny">{wound ? "Wound" : "Wind ←"}</span>
+            <span className="tiny">{wound ? "Ready" : "Wind ↓"}</span>
           </div>
         </div>
         <div className="flash-row">
           <span className={`diya${!flash ? "" : charged ? " on" : " charging"}`} aria-hidden><i /></span>
-          <button className="switch" type="button" aria-pressed={flash} onClick={toggleFlash}>{flash ? "Flash on" : "Flash off"}</button>
-          {canFlip && cam === "live" && (
-            <button className="switch" type="button" onClick={flip} aria-label={selfie ? "Use the back camera" : "Take a selfie"}>{selfie ? "↺ Back" : "↻ Selfie"}</button>
-          )}
           <span className="tiny">{event.maxShots} EXP · ISO 400</span>
         </div>
         <div className="band"><b>blindshot</b><span>{event.chip}</span></div>
@@ -440,13 +423,43 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           </div>
         </div>
       </div>
-      <div className="shoot-zone">
+      <p className="status" aria-live="polite">
+        {status[0]}
+        {status[1] && <small>{status[1]}</small>}
+        {pending > 0 && <small>{pending} uploading…</small>}
+      </p>
+      {/* Everything the thumb needs, pinned to the bottom of the screen: one-handed, like a real disposable. */}
+      <div className="thumb-bar">
+        <div className="tb-side">
+          <button className="switch" type="button" aria-pressed={flash} onClick={toggleFlash}>{flash ? "Flash on" : "Flash off"}</button>
+          {canFlip && cam === "live" && (
+            <button className="switch" type="button" onClick={flip} aria-label={selfie ? "Use the back camera" : "Take a selfie"}>{selfie ? "↺ Back" : "↻ Selfie"}</button>
+          )}
+        </div>
         <button className="shutter" type="button" aria-disabled={!wound} onClick={() => shoot()}>SHOOT</button>
-        <p className="status" aria-live="polite">
-          {status[0]}
-          {status[1] && <small>{status[1]}</small>}
-          {pending > 0 && <small>{pending} uploading…</small>}
-        </p>
+        <div className="tb-side">
+          <button
+            key={nudge}
+            ref={wheelRef}
+            className={`wheel${wound ? " ready" : ""}${nudge ? " nudge" : ""}`}
+            type="button"
+            aria-label="Wind the film. Swipe or tap."
+            onPointerDown={(e) => { windRef.current.lastX = e.clientX; windRef.current.moved = 0; e.currentTarget.setPointerCapture(e.pointerId); unlockAudio(); }}
+            onPointerMove={(e) => {
+              const w = windRef.current;
+              if (w.lastX === null) return;
+              const dx = Math.abs(w.lastX - e.clientX);
+              w.lastX = e.clientX;
+              w.moved += dx;
+              addWind(dx);
+            }}
+            onPointerUp={() => { windRef.current.lastX = null; }}
+            // A tap winds it all the way. On click, not pointerup: screen readers, Enter/Space and some browsers send only click.
+            onClick={() => { if (windRef.current.moved < 4) addWind(WIND_PX); windRef.current.moved = 0; }}
+            onKeyDown={(e) => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); addWind(WIND_PX); } }}
+          />
+          <span className="tiny">{wound ? "Wound" : "Wind"}</span>
+        </div>
       </div>
       {event.released
         ? <a className="ghost" href={`/e/${event.code}/roll`}>The roll is out. See everyone&apos;s shots →</a>

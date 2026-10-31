@@ -24,11 +24,12 @@ another (an event that isn't open is a 404).
 - **Opens** at the start time: before that, the link is a 404 for everyone but the host.
 - **Shooting stops at 2am** the next morning. The camera then says the night's over; uploads already in flight get 15
   minutes' grace.
-- **Roll released at 8am** the next day. Guests see every photo from the night; the worker has hours to finish developing
-  (it does ~30 photos a minute).
-- Guests are never shown photos before the release. They can use **Load a new roll** any time until 2am.
+- **Roll opens at midnight**, two hours before shooting stops, while everyone is still together: the user found that
+  looking through the roll as a group ("look what I got!") is the best moment of the night. It refreshes itself as
+  new frames develop (about a minute behind the shutter). The host can open it earlier with the Roll switch.
+- Guests never see photos before the release. They can use **Load a new roll** any time until 2am.
 
-`npm run event` computes 2am and 8am from `--opens` (Pacific, daylight-saving safe); pass `--closes` / `--release` only
+`npm run event` computes 2am and midnight from `--opens` (Pacific, daylight-saving safe); pass `--closes` / `--release` only
 to change them.
 
 ## Steps

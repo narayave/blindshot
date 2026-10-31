@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { FILTERED, thumbPath } from "@/lib/config";
-import { isReleased, sql } from "@/lib/db";
+import { CLOSE_GRACE_MS, isClosed, isReleased, sql } from "@/lib/db";
 import { currentSession, isAdmin, openEvent, sameGuest } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
 import { themeClass } from "@/lib/themes";
@@ -90,6 +90,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
         moreHref={rows.length < total ? `?tab=${tab}&n=${limit + PAGE}` : null}
         empty={tab === "mine" ? "None of your shots are in yet." : "Nothing here yet."}
         name={event.code}
+        live={!isClosed(event, CLOSE_GRACE_MS)}
       />
     </section>,
   );
