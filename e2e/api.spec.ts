@@ -161,17 +161,19 @@ test("a failed develop is retried, and only the third failure sticks", async ({ 
   // completed, but the original never reached storage: every develop of it fails
   expect((await a.post("/api/photos/complete", { data: { photoId: id } })).status()).toBe(200);
   const state = async () => (await sql<{ status: string; attempts: number; error: string | null }[]>`select status, attempts, error from photos where id = ${id}`)[0];
-  const again = async () => {
-    await sql`update photos set processed_at = null where id = ${id}`; // skip the 2-min wait between tries
-    await develop(10_000);
+  // One more try: free the claim (skipping the 2-min wait) and develop until this photo's attempt count moves.
+  // Other tests in this process may be developing at the same moment, so a single develop() can be a no-op.
+  const again = async (attempts: number) => {
+    await sql`update photos set processed_at = null where id = ${id}`;
+    await expect.poll(async () => { await develop(5_000); return (await state()).attempts; }, { timeout: 30_000 }).toBe(attempts);
   };
 
-  await again();
+  await again(1);
   expect(await state()).toMatchObject({ status: "uploaded", attempts: 1 });
   expect((await state()).error).toBeTruthy();
-  await again();
+  await again(2);
   expect(await state()).toMatchObject({ status: "uploaded", attempts: 2 });
-  await again();
+  await again(3);
   expect(await state()).toMatchObject({ status: "failed", attempts: 3 });
 });
 
