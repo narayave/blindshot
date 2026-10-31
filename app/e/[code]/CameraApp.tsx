@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { instagramHandle } from "@/lib/config";
-import Countdown from "./Countdown";
 
 type EventInfo = {
   code: string;
@@ -17,6 +16,7 @@ type EventInfo = {
   closed: boolean; // shooting has ended for the night
   focusCheck: boolean; // camera trial (see settle)
   polaroid: boolean; // instant film: portrait only, the photo comes back as a 2:3 card
+  photobooth: boolean; // one shutter press = 3-2-1 and a burst of four, developed as a booth strip
   closesAt: string | null;
 };
 type Guest = { name: string; shotsUsed: number };
@@ -166,8 +166,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const wheelRef = useRef<HTMLButtonElement>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const busy = useRef(false);
-  const facing = useRef<"environment" | "user">("environment");
-  const [selfie, setSelfie] = useState(false);
+  const facing = useRef<"environment" | "user">(event.photobooth ? "user" : "environment"); // a booth faces you
+  const [selfie, setSelfie] = useState(event.photobooth);
   const [canFlip, setCanFlip] = useState(false);
   const [ratio, setRatio] = useState(3 / 4); // the live picture's shape: the viewfinder follows it, upright or sideways
   // Which way the phone's top points. The layout never rotates (controls stay under the right thumb when held
@@ -199,7 +199,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const labelTurn = side === "left" ? "90deg" : side === "right" ? "-90deg" : "0deg";
   // The viewfinder keeps the phone's physical shape: when the page is turned back, the stream's shape flips too.
   const shape = turned ? 1 / ratio : ratio;
-  const vfShape = event.polaroid ? 2 / 3 : shape; // instant film: always the portrait card's window
+  const vfShape = event.polaroid ? 2 / 3 : event.photobooth ? 4 / 5 : shape; // instant film / booth: fixed portrait windows
   const vfW = vfShape < 1 ? `${(1.2 * vfShape).toFixed(3)}in` : "1.2in", vfH = vfShape < 1 ? "1.2in" : `${(1.2 / vfShape).toFixed(3)}in`;
   const windRef = useRef({ acc: 0, pos: 0, lastX: null as number | null, moved: 0 });
 
@@ -364,7 +364,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
       flashFx(fired);
     };
     try {
-      const shot = file ? (snap(), { blob: file as Blob, w: 0, h: 0 }) : await grab(snap);
+      const shot = file ? (snap(), { blob: file as Blob, w: 0, h: 0 }) : event.photobooth ? await boothBurst(snap) : await grab(snap);
       setWound(false);
       setLeft((l) => l - 1);
       setStatus(left - 1 === 0 ? ["That's the roll", "Developing…"] : ["Saved", "Wind on for the next shot."]);
@@ -375,6 +375,27 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     } finally {
       busy.current = false;
     }
+  }
+
+  // Photobooth: count down, take four frames a beat apart, and stack them (4:5 each, top to bottom) into one image.
+  // The worker develops it as a strip (developStrip). One press spends one shot of the roll.
+  async function boothBurst(snap: () => void): Promise<{ blob: Blob; w: number; h: number }> {
+    for (const n of ["3", "2", "1"]) { setStatus([n, "Look at the camera"]); tick(); buzz(10); await sleep(750); }
+    const frames: Blob[] = [];
+    for (let i = 0; i < 4; i++) {
+      frames.push((await grab(snap)).blob);
+      setStatus([`${i + 1} of 4`, i < 3 ? "Next pose!" : "Developing…"]);
+      if (i < 3) await sleep(900);
+    }
+    const W = 800, H = 1000, c = Object.assign(document.createElement("canvas"), { width: W, height: H * 4 });
+    const g = c.getContext("2d")!;
+    for (const [i, f] of frames.entries()) {
+      const b = await createImageBitmap(f);
+      const k = Math.max(W / b.width, H / b.height), sw = W / k, sh = H / k; // cover-crop the middle to 4:5
+      g.drawImage(b, (b.width - sw) / 2, (b.height - sh) / 2, sw, sh, 0, i * H, W, H);
+    }
+    const blob = await new Promise<Blob>((ok, fail) => c.toBlob((b) => (b ? ok(b) : fail(new Error("strip failed"))), "image/jpeg", 0.9));
+    return { blob, w: W, h: H * 4 };
   }
 
   function enqueue(blob: Blob, w: number, h: number, capturedAt: Date) {
@@ -434,7 +455,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
                 </label>
               )}
             </div>
-            <span className="tiny">{event.polaroid ? "Instant film · hold it upright" : sideways || (!turned && ratio > 1) ? "Wide shot · upright works too" : "Upright · turn sideways for wide"}</span>
+            <span className="tiny">{event.photobooth ? "Photobooth · 3, 2, 1, four shots" : event.polaroid ? "Instant film · hold it upright" : sideways || (!turned && ratio > 1) ? "Wide shot · upright works too" : "Upright · turn sideways for wide"}</span>
           </div>
           <div className="right">
             <div className="counter">
@@ -463,7 +484,6 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           </div>
         </div>
       </div>
-      {!event.released && event.releaseAt && <Countdown to={event.releaseAt} code={event.code} />}
       <p className="status" aria-live="polite">
         {status[0]}
         {status[1] && <small>{status[1]}</small>}
@@ -506,9 +526,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           <span className="tiny turn">{wound ? "Wound" : "Wind"}</span>
         </div>
       </div>
-      {event.released
-        ? <a className="ghost" href={`/e/${event.code}/roll`}>The roll is out. See everyone&apos;s shots →</a>
-        : <p className="fine center">Every shot joins the party&apos;s shared roll after the event.</p>}
+      {!event.released && <p className="fine center">Every shot joins the party&apos;s shared roll.</p>}
       {!event.closed && <p className="fine center">Finished your roll? You&apos;ll get another one.</p>}
       <details className="how-fold"><summary>How it works</summary><HowItWorks event={event} /></details>
       <ShareQr event={event} qr={qr} />
@@ -545,7 +563,6 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
           <span suppressHydrationWarning>{event.releaseAt ? formatWhen(event.releaseAt) : "When the host releases it"}</span>
         </div>
       </div>
-      {!event.released && event.releaseAt && <Countdown to={event.releaseAt} code={event.code} />}
       {!event.closed && (
         <>
           <button className="cta" type="button" onClick={newRoll} disabled={loading || uploading > 0}>
@@ -567,7 +584,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // at most UPLOAD_EDGE to keep party-wifi uploads quick. Anything we can't decode goes up as-is.
 const UPLOAD_EDGE = 2400;
 async function shrink(blob: Blob, w: number, h: number): Promise<{ blob: Blob; w: number; h: number }> {
-  if (w && Math.max(w, h) <= UPLOAD_EDGE) return { blob, w, h };
+  if (w && (Math.max(w, h) <= UPLOAD_EDGE || h > 3 * w)) return { blob, w, h }; // booth strips are already sized
   try {
     const bmp = await createImageBitmap(blob, { imageOrientation: "from-image" });
     const k = UPLOAD_EDGE / Math.max(bmp.width, bmp.height);

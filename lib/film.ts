@@ -28,7 +28,7 @@ export type FilmOptions = {
   scratches: number; // chance of a long scratch
   dateStamp: Date | null; // 90s date-back stamp: LED date and time (Pacific) in the bottom-left corner
   dateColor: string; // the LED's colour
-  frame: "none" | "polaroid"; // polaroid: a 2:3 portrait picture in a white instant-film border, heavier at the bottom
+  frame: "none" | "polaroid" | "strip"; // polaroid: 2:3 portrait in an instant-film card. strip: a photobooth strip (developStrip)
   watermark: string | null; // faint credit in the bottom-right corner: who took it (@handle or first name); null = none
   seed: number; // same seed = same grain, leaks and dust. Use a per-photo value
   quality: number; // jpeg quality
@@ -88,6 +88,15 @@ export const LOOKS: Record<string, Partial<FilmOptions>> = {
     blackPoint: [0.07, 0.08, 0.09], whitePoint: [0.97, 0.95, 0.88], shadowTint: [0.9, 0.98, 1.06],
     grain: { amount: 0.04, size: 1.2, shadowBoost: 0.8, chroma: 0.25 }, leak: { chance: 0.12, strength: 0.35, colors: ["#ff9a6b", "#ffd27a"] },
     shake: { chance: 0.04, strength: 1 }, pan: { chance: 0, strength: 1 },
+  },
+  // Photobooth: black and white with a warm brown-black, off-white highs, deep shadows. Four frames in a strip
+  // (the camera shoots a burst; developStrip lays them out). No leaks, light dust, no motion tricks.
+  photobooth: {
+    frame: "strip", saturation: 0, warmth: 0, contrast: 1.0, gamma: 1.15, exposure: 1.05, shoulder: 0.9,
+    blackPoint: [0.075, 0.055, 0.04], whitePoint: [0.95, 0.92, 0.85], shadowTint: [1, 1, 1], tint: [1, 1, 1],
+    halation: { strength: 0, threshold: 0.9, radius: 0.01, color: [1, 1, 1] }, vignette: 0.3, softness: 0.5,
+    grain: { amount: 0.07, size: 1.4, shadowBoost: 1.2, chroma: 0 }, leak: { chance: 0, strength: 0, colors: [] },
+    dust: 1.2, scratches: 0.15, shake: { chance: 0, strength: 1 }, pan: { chance: 0, strength: 1 },
   },
   // Both: the green cast with night's deep blacks and glowing brights.
   "green-night": {
@@ -403,6 +412,37 @@ function dustSvg(w: number, h: number, rand: () => number, amount: number, scrat
     parts.push(`<path d="${d}" stroke="#fffbea" stroke-width="${(0.8 + rand() * 0.8) * s}" opacity="${0.12 + rand() * 0.2}" fill="none"/>`);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${parts.join("")}</svg>`;
+}
+
+// A photobooth strip from a burst stacked top to bottom (the camera sends 4:5 frames, one under the other):
+// each frame developed on its own (its own grain and dust), then laid out on off-white paper with the booth's dark
+// edges between frames, and the credit along the bottom margin. A single photo becomes a one-frame strip.
+export async function developStrip(input: Buffer, partial: Partial<FilmOptions> = {}): Promise<Buffer> {
+  const o = filmOptions(partial);
+  const upright = await sharp(input).rotate().toBuffer();
+  const { width: sw = 1, height: sh = 1 } = await sharp(upright).metadata();
+  const n = Math.max(1, Math.min(4, Math.round(sh / (sw * 1.25))));
+  const fh = Math.floor(sh / n);
+  const each = { ...partial, frame: "none" as const, watermark: null, dateStamp: null, maxEdge: 1000 };
+  const frames = await Promise.all(Array.from({ length: n }, async (_, i) => {
+    const cut = await sharp(upright).extract({ left: 0, top: i * fh, width: sw, height: fh }).resize(800, 1000, { fit: "cover" }).toBuffer();
+    return applyFilmFilter(cut, { ...each, seed: o.seed + i * 7919 });
+  }));
+  const W = 800, H = 1000, edge = 14, margin = 46, foot = 110; // a frame, the dark line around it, paper around the strip
+  const SW = W + 2 * (margin + edge), SH = margin + n * (H + 2 * edge) + (n - 1) * 10 + foot;
+  const layers: OverlayOptions[] = [];
+  frames.forEach((f, i) => {
+    const top = margin + i * (H + 2 * edge + 10);
+    layers.push({ input: { create: { width: W + 2 * edge, height: H + 2 * edge, channels: 3, background: "#241c16" } }, left: margin, top });
+    layers.push({ input: f, left: margin + edge, top: top + edge });
+  });
+  const credit = o.watermark ? creditPath(o.watermark) : null;
+  if (credit) {
+    const th = foot * 0.24, tw = Math.min((th * credit.width) / credit.height, SW * 0.6), k = tw / credit.width;
+    const x = (SW - tw) / 2, y = SH - foot / 2 - (tw * credit.height) / credit.width / 2;
+    layers.push({ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${SW}" height="${SH}"><path d="${credit.d}" transform="translate(${x} ${y}) scale(${k})" fill="#3a2f26" opacity="0.7"/></svg>`), left: 0, top: 0 });
+  }
+  return sharp({ create: { width: SW, height: SH, channels: 3, background: "#efe9dd" } }).composite(layers).jpeg({ quality: o.quality, mozjpeg: true }).toBuffer();
 }
 
 // Instant-film card: warm off-white, thin top and sides, a deep bottom. A faint inner shadow where the picture sits

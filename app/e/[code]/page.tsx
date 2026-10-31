@@ -5,6 +5,7 @@ import { eventLink } from "@/lib/qr";
 import { currentSession, openEvent } from "@/lib/session";
 import { theme, themeClass } from "@/lib/themes";
 import CameraApp from "./CameraApp";
+import Countdown from "./Countdown";
 import HostOnly from "./HostOnly";
 
 export async function generateMetadata({ params }: PageProps<"/e/[code]">): Promise<Metadata> {
@@ -19,7 +20,8 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
   const { qr } = await eventLink(event.code);
   return (
     <div className={`shell ${themeClass(event.theme)}`}>
-      {!event.online && <HostOnly />}
+      {!event.online && <HostOnly eventId={event.id} look={event.look} />}
+      <Countdown release={event.release_at?.toISOString() ?? null} closes={event.closes_at?.toISOString() ?? null} code={event.code} />
       <CameraApp
         event={{
           code: event.code,
@@ -34,6 +36,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           closed: isClosed(event),
           focusCheck: event.focus_check,
           polaroid: event.look === "polaroid",
+          photobooth: event.look === "photobooth",
           closesAt: event.closes_at?.toISOString() ?? null,
         }}
         qr={qr}

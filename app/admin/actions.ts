@@ -22,6 +22,12 @@ export async function toggle(photoId: string, field: "starred" | "hidden") {
   revalidatePath("/admin");
 }
 
+export async function setLook(eventId: string, look: string | null) {
+  await guard();
+  await sql`update events set look = ${look} where id = ${eventId}`;
+  revalidatePath("/e", "layout");
+}
+
 export async function setOnline(eventId: string, on: boolean) {
   await guard();
   await sql`update events set online = ${on} where id = ${eventId}`;

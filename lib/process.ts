@@ -3,7 +3,7 @@ import exifr from "exifr";
 import sharp from "sharp";
 import { FILTERED, ORIGINALS, thumbPath } from "./config.ts";
 import { sql } from "./db.ts";
-import { DEFAULT_FILM, LOOKS, applyFilmFilter } from "./film.ts";
+import { DEFAULT_FILM, LOOKS, applyFilmFilter, developStrip } from "./film.ts";
 import { download, upload } from "./storage.ts";
 
 // Original in, filtered copy out.
@@ -19,7 +19,8 @@ export async function processPhoto(photoId: string): Promise<void> {
     const frame = ((p.shot_number - 1) % p.max_shots) + 1; // within its roll
     const edgeFrame = frame === 1 || frame === p.max_shots;
     const seed = seedOf(photoId);
-    const filtered = await applyFilmFilter(original, {
+    const develop = p.look && LOOKS[p.look]?.frame === "strip" ? developStrip : applyFilmFilter;
+    const filtered = await develop(original, {
       ...(p.look ? LOOKS[p.look] : undefined),
       seed,
       watermark: p.credit ?? (p.instagram ? `@${p.instagram}` : p.name.trim()), // the event's fixed credit, else whoever took it

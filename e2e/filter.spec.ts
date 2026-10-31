@@ -1,7 +1,8 @@
 // The film filter: one fixed recipe, repeatable per photo, sized for the roll, with its credit where it belongs.
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
-import { LOOKS, applyFilmFilter } from "../lib/film.ts";
+import { LOOKS, applyFilmFilter, developStrip } from "../lib/film.ts";
+import { LOOK_NAMES } from "../lib/config.ts";
 import { testJpeg } from "./support.ts";
 
 const raw = async (jpg: Buffer) => sharp(jpg).raw().toBuffer({ resolveWithObject: true });
@@ -131,4 +132,23 @@ test("polaroid: a portrait 2:3 picture in a card with a deep bottom edge, from p
     for (const v of await strip(0, m.height! - 20, 40, 10)) expect(v).toBeGreaterThan(200);
     for (const v of await strip(2, Math.round(m.height! / 2), 10, 40)) expect(v).toBeGreaterThan(200);
   }
+});
+
+test("the look names pages offer match the looks the worker knows", () => {
+  expect([...LOOK_NAMES].sort()).toEqual(Object.keys(LOOKS).sort());
+});
+
+test("photobooth: a burst of four becomes a four-frame strip on paper; one photo becomes a one-frame strip", async () => {
+  const frame = await testJpeg(800, 1000);
+  const burst = await sharp({ create: { width: 800, height: 4000, channels: 3, background: "#888" } })
+    .composite([0, 1, 2, 3].map((i) => ({ input: frame, left: 0, top: i * 1000 }))).jpeg().toBuffer();
+  const strip = await sharp(await developStrip(burst, { ...LOOKS.photobooth, seed: 3, watermark: "@someone" })).metadata();
+  const single = await sharp(await developStrip(await testJpeg(1200, 900), { ...LOOKS.photobooth, seed: 3 })).metadata();
+  expect(strip.height! / strip.width!).toBeGreaterThan(4); // tall and thin
+  expect(single.height! / single.width!).toBeLessThan(1.6);
+  // black and white: the developed frames carry no colour
+  const s = await sharp(await developStrip(burst, { ...LOOKS.photobooth, seed: 3 })).extract({ left: 100, top: 300, width: 400, height: 400 }).raw().toBuffer();
+  let spread = 0;
+  for (let i = 0; i < s.length; i += 3) spread = Math.max(spread, Math.abs(s[i] - s[i + 2]));
+  expect(spread).toBeLessThan(40); // only the warm sepia tilt
 });

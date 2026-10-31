@@ -242,6 +242,23 @@ test("rotation locked, phone held sideways (tilt sensor): labels turn and the ph
   }
 });
 
+test("photobooth: one press counts down and shoots a burst of four, developed as a strip", async ({ page }) => {
+  const e = await makeEvent({ shots: 2 });
+  await sql`update events set look = 'photobooth' where id = ${e.id}`;
+  try {
+    await join(page, e.code);
+    await expect(page.getByText("Photobooth · 3, 2, 1, four shots")).toBeVisible();
+    await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(page.getByLabel("1 shots left")).toBeVisible({ timeout: 30_000 }); // one strip = one shot
+    const [p] = await waitDeveloped(e.id, 1);
+    const [row] = await sql<{ width: number; height: number }[]>`select width, height from photos where id = ${p.id}`;
+    expect(row.height / row.width).toBe(5); // four 4:5 frames stacked
+  } finally {
+    await dropEvent(e);
+  }
+});
+
 test("no camera access → falls back to the camera-app picker", async ({ page }) => {
   const e = await makeEvent({ shots: 2 });
   await page.addInitScript(() => {

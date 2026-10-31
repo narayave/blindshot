@@ -21,7 +21,8 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
 
   const shell = (body: React.ReactNode) => (
     <div className={`shell ${themeClass(event.theme)}`}>
-      {!event.online && <HostOnly />}
+      {!event.online && <HostOnly eventId={event.id} look={event.look} />}
+      <Countdown release={event.release_at?.toISOString() ?? null} closes={event.closes_at?.toISOString() ?? null} code={event.code} />
       <div className="app">
         <header className="top">
           <a className="wordmark" href={`/e/${event.code}`}>blindshot</a>
@@ -46,7 +47,6 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
       <section className="stack">
         <h1 className="headline">Still<br /><em>developing.</em></h1>
         <p className="lede">Nobody sees a frame until the whole roll is ready.</p>
-        {event.release_at && <Countdown to={event.release_at.toISOString()} code={event.code} />}
         <a className="ghost" href={`/e/${event.code}`}>Back to the camera</a>
       </section>,
     );
@@ -88,7 +88,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
         {tabLink("mine", "Mine", counts.n_mine)}
       </div>
       <Sheet
-        cards={event.look === "polaroid"}
+        cards={event.look === "polaroid" || event.look === "photobooth"}
         frames={rows.map((r) => ({ id: r.id, thumb: url(thumbPath(r.filtered_path)), src: url(r.filtered_path), by: r.mine ? "You" : r.name, n: r.shot_number, star: r.starred }))}
         moreHref={rows.length < total ? `?tab=${tab}&n=${limit + PAGE}` : null}
         empty={tab === "mine" ? "None of your shots are in yet." : "Nothing here yet."}
