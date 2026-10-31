@@ -60,7 +60,7 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
   id in a long-lived site-wide cookie (`bs_device`, hashed into `sessions.device_id`); name + Instagram never unlock
   anyone's frames. The darkroom shows each photo's phone and flags a name+handle seen on two phones.
 - **Stats on the roll count exactly what Everyone shows** (no hidden, no private-roll frames).
-- **Join-page sample prints** (`public/samples/`) are the host's own photos of scenes, no faces, web-size, no EXIF.
+- **Join-page sample prints** (`public/samples/`) are the host's own photos, hand-picked, no recognisable faces (motion blur is fine), web-size, no EXIF; the caption says they are picks.
 - **Credit:** `--credit "@handle"` puts the host's handle on every photo (the owner's choice: he introduces people to
   the product). Without it, each photo credits whoever took it.
 - **Looks** (`LOOKS` in `lib/film.ts`, names mirrored in `LOOK_NAMES` in `lib/config.ts`): default 35mm disposable,

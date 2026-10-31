@@ -141,7 +141,7 @@ function HowItWorks({ event }: { event: EventInfo }) {
   );
 }
 
-// A few prints from a real roll, so guests know what they're signing up for. Host's own shots of scenes, no faces.
+// A few picks from a past night (the host's own shots, no recognisable faces), so guests know what the photos look like.
 function Prints() {
   return (
     <figure className="prints">
@@ -151,7 +151,7 @@ function Prints() {
           <img key={n} src={`/samples/${n}.jpg`} alt="" loading={n > 3 ? "lazy" : "eager"} decoding="async" />
         ))}
       </div>
-      <figcaption>Straight off a real roll · developed, never previewed</figcaption>
+      <figcaption>A few picks from a past night</figcaption>
     </figure>
   );
 }
