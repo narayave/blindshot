@@ -209,10 +209,10 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .shutter[aria-disabled="true"] { background: var(--bg-2); color: var(--muted); box-shadow: 0 0 0 6px var(--bg), 0 0 0 9px var(--line); }
 .status { font-size: 15px; font-weight: 600; text-align: center; min-height: 1.4em; margin: 0; }
 .status small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
-.flashfx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: var(--flash); z-index: 10; }
+.flashfx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: var(--flash); z-index: 100; }
 .flashfx.dark { background: #000; }
 .flashfx.go { animation: pop 420ms ease-out; }
-.flashfx.hold { opacity: 1; } /* selfie flash: the screen lights the face until the shot */
+.flashfx.hold { opacity: 1; background: #fff; } /* selfie flash: the brightest the screen can do, over everything */
 .vf video.mirror { transform: scaleX(-1); } /* selfie preview reads like a mirror; the photo is saved the right way round */
 @keyframes pop { 0% { opacity: 1; } 100% { opacity: 0; } }
 

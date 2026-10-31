@@ -184,7 +184,6 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const busy = useRef(false);
   const facing = useRef<"environment" | "user">(event.photobooth ? "user" : "environment"); // a booth faces you
   const [selfie, setSelfie] = useState(event.photobooth);
-  const [canFlip, setCanFlip] = useState(false);
   const [ratio, setRatio] = useState(3 / 4); // the live picture's shape: the viewfinder follows it, upright or sideways
   // Which way the phone's top points. The layout never rotates (controls stay under the right thumb when held
   // sideways); only the labels turn. `turned`: the browser rotated the page anyway, so we turn the screen back.
@@ -213,9 +212,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   }, []);
   const sideways = side !== "up";
   const labelTurn = side === "left" ? "90deg" : side === "right" ? "-90deg" : "0deg";
-  // The viewfinder keeps the phone's physical shape: when the page is turned back, the stream's shape flips too.
-  const shape = turned ? 1 / ratio : ratio;
-  const vfShape = event.polaroid ? 2 / 3 : event.photobooth ? 4 / 5 : shape; // instant film / booth: fixed portrait windows
+  // A fixed portrait window (photos come back portrait); it reads as wide when the phone is held sideways.
+  const vfShape = event.polaroid ? 2 / 3 : event.photobooth ? 4 / 5 : turned ? 4 / 3 : 3 / 4;
   const vfW = vfShape < 1 ? `${(1.2 * vfShape).toFixed(3)}in` : "1.2in", vfH = vfShape < 1 ? "1.2in" : `${(1.2 / vfShape).toFixed(3)}in`;
   const windRef = useRef({ acc: 0, pos: 0, lastX: null as number | null, moved: 0 });
 
@@ -230,8 +228,6 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
         audio: false,
         video: { facingMode: facing.current, width: { ideal: 4032 }, height: { ideal: 3024 } },
       });
-      // Only offer Flip on phones that have a second camera (labels come after permission, so ask now).
-      navigator.mediaDevices.enumerateDevices().then((ds) => setCanFlip(ds.filter((d) => d.kind === "videoinput").length > 1)).catch(() => {});
       streamRef.current = stream;
       const v = videoRef.current!;
       v.srcObject = stream;
@@ -248,11 +244,19 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     }
   }
   const stopCamera = () => streamRef.current?.getTracks().forEach((t) => t.stop());
-  function flip() {
-    facing.current = facing.current === "user" ? "environment" : "user";
+  // Some phones don't list their cameras, so Flip is always offered; if the other camera won't open, go back.
+  async function flip() {
+    const was = facing.current;
+    facing.current = was === "user" ? "environment" : "user";
     setSelfie(facing.current === "user");
     tick();
-    startCamera();
+    await startCamera();
+    if (!streamRef.current?.getVideoTracks()[0] || streamRef.current.getVideoTracks()[0].readyState === "ended") {
+      facing.current = was;
+      setSelfie(was === "user");
+      setStatus(["No other camera", "This phone only lets the browser use one camera."]);
+      startCamera();
+    }
   }
 
   useEffect(() => {
@@ -332,6 +336,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     const screenLight = front && flash && charged && !!track && !!fxRef.current;
     if (screenLight) {
       fxRef.current!.className = "flashfx hold";
+      await sleep(250); // let the screen reach full white before the camera starts adjusting to it
       await settle(v, track!, false);
     }
     let before = 0;
@@ -486,7 +491,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           </div>
         </div>
         <div className="flash-row">
-          <span className={`diya${!flash ? "" : charged ? " on" : " charging"}`} aria-hidden><i /></span>
+          {event.decor && <span className={`diya${!flash ? "" : charged ? " on" : " charging"}`} aria-hidden><i /></span>}
           <span className="tiny">{event.maxShots} EXP · ISO 400</span>
         </div>
         <div className="band"><b>blindshot</b><span>{event.chip}</span></div>
@@ -511,7 +516,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           <button className={`switch${sideways ? " icon" : ""}`} type="button" aria-pressed={flash} aria-label={flash ? "Flash on" : "Flash off"} onClick={toggleFlash}>
             <span className="turn">{sideways ? "⚡" : flash ? "Flash on" : "Flash off"}</span>
           </button>
-          {canFlip && cam === "live" && (
+          {cam === "live" && (
             <button className={`switch${sideways ? " icon" : ""}`} type="button" onClick={flip} aria-label={selfie ? "Use the back camera" : "Take a selfie"}>
               <span className="turn">{sideways ? "↻" : selfie ? "↺ Back" : "↻ Selfie"}</span>
             </button>
