@@ -17,7 +17,12 @@ another (an event that isn't open is a 404).
    another roll when one is finished, so this sets the rhythm, not a hard cap.
 4. **Look:** reuse a theme (the page) or make a new one so the night feels different; and the film look of the photos:
    default, or `--look night` / `green` / `green-night` for dark parties; `--date-stamp` adds a 90s amber LED date and
-   time (Pacific) bottom-left, opposite the guest's @handle credit. Looks live in `LOOKS` in
+   time (Pacific) bottom-left, opposite the guest's @handle credit.
+   **Instant film (Polaroid):** `--look polaroid`, usually `--shots 8` (a real pack). Every photo comes back as a
+   portrait 2:3 picture in an off-white card with a deep bottom edge, the credit written on the card; the viewfinder
+   is portrait-only and the roll shows whole cards. Softer, milkier colour than the 35mm looks.
+5. **Watermark:** `--credit "@handle"` puts the same credit on every photo (the user's own handle by default: he's
+   introducing people to the product and wants them to find him); leave it out to credit whoever took each photo. Looks live in `LOOKS` in
    `lib/film.ts`; a new one is a look-lab job.
 
 ## The schedule (the user's standard night)
