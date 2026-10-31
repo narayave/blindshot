@@ -146,7 +146,7 @@ function Prints() {
   return (
     <figure className="prints">
       <div className="prints-row">
-        {[1, 2, 3, 4, 5, 6].map((n) => (
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img key={n} src={`/samples/${n}.jpg`} alt="" loading={n > 3 ? "lazy" : "eager"} decoding="async" />
         ))}

@@ -4,6 +4,7 @@ export const THEMES = {
   diwali: { chip: "SHOOT OK PLEASE", decor: true },
   halloween: { chip: "TRICK OR SHOOT", decor: false },
   haunted: { chip: "SAY BOO", decor: false },
+  ember: { chip: "PUSH 13", decor: false },
 } as const;
 
 export type ThemeName = keyof typeof THEMES;

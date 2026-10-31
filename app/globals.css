@@ -62,6 +62,33 @@
 }
 .theme-haunted .wordmark { font-family: var(--font-pirata), serif; color: var(--accent); text-shadow: 2px 2px 0 var(--accent-2); }
 .theme-haunted .stripes i:nth-child(1) { background: #C8102E; } .theme-haunted .stripes i:nth-child(2) { background: #D9C27A; } .theme-haunted .stripes i:nth-child(3) { background: #ECE3D3; }
+/* Ember: a rooftop night. Near-black into deep maroon, feathery ember light, thin wide capitals, red numerals. */
+.theme-ember {
+  --bg: #0b0405; --bg-2: #1f0a0b; --fg: #f4e8df; --muted: #b39a92; --line: rgba(244, 232, 223, 0.14);
+  --dots: transparent; --dots-2: transparent;
+  --body: #1c0909; --body-2: #2d1011; --well: #050202; --cam-fg: #f4e8df; --cam-muted: #b39a92;
+  --ridge: #4a1a16; --ridge-ready: #8a3a14; --vf-ring: #e2552b;
+  --accent: #ff7a3d; --accent-2: #e3262f; --hot: #7a0f12; --on-accent: #0b0405;
+  --cta: #e3262f; --cta-ink: #f4e8df; --cta-shadow: #4a0709;
+  --shutter: #e3262f; --shutter-deep: #7a0f12; --shutter-ink: #f4e8df; --shutter-ring: #ff7a3d;
+  --hl-em: #e3262f; --hl-shadow: none;
+  --band: linear-gradient(#ff7a3d 0 33.3%, #e3262f 0 66.6%, #7a0f12 0);
+  --chip-bg: #0b0405; --chip-fg: #ff7a3d; --leaf: #ff7a3d; --flash: #fff1e6;
+  --hl-font: var(--font-archivo), "Helvetica Neue", sans-serif; --hl-weight: 300; --hl-stretch: 115%;
+  color-scheme: dark;
+}
+.theme-ember.shell { background-image:
+  radial-gradient(60% 45% at 105% 8%, rgba(255, 122, 61, 0.28), transparent 70%),
+  radial-gradient(55% 40% at -5% 40%, rgba(227, 38, 47, 0.22), transparent 70%),
+  radial-gradient(70% 50% at 50% 110%, rgba(122, 15, 18, 0.45), transparent 70%);
+  background-size: auto; background-position: 0 0; background-repeat: no-repeat; background-attachment: fixed; }
+.theme-ember .headline { text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.05; }
+.theme-ember .headline em { font-weight: 300; }
+.theme-ember .wordmark { font-family: var(--font-archivo), sans-serif; font-weight: 300; font-stretch: 125%; text-transform: uppercase;
+  letter-spacing: 0.32em; font-size: 18px; color: var(--fg); text-shadow: none; }
+.theme-ember .stripes i:nth-child(1) { background: #ff7a3d; } .theme-ember .stripes i:nth-child(2) { background: #e3262f; } .theme-ember .stripes i:nth-child(3) { background: #7a0f12; }
+.theme-ember .band b { font-family: var(--font-archivo), sans-serif; font-weight: 300; font-stretch: 125%; letter-spacing: 0.3em;
+  text-transform: uppercase; font-size: 15px; text-shadow: none; }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
