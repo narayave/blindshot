@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { instagramHandle } from "@/lib/config";
 import { sql } from "@/lib/db";
-import { newSessionToken, openEvent } from "@/lib/session";
+import { deviceId, newSessionToken, openEvent } from "@/lib/session";
 
 // Join an event: name + consent, optional Instagram handle and opt-outs. Sets the guest cookie.
 export async function POST(req: Request) {
@@ -21,8 +21,8 @@ export async function POST(req: Request) {
   const optOuts = event.allow_opt_outs;
   const tokenHash = await newSessionToken(event.code);
   await sql`
-    insert into sessions (event_id, token_hash, name, instagram, consent_at, no_promo, private_roll, user_agent)
-    values (${event.id}, ${tokenHash}, ${name}, ${instagram}, now(),
+    insert into sessions (event_id, token_hash, name, instagram, device_id, consent_at, no_promo, private_roll, user_agent)
+    values (${event.id}, ${tokenHash}, ${name}, ${instagram}, ${await deviceId()}, now(),
             ${optOuts && body?.noPromo === true}, ${optOuts && body?.privateRoll === true},
             ${(await headers()).get("user-agent")?.slice(0, 300) ?? null})`;
   return NextResponse.json({ name, shotsUsed: 0 });

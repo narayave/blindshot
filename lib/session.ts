@@ -9,6 +9,7 @@ export type Session = {
   event_id: string;
   name: string;
   instagram: string | null;
+  device_id: string | null;
   shot_count: number; // across all of this guest's rolls
   rolls: number; // rolls loaded so far: this guest may shoot max_shots × rolls
   private_roll: boolean;
@@ -22,7 +23,7 @@ export async function currentSession(eventId: string, eventCode: string): Promis
   const token = (await cookies()).get(cookieName(eventCode))?.value;
   if (!token) return null;
   const [s] = await sql<Session[]>`
-    select id, event_id, name, instagram, shot_count, rolls, private_roll, no_promo
+    select id, event_id, name, instagram, device_id, shot_count, rolls, private_roll, no_promo
     from sessions where token_hash = ${hash(token)} and event_id = ${eventId}`;
   return s ?? null;
 }
@@ -45,9 +46,18 @@ export async function openEvent(code: string): Promise<Event | null> {
   return e && (isOpen(e) || (await isAdmin())) ? e : null;
 }
 
-// A guest is "the same person" across phones and visits when they join with the same first name and Instagram.
-// Not a password: it only decides whose frames show under Mine (including their private ones).
-export const sameGuest = (s: { name: string; instagram: string | null }) => s.instagram ? { name: s.name.trim().toLowerCase(), instagram: s.instagram } : null;
+// This phone: a random id in a long-lived, site-wide cookie, made on first join. Browsers give sites no hardware id,
+// so this is as close as it gets: clearing site data or a private tab makes a new one. Only its hash is stored.
+const DEVICE_COOKIE = "bs_device";
+export async function deviceId(): Promise<string> {
+  const jar = await cookies();
+  let id = jar.get(DEVICE_COOKIE)?.value;
+  if (!id || id.length < 20) {
+    id = randomBytes(18).toString("base64url");
+    jar.set(DEVICE_COOKIE, id, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 730 });
+  }
+  return hash(id);
+}
 
 // Host admin: one shared password from ADMIN_PASSWORD; the cookie holds an HMAC of it, never the password.
 const ADMIN_COOKIE = "bs_admin";

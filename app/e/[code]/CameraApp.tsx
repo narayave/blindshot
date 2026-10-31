@@ -73,13 +73,14 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
         {event.maxShots} shots.<br /><em>No peeking.</em>
       </h1>
       <p className="lede">Shoot the night like a disposable. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.</p>
+      <Prints />
       <HowItWorks event={event} />
       {event.decor ? <div className="toran" aria-hidden /> : <div className="stripes" aria-hidden><i /><i /><i /></div>}
       <form onSubmit={submit} noValidate>
         <label className="field" htmlFor="name">First name
           <input id="name" name="name" autoComplete="given-name" required />
         </label>
-        <label className="field" htmlFor="instagram">Instagram, so the host can tag you and you can find your shots again (optional)
+        <label className="field" htmlFor="instagram">Instagram, so the host can tag you (optional)
           <input id="instagram" name="instagram" placeholder="@yourhandle" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
         </label>
         <div className="consent">
@@ -108,7 +109,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
           <span>{busy ? "Loading film…" : "Load film"}</span>
           <span aria-hidden>→</span>
         </button>
-        <p className="fine">No password. Coming back later or on another phone? Use the same first name and Instagram, and your earlier shots are still yours.</p>
+        <p className="fine">No password. This phone remembers you: come back later on it and your shots are still yours.</p>
       </form>
       <ShareQr event={event} qr={qr} />
     </section>
@@ -135,8 +136,23 @@ function HowItWorks({ event }: { event: EventInfo }) {
       <li><b>Wind, then shoot.</b> Drag or tap the wheel between shots. Flash on for dark rooms; ↻ Selfie flips the camera.</li>
       <li><b>Roll finished? Load another.</b> New film all night{until}.</li>
       <li><b>One shared roll.</b> Everyone&apos;s photos, yours included. {roll}</li>
-      <li><b>Find your shots later</b> on any phone: join again with the same first name and Instagram.</li>
+      <li><b>Your shots stay with this phone.</b> Open the link again on it, any time, and they&apos;re under Mine.</li>
     </ol>
+  );
+}
+
+// A few prints from a real roll, so guests know what they're signing up for. Host's own shots of scenes, no faces.
+function Prints() {
+  return (
+    <figure className="prints">
+      <div className="prints-row">
+        {[1, 2, 3, 4, 5, 6].map((n) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={n} src={`/samples/${n}.jpg`} alt="" loading={n > 3 ? "lazy" : "eager"} decoding="async" />
+        ))}
+      </div>
+      <figcaption>Straight off a real roll · developed, never previewed</figcaption>
+    </figure>
   );
 }
 

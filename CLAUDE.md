@@ -56,8 +56,11 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 
 - **Schedule:** `--opens` (Pacific). Defaults: shooting stops 2am, roll opens at midnight (both overridable). An event
   that isn't open, or is switched off, is a 404 for guests (not even its name); the host sees an orange banner.
-- **Guests never see a photo before release.** New rolls are unlimited until closing. Same first name + Instagram on
-  another phone = same person (Mine), not a password.
+- **Guests never see a photo before release.** New rolls are unlimited until closing. **Mine = this phone**: a random
+  id in a long-lived site-wide cookie (`bs_device`, hashed into `sessions.device_id`); name + Instagram never unlock
+  anyone's frames. The darkroom shows each photo's phone and flags a name+handle seen on two phones.
+- **Stats on the roll count exactly what Everyone shows** (no hidden, no private-roll frames).
+- **Join-page sample prints** (`public/samples/`) are the host's own photos of scenes, no faces, web-size, no EXIF.
 - **Credit:** `--credit "@handle"` puts the host's handle on every photo (the owner's choice: he introduces people to
   the product). Without it, each photo credits whoever took it.
 - **Looks** (`LOOKS` in `lib/film.ts`, names mirrored in `LOOK_NAMES` in `lib/config.ts`): default 35mm disposable,

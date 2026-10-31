@@ -103,16 +103,28 @@ test("schedule: not reachable before it opens; after closing, no new shots or ro
   expect((await a.post("/api/session/roll", { data: { eventCode: e.code } })).status()).toBe(409);
 });
 
-test("same first name + Instagram on another phone: earlier shots show under Mine", async ({ baseURL }) => {
-  const first = await guest(baseURL!, e, { name: "Maya", instagram: "@maya.shoots", privateRoll: true });
-  await shoot(first, e);
-  await shoot(first, e);
-  const otherPhone = await guest(baseURL!, e, { name: " maya ", instagram: "instagram.com/Maya.Shoots" });
-  const stranger = await guest(baseURL!, e, { name: "Not Maya", instagram: "@maya.shoots" }); // same handle, other name
+test("Mine is this phone's shots: someone typing your name and Instagram on another phone sees none of them", async ({ baseURL }) => {
+  const mine = await guest(baseURL!, e, { name: "Maya", instagram: "@maya.shoots", privateRoll: true });
+  await shoot(mine, e);
+  await shoot(mine, e);
+  const impostor = await guest(baseURL!, e, { name: "Maya", instagram: "@maya.shoots" }); // a different phone (its own cookies)
   await waitDeveloped(e.id, 2);
-  expect(await frames(otherPhone, e, "mine")).toBe(2); // private frames too: it's the same person
-  expect(await frames(stranger, e, "mine")).toBe(0);
-  expect(await frames(stranger, e)).toBe(0); // and private stays private
+  expect(await frames(mine, e, "mine")).toBe(2);
+  expect(await frames(impostor, e, "mine")).toBe(0);
+  expect(await frames(impostor, e)).toBe(0); // private stays private
+  const devices = await sql<{ device_id: string | null }[]>`select device_id from sessions where event_id = ${e.id}`;
+  expect(devices.every((d) => d.device_id)).toBe(true);
+  expect(new Set(devices.map((d) => d.device_id)).size).toBe(2); // two phones, told apart
+});
+
+test("the same phone joining again (another visit) keeps its earlier shots under Mine", async ({ baseURL }) => {
+  const phone = await guest(baseURL!, e, { name: "Sam" });
+  await shoot(phone, e);
+  // a second join from the same browser: new event session, same device cookie
+  expect((await phone.post("/api/session", { data: { eventCode: e.code, name: "Sam", consent: true } })).status()).toBe(200);
+  await shoot(phone, e);
+  await waitDeveloped(e.id, 2);
+  expect(await frames(phone, e, "mine")).toBe(2);
 });
 
 test("upload links can write but not read; strangers can't touch photos", async ({ baseURL, request }) => {
@@ -139,7 +151,7 @@ test("roll: closed to non-guests, hidden until release, private rolls stay priva
   expect(await frames(b, e)).toBe(1); // a's private frame is not shared
   const roll = await (await b.get(`/e/${e.code}/roll`)).text(); // the night in numbers, once it's out
   expect(roll).toContain("The night in numbers");
-  expect(roll).toMatch(/<b>2<\/b><span>photos<\/span>/); // private frames count toward the night, though not shown
+  expect(roll).toMatch(/<b>1<\/b><span>photos<\/span>/); // the stats count what Everyone shows: a's private frame isn't in it
 
   await sql`update events set release_at = null where id = ${e.id}`;
   expect(await (await b.get(`/e/${e.code}/roll`)).text()).toContain("developing.");

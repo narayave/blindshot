@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { FILTERED, thumbPath } from "@/lib/config";
 import { CLOSE_GRACE_MS, isClosed, isReleased, sql } from "@/lib/db";
-import { currentSession, isAdmin, openEvent, sameGuest } from "@/lib/session";
+import { currentSession, isAdmin, openEvent } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
 import { themeClass } from "@/lib/themes";
 import Countdown from "../Countdown";
@@ -53,9 +53,9 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
   }
 
   const me = session?.id ?? null;
-  // Yours: this visit, plus earlier visits (any phone) where you joined with the same first name and Instagram.
-  const who = session && sameGuest(session);
-  const mine = who ? sql`(s.id = ${me} or (s.instagram = ${who.instagram} and lower(trim(s.name)) = ${who.name}))` : sql`s.id = ${me}`;
+  // Yours: everything shot on this phone at this event (every visit and roll). A name and handle alone prove nothing,
+  // so they never unlock anyone's frames.
+  const mine = session?.device_id ? sql`(s.id = ${me} or s.device_id = ${session.device_id})` : sql`s.id = ${me}`;
   // Visible to guests: processed, not hidden by the host, and not from someone who kept their roll private (unless it's yours).
   const visible = sql`p.event_id = ${event.id} and p.status = 'done' and not p.hidden and (not s.private_roll or ${mine})`;
   const [counts] = await sql<{ n_all: number; n_picks: number; n_mine: number }[]>`
@@ -104,21 +104,23 @@ type Night = {
   busiest: { hour: Date; n: number } | null; top: { name: string; n: number } | null;
 };
 
-// The night in numbers: everything developed and not hidden by the host.
+// The night in numbers, counting exactly what the Everyone tab shows: developed, not hidden by the host, and not from
+// guests who kept their roll private (their frames would otherwise show up in the totals but nowhere on the roll).
 async function nightStats(eventId: string): Promise<Night> {
+  const shared = sql`p.event_id = ${eventId} and p.status = 'done' and not p.hidden and not s.private_roll`;
   const [t] = await sql<{ photos: number; picks: number; first: Date | null; last: Date | null; guests: number; rolls: number }[]>`
-    select count(*)::int as photos, count(*) filter (where starred)::int as picks, min(captured_at) as first, max(captured_at) as last,
+    select count(*)::int as photos, count(*) filter (where p.starred)::int as picks, min(p.captured_at) as first, max(p.captured_at) as last,
            (select count(*)::int from sessions where event_id = ${eventId}) as guests,
            (select coalesce(sum(rolls), 0)::int from sessions where event_id = ${eventId}) as rolls
-    from photos where event_id = ${eventId} and status = 'done' and not hidden`;
+    from photos p join sessions s on s.id = p.session_id where ${shared}`;
   const [busiest] = await sql<{ hour: Date; n: number }[]>`
-    select date_trunc('hour', captured_at) as hour, count(*)::int as n from photos
-    where event_id = ${eventId} and status = 'done' and not hidden and captured_at is not null
+    select date_trunc('hour', p.captured_at) as hour, count(*)::int as n from photos p join sessions s on s.id = p.session_id
+    where ${shared} and p.captured_at is not null
     group by 1 order by 2 desc, 1 limit 1`;
   // the same person across phones (first name + Instagram) counts once
   const [top] = await sql<{ name: string; n: number }[]>`
     select min(s.name) as name, count(*)::int as n from photos p join sessions s on s.id = p.session_id
-    where p.event_id = ${eventId} and p.status = 'done' and not p.hidden
+    where ${shared}
     group by coalesce(s.instagram || '|' || lower(trim(s.name)), s.id::text) order by 2 desc limit 1`;
   return { ...t, busiest: busiest ?? null, top: top ?? null };
 }

@@ -78,5 +78,8 @@ alter table events add column if not exists look text;
 -- Watermark: a fixed credit on every photo of the event; null = whoever took it (@handle, else first name).
 alter table events add column if not exists credit text;
 
+-- The phone a session was made on: a hash of a random, site-wide, long-lived cookie (browsers expose no hardware id).
+alter table sessions add column if not exists device_id text;
+
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;

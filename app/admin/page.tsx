@@ -10,7 +10,7 @@ export const metadata = { title: "Darkroom · blindshot" };
 
 type Row = {
   id: string; filtered_path: string | null; original_path: string; status: string; error: string | null;
-  starred: boolean; hidden: boolean; shot_number: number; name: string; instagram: string | null; no_promo: boolean; private_roll: boolean;
+  starred: boolean; hidden: boolean; shot_number: number; name: string; instagram: string | null; device: string | null; twin: boolean; no_promo: boolean; private_roll: boolean;
 };
 const VIEWS = ["all", "starred", "hidden", "problems"] as const;
 
@@ -43,7 +43,10 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
     from photos where event_id = ${event.id}`;
   const rows = await sql<Row[]>`
     select p.id, p.filtered_path, p.original_path, p.status, p.error, p.starred, p.hidden, p.shot_number,
-           s.name, s.instagram, s.no_promo, s.private_roll
+           s.name, s.instagram, s.no_promo, s.private_roll, s.user_agent as device,
+           exists (select 1 from sessions o where o.event_id = s.event_id and o.id <> s.id and o.instagram is not null
+                   and o.instagram = s.instagram and lower(trim(o.name)) = lower(trim(s.name))
+                   and o.device_id is distinct from s.device_id and o.device_id is not null and s.device_id is not null) as twin
     from photos p join sessions s on s.id = p.session_id
     where p.event_id = ${event.id}
       ${view === "starred" ? sql`and p.starred` : view === "hidden" ? sql`and p.hidden` : view === "problems" ? sql`and p.status <> 'done'` : sql``}
@@ -111,6 +114,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
                 <span>
                   {r.name} · {r.shot_number}
                   {r.instagram && <> · <a href={`https://instagram.com/${r.instagram}`} target="_blank" rel="noreferrer">@{r.instagram}</a></>}
+                  <br /><small className="device">{phoneOf(r.device)}{r.twin && <b title="The same name and Instagram joined from a different phone"> · ⚠ also on another phone</b>}</small>
                 </span>
                 <span className="badges">
                   {r.no_promo && <i title="Don't use for promotion">no promo</i>}
@@ -129,4 +133,12 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
       </div>
     </div>
   );
+}
+
+// "iPhone · Safari", "Samsung SM-S918B · Chrome": enough to tell phones apart at a glance.
+function phoneOf(ua: string | null): string {
+  if (!ua) return "unknown phone";
+  const browser = /SamsungBrowser/.test(ua) ? "Samsung Internet" : /CriOS|Chrome/.test(ua) ? "Chrome" : /FxiOS|Firefox/.test(ua) ? "Firefox" : /Safari/.test(ua) ? "Safari" : "browser";
+  const phone = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : ua.match(/Android [\d.]+; ([^;)]+?)(?: Build|\))/)?.[1]?.trim() || (/Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "Mac" : "computer");
+  return `${phone} · ${browser}`;
 }
