@@ -44,6 +44,13 @@ They decide by eye, often in two or three rounds ("too strong", "the second colu
 - **sharp gotchas:** `stats()` reads the *input*, so crop to a buffer before measuring a region; `resize` runs before
   `composite` in one pipeline, so composite to a buffer first when you then shrink.
 
+## Per-event looks
+
+When a change should apply to some events only ("darker for tomorrow, leave tonight alone"), add it as a named entry in
+`LOOKS` (`lib/film.ts`) instead of changing `DEFAULT_FILM`, preview it with compare.ts (the entry's options as a
+column), deploy the worker, and set it on the event with `npm run event -- … --look <name>`. `night` is the first:
+deeper blacks, more contrast, brights that glow and clip a little.
+
 ## Overlay packs (licensed images)
 
 - Read the pack's license PDF before using it. Personal-use packs can't go into a commercial event without a commercial
