@@ -120,7 +120,7 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 @keyframes sway { 50% { transform: rotate(0.6deg) translateY(1px); } }
 .cam-row { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
 .vf-wrap { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
-.vf { position: relative; width: calc(1.2in * min(1, var(--vf-ratio, 0.75))); height: calc(1.2in / max(1, var(--vf-ratio, 0.75))); border-radius: 6px; background: #000; padding: 5px; box-shadow: inset 0 0 0 2px var(--vf-ring), inset 0 3px 8px rgba(0,0,0,0.8); overflow: hidden; }
+.vf { position: relative; width: 0.9in; height: 1.2in; border-radius: 6px; background: #000; padding: 5px; box-shadow: inset 0 0 0 2px var(--vf-ring), inset 0 3px 8px rgba(0,0,0,0.8); overflow: hidden; }
 .vf video { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 3px; background: #000; }
 .vf .vf-msg { position: absolute; inset: 5px; display: grid; place-items: center; text-align: center; font-size: 10px; line-height: 1.2; color: var(--cam-fg); background: #000; border-radius: 3px; padding: 4px; cursor: pointer; }
 .vf .vf-msg input { position: absolute; inset: 0; opacity: 0; }
@@ -165,6 +165,18 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
   padding: 14px 0 max(14px, env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--bg) 28%); }
 .tb-side { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .thumb-bar .wheel { width: 100%; max-width: 120px; height: 44px; }
+/* The layout never rotates: labels turn to stay readable when the phone is sideways. */
+.turn { display: inline-block; transform: rotate(var(--label-turn, 0deg)); transition: transform 250ms ease; }
+.switch.icon { width: 44px; height: 44px; padding: 0; font-size: 18px; letter-spacing: 0; }
+/* The browser rotated the page: turn the camera screen back so the controls stay along the phone's bottom edge. */
+.cam-screen.counter-left, .cam-screen.counter-right { position: fixed; top: 50%; left: 50%; width: 100dvh; height: 100dvw; z-index: 15;
+  overflow-y: auto; padding: 12px 16px 0; background: var(--bg); }
+.cam-screen[class*="counter-"] .thumb-bar { order: 99; margin-top: auto; } /* always the phone's bottom edge: under the right thumb */
+.cam-screen.counter-left { transform: translate(-50%, -50%) rotate(-90deg); }
+.cam-screen.counter-right { transform: translate(-50%, -50%) rotate(90deg); }
+.cam-screen[class*="counter-"] .vf video { position: absolute; top: 50%; left: 50%; width: calc(var(--vf-h) - 10px); height: calc(var(--vf-w) - 10px);
+  transform: translate(-50%, -50%) rotate(var(--label-turn)); }
+.cam-screen[class*="counter-"] .vf video.mirror { transform: translate(-50%, -50%) rotate(var(--label-turn)) scaleX(-1); }
 .shutter { width: 88px; height: 88px; border-radius: 50%; border: 0; background: var(--shutter); box-shadow: 0 0 0 6px var(--bg), 0 0 0 9px var(--shutter-ring), 0 8px 0 0 var(--shutter-deep) inset; color: var(--shutter-ink); font-family: var(--font-archivo), sans-serif; font-weight: 900; font-stretch: 110%; font-size: 13px; letter-spacing: 0.08em; transition: transform 80ms; }
 .shutter:active { transform: scale(0.94); }
 .shutter[aria-disabled="true"] { background: var(--bg-2); color: var(--muted); box-shadow: 0 0 0 6px var(--bg), 0 0 0 9px var(--line); }
@@ -233,6 +245,9 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .how-fold { font-size: 14px; color: var(--muted); }
 .how-fold summary { cursor: pointer; text-align: center; font-weight: 600; color: var(--fg); padding: 6px 0; }
 .how-fold .how { margin-top: 8px; }
+.countdown { margin: 0; text-align: center; font-size: 15px; color: var(--muted); }
+.countdown b { display: block; font-size: 30px; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.countdown.open { display: block; color: var(--fg); font-weight: 700; text-decoration: none; border: 2px solid var(--accent); border-radius: 999px; padding: 12px 16px; }
 .share-qr { margin: 8px auto 0; width: 168px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .share-qr svg { width: 100%; height: auto; display: block; background: #fff; padding: 8px; border-radius: 12px; }
 .share-qr figcaption { font-size: 13px; color: var(--muted); text-align: center; }

@@ -4,6 +4,7 @@ import { CLOSE_GRACE_MS, isClosed, isReleased, sql } from "@/lib/db";
 import { currentSession, isAdmin, openEvent, sameGuest } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
 import { themeClass } from "@/lib/themes";
+import Countdown from "../Countdown";
 import HostOnly from "../HostOnly";
 import Sheet from "./Sheet";
 
@@ -45,6 +46,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
       <section className="stack">
         <h1 className="headline">Still<br /><em>developing.</em></h1>
         <p className="lede">Nobody sees a frame until the whole roll is ready.</p>
+        {event.release_at && <Countdown to={event.release_at.toISOString()} code={event.code} />}
         <a className="ghost" href={`/e/${event.code}`}>Back to the camera</a>
       </section>,
     );

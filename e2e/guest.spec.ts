@@ -1,6 +1,6 @@
 // The guest journey, on every mobile browser project: join, shoot a whole roll blind, see it on the shared roll.
 import { expect, test, type Page } from "@playwright/test";
-import { dropEvent, makeEvent, testJpeg, waitDeveloped } from "./support.ts";
+import { dropEvent, makeEvent, sql, testJpeg, waitDeveloped } from "./support.ts";
 
 async function join(page: Page, code: string, name = "Tester") {
   await page.goto(`/e/${code}`);
@@ -190,6 +190,53 @@ test("flip to the front camera for a selfie: mirrored preview, the screen is the
     await expect(page.getByLabel("1 shots left")).toBeVisible();
     await expect(page.locator(".flashfx")).not.toHaveClass(/hold/); // and goes back off
     await waitDeveloped(e.id, 1);
+  } finally {
+    await dropEvent(e);
+  }
+});
+
+test("phone turned sideways with auto-rotate: the camera screen turns back, labels turn, and it still shoots", async ({ browser, browserName }) => {
+  test.skip(browserName === "firefox", "Firefox here has no phone emulation (coarse pointer)");
+  const e = await makeEvent({ shots: 2 });
+  const ctx = await browser.newContext({ viewport: { width: 915, height: 412 }, isMobile: browserName !== "firefox", hasTouch: true, permissions: browserName === "chromium" ? ["camera"] : [] });
+  const page = await ctx.newPage();
+  await page.addInitScript(() => Object.defineProperty(screen, "orientation", { value: { angle: 90, type: "landscape-primary", addEventListener() {} } }));
+  if (browserName === "webkit") await page.addInitScript(() => {
+    MediaDevices.prototype.getUserMedia = async () => {
+      const c = Object.assign(document.createElement("canvas"), { width: 1280, height: 720 });
+      const g = c.getContext("2d")!;
+      setInterval(() => { g.fillStyle = "#3a6"; g.fillRect(0, 0, c.width, c.height); }, 33);
+      return c.captureStream(30);
+    };
+  });
+  try {
+    await join(page, e.code);
+    await expect(page.locator(".cam-screen")).toHaveClass(/counter-left/);
+    await expect(page.getByRole("button", { name: "SHOOT" }).locator(".turn")).toHaveCSS("transform", /matrix\(0, 1, -1, 0/); // 90°
+    await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(page.getByLabel("1 shots left")).toBeVisible();
+    await waitDeveloped(e.id, 1);
+  } finally {
+    await ctx.close();
+    await dropEvent(e);
+  }
+});
+
+test("rotation locked, phone held sideways (tilt sensor): labels turn and the photo is saved standing up", async ({ page }) => {
+  const e = await makeEvent({ shots: 2, focusCheck: true }); // saving upright is on for trial events first
+  try {
+    await join(page, e.code);
+    await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+    const [vw, vh] = await page.locator("video").evaluate((v: HTMLVideoElement) => [v.videoWidth, v.videoHeight]);
+    await page.evaluate(() => dispatchEvent(Object.assign(new Event("deviceorientation"), { alpha: 0, beta: 5, gamma: -85 })));
+    await expect(page.getByRole("button", { name: "SHOOT" }).locator(".turn")).toHaveCSS("transform", /matrix\(0, 1, -1, 0/); // labels turned 90°
+    await expect(page.getByText("Wide shot · upright works too")).toBeVisible();
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(page.getByLabel("1 shots left")).toBeVisible();
+    const [p] = await waitDeveloped(e.id, 1);
+    const [row] = await sql<{ width: number; height: number }[]>`select width, height from photos where id = ${p.id}`;
+    expect(Math.sign(row.width - row.height)).toBe(Math.sign(vh - vw)); // the frame was turned a quarter
   } finally {
     await dropEvent(e);
   }

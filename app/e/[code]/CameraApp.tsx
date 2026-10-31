@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { instagramHandle } from "@/lib/config";
+import Countdown from "./Countdown";
 
 type EventInfo = {
   code: string;
@@ -168,6 +169,36 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const [selfie, setSelfie] = useState(false);
   const [canFlip, setCanFlip] = useState(false);
   const [ratio, setRatio] = useState(3 / 4); // the live picture's shape: the viewfinder follows it, upright or sideways
+  // Which way the phone's top points. The layout never rotates (controls stay under the right thumb when held
+  // sideways); only the labels turn. `turned`: the browser rotated the page anyway, so we turn the screen back.
+  const [side, setSide] = useState<"up" | "left" | "right">("up");
+  const [turned, setTurned] = useState(false);
+  useEffect(() => {
+    const phone = matchMedia("(pointer: coarse)").matches;
+    const fromScreen = () => {
+      const landscape = phone && innerWidth > innerHeight;
+      setTurned(landscape);
+      if (landscape) {
+        const a = screen.orientation?.angle ?? (window as { orientation?: number }).orientation ?? 90;
+        setSide(a === 90 ? "left" : "right");
+      } else setSide("up");
+    };
+    // Rotation locked: the page stays upright, so read the tilt sensor (gamma ≈ -90 when the top points left).
+    const fromTilt = (e: DeviceOrientationEvent) => {
+      if (e.gamma == null || innerWidth > innerHeight) return;
+      const g = e.gamma;
+      setSide((s) => (Math.abs(g) > 60 ? (g < 0 ? "left" : "right") : Math.abs(g) < 30 ? "up" : s));
+    };
+    fromScreen();
+    addEventListener("resize", fromScreen);
+    addEventListener("deviceorientation", fromTilt);
+    return () => { removeEventListener("resize", fromScreen); removeEventListener("deviceorientation", fromTilt); };
+  }, []);
+  const sideways = side !== "up";
+  const labelTurn = side === "left" ? "90deg" : side === "right" ? "-90deg" : "0deg";
+  // The viewfinder keeps the phone's physical shape: when the page is turned back, the stream's shape flips too.
+  const shape = turned ? 1 / ratio : ratio;
+  const vfW = shape < 1 ? `${(1.2 * shape).toFixed(3)}in` : "1.2in", vfH = shape < 1 ? "1.2in" : `${(1.2 / shape).toFixed(3)}in`;
   const windRef = useRef({ acc: 0, pos: 0, lastX: null as number | null, moved: 0 });
 
   async function startCamera() {
@@ -296,9 +327,16 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     try {
       snap();
       const c = document.createElement("canvas");
-      c.width = v.videoWidth;
-      c.height = v.videoHeight;
-      c.getContext("2d")!.drawImage(v, 0, 0);
+      // Rotation locked and held sideways: the frame arrives sideways, so stand it up (a wide shot), trial events first.
+      const spin = event.focusCheck && !turned && sideways ? (side === "left" ? -1 : 1) : 0;
+      c.width = spin ? v.videoHeight : v.videoWidth;
+      c.height = spin ? v.videoWidth : v.videoHeight;
+      const g = c.getContext("2d")!;
+      if (spin) {
+        g.translate(c.width / 2, c.height / 2);
+        g.rotate((spin * Math.PI) / 2);
+        g.drawImage(v, -v.videoWidth / 2, -v.videoHeight / 2);
+      } else g.drawImage(v, 0, 0);
       const blob = await new Promise<Blob>((ok, fail) => c.toBlob((b) => (b ? ok(b) : fail(new Error("capture failed"))), "image/jpeg", 0.92));
       return { blob, w: c.width, h: c.height };
     } finally {
@@ -372,12 +410,12 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
 
   const used = event.maxShots - left;
   return (
-    <section className="stack">
+    <section className={`stack cam-screen${turned ? ` counter-${side}` : ""}`} style={{ ["--label-turn" as string]: labelTurn }}>
       <div className="cam">
         {event.decor && <div className="toran" aria-hidden />}
         <div className="cam-row">
           <div className="vf-wrap">
-            <div className="vf" style={{ ["--vf-ratio" as string]: ratio }}>
+            <div className="vf" style={{ width: vfW, height: vfH, ["--vf-w" as string]: vfW, ["--vf-h" as string]: vfH }}>
               <video ref={videoRef} className={selfie ? "mirror" : undefined} playsInline muted autoPlay aria-label="Viewfinder" />
               {cam !== "live" && (
                 <label className="vf-msg">
@@ -394,11 +432,11 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
                 </label>
               )}
             </div>
-            <span className="tiny">{ratio < 1 ? "Upright · turn sideways for wide" : "Wide shot · upright works too"}</span>
+            <span className="tiny">{sideways || (!turned && ratio > 1) ? "Wide shot · upright works too" : "Upright · turn sideways for wide"}</span>
           </div>
           <div className="right">
             <div className="counter">
-              <span className="tiny">Shots<br />left</span>
+              <span className="tiny turn">Shots<br />left</span>
               <div className="window" aria-label={`${left} shots left`}>
                 <div className="strip" style={{ transform: `translateY(${-used * 44}px)` }}>
                   {Array.from({ length: event.maxShots + 1 }, (_, i) => <div key={i}>{event.maxShots - i}</div>)}
@@ -423,6 +461,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           </div>
         </div>
       </div>
+      {!event.released && event.releaseAt && <Countdown to={event.releaseAt} code={event.code} />}
       <p className="status" aria-live="polite">
         {status[0]}
         {status[1] && <small>{status[1]}</small>}
@@ -431,12 +470,16 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
       {/* Everything the thumb needs, pinned to the bottom of the screen: one-handed, like a real disposable. */}
       <div className="thumb-bar">
         <div className="tb-side">
-          <button className="switch" type="button" aria-pressed={flash} onClick={toggleFlash}>{flash ? "Flash on" : "Flash off"}</button>
+          <button className={`switch${sideways ? " icon" : ""}`} type="button" aria-pressed={flash} aria-label={flash ? "Flash on" : "Flash off"} onClick={toggleFlash}>
+            <span className="turn">{sideways ? "⚡" : flash ? "Flash on" : "Flash off"}</span>
+          </button>
           {canFlip && cam === "live" && (
-            <button className="switch" type="button" onClick={flip} aria-label={selfie ? "Use the back camera" : "Take a selfie"}>{selfie ? "↺ Back" : "↻ Selfie"}</button>
+            <button className={`switch${sideways ? " icon" : ""}`} type="button" onClick={flip} aria-label={selfie ? "Use the back camera" : "Take a selfie"}>
+              <span className="turn">{sideways ? "↻" : selfie ? "↺ Back" : "↻ Selfie"}</span>
+            </button>
           )}
         </div>
-        <button className="shutter" type="button" aria-disabled={!wound} onClick={() => shoot()}>SHOOT</button>
+        <button className="shutter" type="button" aria-disabled={!wound} aria-label="SHOOT" onClick={() => shoot()}><span className="turn">SHOOT</span></button>
         <div className="tb-side">
           <button
             key={nudge}
@@ -458,7 +501,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
             onClick={() => { if (windRef.current.moved < 4) addWind(WIND_PX); windRef.current.moved = 0; }}
             onKeyDown={(e) => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); addWind(WIND_PX); } }}
           />
-          <span className="tiny">{wound ? "Wound" : "Wind"}</span>
+          <span className="tiny turn">{wound ? "Wound" : "Wind"}</span>
         </div>
       </div>
       {event.released
@@ -500,6 +543,7 @@ function RollDone({ event, uploading }: { event: EventInfo; uploading: number })
           <span suppressHydrationWarning>{event.releaseAt ? formatWhen(event.releaseAt) : "When the host releases it"}</span>
         </div>
       </div>
+      {!event.released && event.releaseAt && <Countdown to={event.releaseAt} code={event.code} />}
       {!event.closed && (
         <>
           <button className="cta" type="button" onClick={newRoll} disabled={loading || uploading > 0}>
@@ -596,6 +640,15 @@ function buzz(p: number | number[]) {
 let ac: AudioContext | null = null;
 function unlockAudio() {
   try { ac ??= new AudioContext(); void ac.resume(); } catch { ac = null; }
+  askTilt();
+}
+// iPhones only share the tilt sensor after asking, and only from a tap. Ask once; a "no" just means labels don't turn.
+let askedTilt = false;
+function askTilt() {
+  if (askedTilt) return;
+  askedTilt = true;
+  const ask = (DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> }).requestPermission;
+  ask?.call(DeviceOrientationEvent).catch(() => {});
 }
 function noise(dur: number, freq: number, gain: number) {
   unlockAudio();
