@@ -30,7 +30,7 @@ test("developed frames carry no EXIF (no GPS, no phone model)", async () => {
 test("watermark sits bottom-right, and only there", async () => {
   const src = await testJpeg(1200, 900);
   const off = { leak: { chance: 0, strength: 0, colors: [] }, seed: 7 };
-  const [w, n] = await Promise.all([applyFilmFilter(src, { ...off, watermark: true }), applyFilmFilter(src, { ...off, watermark: false })].map(async (p) => raw(await p)));
+  const [w, n] = await Promise.all([applyFilmFilter(src, { ...off, watermark: "@some.guest" }), applyFilmFilter(src, { ...off, watermark: null })].map(async (p) => raw(await p)));
   const diff = (x0: number, y0: number, x1: number, y1: number) => {
     let d = 0;
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) for (let c = 0; c < 3; c++) {
@@ -41,7 +41,7 @@ test("watermark sits bottom-right, and only there", async () => {
   };
   const { width: W, height: H } = w.info;
   // JPEG re-encoding jitters a few values everywhere; the watermark changes the corner by far more than that.
-  expect(diff(W / 2, H - 90, W, H)).toBeGreaterThan(2); // bottom-right strip
+  expect(diff(W * 0.75, H - 60, W, H)).toBeGreaterThan(2); // bottom-right corner, where the credit sits
   expect(diff(0, H - 90, W / 3, H)).toBeLessThan(0.2); // bottom-left untouched
   expect(diff(0, 0, W, H / 2)).toBeLessThan(0.2); // top half untouched
 });
@@ -92,7 +92,7 @@ test("a panned frame smears the edges and keeps the middle (where the subject is
   const stripes = await sharp({ create: { width: W, height: H, channels: 3, background: "#808080" } })
     .composite([{ input: Buffer.from(`<svg width="${W}" height="${H}">${Array.from({ length: W / 6 }, (_, i) => `<rect x="${i * 6}" width="3" height="${H}" fill="#202020"/>`).join("")}</svg>`) }])
     .jpeg({ quality: 95 }).toBuffer();
-  const plain = { leak: { chance: 0, strength: 0, colors: [] }, shake: { chance: 0, strength: 1 }, dust: 0, scratches: 0, watermark: false, grain: { amount: 0, size: 1, shadowBoost: 0, chroma: 0 } };
+  const plain = { leak: { chance: 0, strength: 0, colors: [] }, shake: { chance: 0, strength: 1 }, dust: 0, scratches: 0, watermark: null, grain: { amount: 0, size: 1, shadowBoost: 0, chroma: 0 } };
   const panned = await applyFilmFilter(stripes, { ...plain, seed: 3, pan: { chance: 1, strength: 1 } });
   expect((await applyFilmFilter(stripes, { ...plain, seed: 3, pan: { chance: 1, strength: 1 } })).equals(panned)).toBe(true);
   const contrast = async (left: number) =>
@@ -103,10 +103,19 @@ test("a panned frame smears the edges and keeps the middle (where the subject is
 test("the night look has deeper blacks and brighter brights than the default", async () => {
   // a grey ramp from black to white
   const ramp = await sharp(Buffer.from(Array.from({ length: 256 * 64 * 3 }, (_, i) => Math.floor(i / 3) % 256)), { raw: { width: 256, height: 64, channels: 3 } }).jpeg({ quality: 95 }).toBuffer();
-  const plain = { seed: 1, leak: { chance: 0, strength: 0, colors: [] }, shake: { chance: 0, strength: 1 }, pan: { chance: 0, strength: 1 }, dust: 0, scratches: 0, watermark: false, vignette: 0, grain: { amount: 0, size: 1, shadowBoost: 0, chroma: 0 } };
+  const plain = { seed: 1, leak: { chance: 0, strength: 0, colors: [] }, shake: { chance: 0, strength: 1 }, pan: { chance: 0, strength: 1 }, dust: 0, scratches: 0, watermark: null, vignette: 0, grain: { amount: 0, size: 1, shadowBoost: 0, chroma: 0 } };
   const level = async (b: Buffer, left: number) =>
     (await sharp(await sharp(b).extract({ left, top: 16, width: 16, height: 32 }).greyscale().toBuffer()).stats()).channels[0].mean;
   const day = await applyFilmFilter(ramp, plain), night = await applyFilmFilter(ramp, { ...plain, ...LOOKS.night });
   expect(await level(night, 24)).toBeLessThan(await level(day, 24)); // shadows
   expect(await level(night, 216)).toBeGreaterThan(await level(day, 216)); // highlights
+});
+
+test("the credit is whoever took the photo; a long handle shrinks to fit, missing glyphs are skipped", async () => {
+  const src = await testJpeg(1200, 900);
+  const off = { leak: { chance: 0, strength: 0, colors: [] }, shake: { chance: 0, strength: 1 }, pan: { chance: 0, strength: 1 }, seed: 7 };
+  const [a, b] = await Promise.all([applyFilmFilter(src, { ...off, watermark: "@maya" }), applyFilmFilter(src, { ...off, watermark: "@someone.else" })]);
+  expect(a.equals(b)).toBe(false); // the text really is per photo
+  await applyFilmFilter(src, { ...off, watermark: "@" + "x".repeat(30) }); // longest handle Instagram allows
+  await applyFilmFilter(src, { ...off, watermark: "Zoë 🎃" }); // emoji the font doesn't have: dropped, no crash
 });

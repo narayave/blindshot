@@ -99,6 +99,11 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
       navigator.share = async (d?: ShareData) => { (window as unknown as { saved: string }).saved = d!.files![0].name; };
     });
     await page.locator(".frame").first().click();
+    await expect(page.getByText(/^1 \/ 2/)).toBeVisible(); // a viewer you can swipe through
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByText(/^2 \/ 2/)).toBeVisible();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByText(/^1 \/ 2/)).toBeVisible();
     await page.getByRole("button", { name: "Save photo" }).click();
     await expect.poll(() => page.evaluate(() => (window as unknown as { saved?: string }).saved)).toMatch(new RegExp(`^${e.code}-you-\\d\\.jpg$`));
   } finally {

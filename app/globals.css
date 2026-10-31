@@ -189,8 +189,12 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .frame .star { position: absolute; top: 6px; right: 6px; font-size: 14px; color: var(--accent); text-shadow: 0 1px 2px #000; }
 .more { grid-column: 1 / -1; justify-self: center; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 600; text-decoration: none; }
 .empty { grid-column: 1 / -1; color: var(--cam-muted); text-align: center; padding: 24px 8px; font-size: 14px; }
-.lightbox { position: fixed; inset: 0; background: rgba(0, 10, 20, 0.95); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px; }
-.lightbox img { max-width: 100%; max-height: 72vh; border-radius: 4px; }
+.lightbox { position: fixed; inset: 0; background: rgba(0, 10, 20, 0.95); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 16px 0 max(16px, env(safe-area-inset-bottom)); }
+.lb-track { display: flex; width: 100%; flex: 1; min-height: 0; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+.lb-track::-webkit-scrollbar { display: none; }
+.lb-slide { flex: 0 0 100%; margin: 0; padding: 0 16px; scroll-snap-align: center; scroll-snap-stop: always; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.lb-slide figcaption { color: #F3EEDD; font-size: 13px; opacity: 0.8; text-align: center; }
+.lightbox img { max-width: 100%; max-height: 68vh; border-radius: 4px; object-fit: contain; }
 .lightbox p { color: #F3EEDD; font-size: 13px; margin: 0; opacity: 0.8; text-align: center; }
 .lightbox .lb-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .lightbox a, .lightbox button { background: #F7B526; color: #001F3B; border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 600; text-decoration: none; }

@@ -1,5 +1,5 @@
 import sharp, { type OverlayOptions } from "sharp";
-import { WATERMARK } from "./watermark.ts";
+import { creditPath, type Credit } from "./credit.ts";
 
 type RGB = [number, number, number];
 
@@ -26,7 +26,7 @@ export type FilmOptions = {
   dust: number; // dust specks and hairs, 0 = clean scan
   scratches: number; // chance of a long scratch
   dateStamp: Date | null; // orange LED date in the corner
-  watermark: boolean; // faint credit in the bottom-right corner (text set in lib/watermark.ts)
+  watermark: string | null; // faint credit in the bottom-right corner: who took it (@handle or first name); null = none
   seed: number; // same seed = same grain, leaks and dust. Use a per-photo value
   quality: number; // jpeg quality
 };
@@ -56,7 +56,7 @@ export const DEFAULT_FILM: FilmOptions = {
   dust: 2.6,
   scratches: 0.3,
   dateStamp: null,
-  watermark: true,
+  watermark: null, // the worker passes each photo's credit
   seed: 1,
   quality: 86,
 };
@@ -201,11 +201,12 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   if (o.dust > 0 || o.scratches > 0) layers.push({ input: Buffer.from(dustSvg(w, h, rand, o.dust, rand() < o.scratches)) });
   if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h)) });
   let img = sharp(base, raw3);
-  if (o.watermark) {
+  const credit = o.watermark ? creditPath(o.watermark) : null;
+  if (credit) {
     // Composite everything else first, so the watermark can read the final corner (leaks included).
     const flat = layers.length ? await img.composite(layers).removeAlpha().raw().toBuffer() : base;
-    const box = watermarkBox(w, h);
-    img = sharp(flat, raw3).composite([{ input: Buffer.from(watermarkSvg(w, h, box, meanLuma(flat, w, box) > 0.55)) }]);
+    const box = watermarkBox(w, h, credit);
+    img = sharp(flat, raw3).composite([{ input: Buffer.from(watermarkSvg(w, h, box, credit, meanLuma(flat, w, box) > 0.55)) }]);
   } else if (layers.length) {
     img = img.composite(layers);
   }
@@ -348,13 +349,15 @@ function dustSvg(w: number, h: number, rand: () => number, amount: number, scrat
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${parts.join("")}</svg>`;
 }
 
-// Credit, bottom-right (the date stamp lives bottom-left). Pre-traced path, so no fonts needed.
+// Credit, bottom-right (the date stamp lives bottom-left), traced to a path (lib/credit.ts), so no fonts needed.
 // Tone flips with the background (dark text on bright corners, light on dark) and a soft halo in the
 // opposite tone keeps it readable over busy detail.
 type Box = { x: number; y: number; w: number; h: number };
-function watermarkBox(w: number, h: number): Box {
-  const textH = Math.min(w, h) * 0.03, pad = Math.min(w, h) * 0.035;
-  const textW = (textH * WATERMARK.width) / WATERMARK.height;
+function watermarkBox(w: number, h: number, c: Credit): Box {
+  const pad = Math.min(w, h) * 0.035;
+  // small and quiet; a long handle shrinks rather than running past half the frame
+  const textH = Math.min(Math.min(w, h) * 0.0225, (w * 0.5 * c.height) / c.width);
+  const textW = (textH * c.width) / c.height;
   return { x: w - pad - textW, y: h - pad - textH, w: textW, h: textH };
 }
 
@@ -369,14 +372,14 @@ function meanLuma(rgb: Buffer, w: number, b: Box): number {
   return n ? sum / n / 255 : 0;
 }
 
-function watermarkSvg(w: number, h: number, b: Box, brightBehind: boolean): string {
-  const k = b.h / WATERMARK.height;
+function watermarkSvg(w: number, h: number, b: Box, c: Credit, brightBehind: boolean): string {
+  const k = b.h / c.height;
   const t = `translate(${b.x} ${b.y}) scale(${k})`;
   const [ink, halo] = brightBehind ? ["#16180f", "#fffbea"] : ["#fffbea", "#0b0c08"];
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
   <defs><filter id="s"><feGaussianBlur stdDeviation="${b.h * 0.06 / k}"/></filter></defs>
-  <path d="${WATERMARK.d}" transform="${t}" fill="${halo}" stroke="${halo}" stroke-width="${b.h * 0.14 / k}" stroke-linejoin="round" opacity="0.45" filter="url(#s)"/>
-  <path d="${WATERMARK.d}" transform="${t}" fill="${ink}" opacity="0.68"/>
+  <path d="${c.d}" transform="${t}" fill="${halo}" stroke="${halo}" stroke-width="${b.h * 0.14 / k}" stroke-linejoin="round" opacity="0.45" filter="url(#s)"/>
+  <path d="${c.d}" transform="${t}" fill="${ink}" opacity="0.68"/>
 </svg>`;
 }
 

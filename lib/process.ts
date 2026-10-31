@@ -8,9 +8,9 @@ import { download, upload } from "./storage.ts";
 
 // Original in, filtered copy out.
 export async function processPhoto(photoId: string): Promise<void> {
-  const [p] = await sql<{ original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; overlays: boolean; look: string | null; captured_at: Date | null }[]>`
-    select p.original_path, p.shot_number, e.max_shots, e.date_stamp, e.overlays, e.look, p.captured_at
-    from photos p join events e on e.id = p.event_id where p.id = ${photoId}`;
+  const [p] = await sql<{ original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; overlays: boolean; look: string | null; captured_at: Date | null; name: string; instagram: string | null }[]>`
+    select p.original_path, p.shot_number, e.max_shots, e.date_stamp, e.overlays, e.look, p.captured_at, s.name, s.instagram
+    from photos p join events e on e.id = p.event_id join sessions s on s.id = p.session_id where p.id = ${photoId}`;
   if (!p) return;
   try {
     const original = await download(ORIGINALS, p.original_path);
@@ -22,6 +22,7 @@ export async function processPhoto(photoId: string): Promise<void> {
     const filtered = await applyFilmFilter(original, {
       ...(p.look ? LOOKS[p.look] : undefined),
       seed,
+      watermark: p.instagram ? `@${p.instagram}` : p.name.trim(), // credit whoever took it
       overlay: p.overlays ? await pickOverlay(seed) : null,
       ...(edgeFrame && { leak: { ...DEFAULT_FILM.leak, chance: 0.8 } }),
       dateStamp: p.date_stamp ? (p.captured_at ?? new Date()) : null,
