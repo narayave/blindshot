@@ -33,6 +33,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           decor: theme(event.theme).decor,
           closed: isClosed(event),
           focusCheck: event.focus_check,
+          polaroid: event.look === "polaroid",
           closesAt: event.closes_at?.toISOString() ?? null,
         }}
         qr={qr}

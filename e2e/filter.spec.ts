@@ -119,3 +119,16 @@ test("the credit is whoever took the photo; a long handle shrinks to fit, missin
   await applyFilmFilter(src, { ...off, watermark: "@" + "x".repeat(30) }); // longest handle Instagram allows
   await applyFilmFilter(src, { ...off, watermark: "Zoë 🎃" }); // emoji the font doesn't have: dropped, no crash
 });
+
+test("polaroid: a portrait 2:3 picture in a card with a deep bottom edge, from portrait or landscape shots", async () => {
+  for (const [w, h] of [[1200, 900], [900, 1200]]) {
+    const out = await applyFilmFilter(await testJpeg(w, h), { ...LOOKS.polaroid, seed: 2, watermark: "@someone" });
+    const m = await sharp(out).metadata();
+    expect(m.height! / m.width!).toBeGreaterThan(1.5); // card: 2:3 picture plus the border, heavier at the bottom (≈1.61)
+    expect(m.height! / m.width!).toBeLessThan(1.7);
+    // the card is off-white: sample the bottom strip and a side strip
+    const strip = async (left: number, top: number, width: number, height: number) => (await sharp(await sharp(out).extract({ left, top, width, height }).toBuffer()).stats()).channels.map((c) => c.mean);
+    for (const v of await strip(0, m.height! - 20, 40, 10)) expect(v).toBeGreaterThan(200);
+    for (const v of await strip(2, Math.round(m.height! / 2), 10, 40)) expect(v).toBeGreaterThan(200);
+  }
+});

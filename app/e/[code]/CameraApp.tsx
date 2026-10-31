@@ -16,6 +16,7 @@ type EventInfo = {
   decor: boolean;
   closed: boolean; // shooting has ended for the night
   focusCheck: boolean; // camera trial (see settle)
+  polaroid: boolean; // instant film: portrait only, the photo comes back as a 2:3 card
   closesAt: string | null;
 };
 type Guest = { name: string; shotsUsed: number };
@@ -198,7 +199,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const labelTurn = side === "left" ? "90deg" : side === "right" ? "-90deg" : "0deg";
   // The viewfinder keeps the phone's physical shape: when the page is turned back, the stream's shape flips too.
   const shape = turned ? 1 / ratio : ratio;
-  const vfW = shape < 1 ? `${(1.2 * shape).toFixed(3)}in` : "1.2in", vfH = shape < 1 ? "1.2in" : `${(1.2 / shape).toFixed(3)}in`;
+  const vfShape = event.polaroid ? 2 / 3 : shape; // instant film: always the portrait card's window
+  const vfW = vfShape < 1 ? `${(1.2 * vfShape).toFixed(3)}in` : "1.2in", vfH = vfShape < 1 ? "1.2in" : `${(1.2 / vfShape).toFixed(3)}in`;
   const windRef = useRef({ acc: 0, pos: 0, lastX: null as number | null, moved: 0 });
 
   async function startCamera() {
@@ -432,7 +434,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
                 </label>
               )}
             </div>
-            <span className="tiny">{sideways || (!turned && ratio > 1) ? "Wide shot · upright works too" : "Upright · turn sideways for wide"}</span>
+            <span className="tiny">{event.polaroid ? "Instant film · hold it upright" : sideways || (!turned && ratio > 1) ? "Wide shot · upright works too" : "Upright · turn sideways for wide"}</span>
           </div>
           <div className="right">
             <div className="counter">

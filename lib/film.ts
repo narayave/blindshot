@@ -28,6 +28,7 @@ export type FilmOptions = {
   scratches: number; // chance of a long scratch
   dateStamp: Date | null; // 90s date-back stamp: LED date and time (Pacific) in the bottom-left corner
   dateColor: string; // the LED's colour
+  frame: "none" | "polaroid"; // polaroid: a 2:3 portrait picture in a white instant-film border, heavier at the bottom
   watermark: string | null; // faint credit in the bottom-right corner: who took it (@handle or first name); null = none
   seed: number; // same seed = same grain, leaks and dust. Use a per-photo value
   quality: number; // jpeg quality
@@ -60,6 +61,7 @@ export const DEFAULT_FILM: FilmOptions = {
   scratches: 0.3,
   dateStamp: null,
   dateColor: "#ffb52e", // amber-yellow, like a 90s compact's date back
+  frame: "none",
   watermark: null, // the worker passes each photo's credit
   seed: 1,
   quality: 86,
@@ -79,6 +81,13 @@ export const LOOKS: Record<string, Partial<FilmOptions>> = {
     contrast: 0.82, saturation: 1.0, warmth: 0.02,
     blackPoint: [0.03, 0.08, 0.05], whitePoint: [0.97, 1, 0.9], shadowTint: [0.82, 1.05, 0.9], tint: [0.95, 1.04, 0.95],
     shake: { chance: 0.05, strength: 1 }, pan: { chance: 0.06, strength: 1 },
+  },
+  // Instant film: square-ish portrait card, softer contrast, lifted milky blacks, warm highlights, cool shadows.
+  polaroid: {
+    frame: "polaroid", contrast: 0.55, saturation: 0.95, warmth: 0.12, softness: 0.6,
+    blackPoint: [0.07, 0.08, 0.09], whitePoint: [0.97, 0.95, 0.88], shadowTint: [0.9, 0.98, 1.06],
+    grain: { amount: 0.04, size: 1.2, shadowBoost: 0.8, chroma: 0.25 }, leak: { chance: 0.12, strength: 0.35, colors: ["#ff9a6b", "#ffd27a"] },
+    shake: { chance: 0.04, strength: 1 }, pan: { chance: 0, strength: 1 },
   },
   // Both: the green cast with night's deep blacks and glowing brights.
   "green-night": {
@@ -125,9 +134,12 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const convert = isHeic(input) ? (await import("heic-convert")).default : null;
   const src = convert ? Buffer.from(await convert({ buffer: input, format: "JPEG", quality: 0.95 })) : input;
 
+  const polaroid = o.frame === "polaroid";
   const { data, info } = await sharp(src)
     .rotate() // apply EXIF orientation
-    .resize(o.maxEdge, o.maxEdge, { fit: "inside", withoutEnlargement: true })
+    // instant film is portrait only: crop the middle to 2:3 (a landscape shot keeps its centre)
+    .resize(polaroid ? { width: Math.round(o.maxEdge * 0.75), height: Math.round(o.maxEdge * 1.125), fit: "cover", withoutEnlargement: false }
+      : { width: o.maxEdge, height: o.maxEdge, fit: "inside", withoutEnlargement: true })
     .toColourspace("srgb")
     .removeAlpha()
     .raw()
@@ -221,6 +233,11 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h, o.dateColor)) });
   let img = sharp(base, raw3);
   const credit = o.watermark ? creditPath(o.watermark) : null;
+  if (polaroid) {
+    // The picture, then the card around it; the credit goes on the card's wide bottom edge, like a pen note.
+    const pic = layers.length ? await img.composite(layers).removeAlpha().raw().toBuffer() : base;
+    return polaroidCard(pic, w, h, credit, o.quality);
+  }
   if (credit) {
     // Composite everything else first, so the watermark can read the final corner (leaks included).
     const flat = layers.length ? await img.composite(layers).removeAlpha().raw().toBuffer() : base;
@@ -307,11 +324,15 @@ async function placeOverlay(src: Buffer, w: number, h: number, rand: () => numbe
   const cw = Math.round(sw / zoom), ch = Math.round(sh / zoom);
   const crop = { left: Math.floor(rand() * (sw - cw)), top: Math.floor(rand() * (sh - ch)), width: cw, height: ch };
   const flop = rand() < 0.5, flip = rand() < 0.5;
-  const tilt = (rand() - 0.5) * 24; // degrees
+  const half = rand() < 0.5; // which way a quarter turn goes, and whether a landscape frame gets turned upside down
+  const tilt = (rand() - 0.5) * 36; // degrees
+  const hue = Math.round((rand() - 0.5) * 40), sat = 0.75 + rand() * 0.35; // the same burn, a different colour each time
   const opacity = (0.65 + rand() * 0.35) * strength;
   const t = (Math.abs(tilt) * Math.PI) / 180;
   const cover = Math.cos(t) + (Math.max(w, h) / Math.min(w, h)) * Math.sin(t); // scale so a tilted frame still fills
-  const part = await sharp(src).extract(crop).flop(flop).flip(flip).rotate(h > w ? 90 : 0).toBuffer(); // portrait: streaks along the long side
+  // portrait frames turn a quarter either way (streaks along the long side); landscape frames 0 or 180
+  const part = await sharp(src).extract(crop).flop(flop).flip(flip).rotate(h > w ? (half ? 90 : 270) : half ? 180 : 0)
+    .modulate({ hue: (hue + 360) % 360, saturation: sat }).toBuffer();
   const big = await sharp(part).resize(Math.ceil(w * cover), Math.ceil(h * cover), { fit: "cover" })
     .rotate(tilt, { background: "#000" }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
   const floor = await blackLevel(big.data, big.info.width, big.info.height);
@@ -343,29 +364,64 @@ function leakSvg(w: number, h: number, rand: () => number, leak: FilmOptions["le
 }
 
 // Dust on the negative prints as white specks; plus a few hairs and maybe a long scratch.
+// Each frame gets its own condition, like real film: mostly clean or lightly dusty, sometimes dusty, now and then dirty.
+// Within a frame: a power-law mix of sizes (lots of tiny, a few big), its own share of dark specks, sometimes a cluster,
+// and 0-3 hairs that each differ (a long gentle strand, a tight curl, one creeping in from an edge; light or dark).
 function dustSvg(w: number, h: number, rand: () => number, amount: number, scratch: boolean): string {
   const s = Math.max(w, h) / 2000;
+  const r = rand();
+  const dirt = r < 0.35 ? 0.12 : r < 0.7 ? 0.45 : r < 0.9 ? 1 : 1.8; // clean, light, dusty, dirty
+  const darkShare = 0.05 + rand() * 0.35;
+  const cluster = rand() < 0.3 ? { x: rand() * w, y: rand() * h, spread: (80 + rand() * 260) * s } : null;
+  const near = (c: number, spread: number) => c + (rand() + rand() + rand() - 1.5) * spread;
   const parts: string[] = [];
-  for (let i = 0, specks = Math.round(amount * (12 + rand() * 25)); i < specks; i++) {
-    const c = rand();
-    const fill = c < 0.75 ? "#fffbea" : c < 0.9 ? "#ffc9a0" : "#1a1a12"; // mostly white, some warm, a few dark
-    parts.push(`<ellipse cx="${rand() * w}" cy="${rand() * h}" rx="${(0.6 + rand() * 2.2) * s}" ry="${(0.5 + rand() * 1.6) * s}" fill="${fill}" opacity="${0.35 + rand() * 0.5}"/>`);
+  for (let i = 0, specks = Math.round(amount * dirt * (8 + rand() * 22)); i < specks; i++) {
+    const big = rand() ** 3; // mostly tiny, now and then a real fleck
+    const dark = rand() < darkShare;
+    const fill = dark ? "#1a1a12" : rand() < 0.85 ? "#fffbea" : "#ffc9a0";
+    const [cx, cy] = cluster && rand() < 0.6 ? [near(cluster.x, cluster.spread), near(cluster.y, cluster.spread)] : [rand() * w, rand() * h];
+    const rx = (0.5 + big * 4) * s, ry = rx * (0.5 + rand() * 0.6);
+    parts.push(`<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" transform="rotate(${rand() * 180} ${cx} ${cy})" fill="${fill}" opacity="${0.3 + rand() * 0.55}"/>`);
   }
-  // curly fibres: cubic curves with wild control points loop back on themselves
-  for (let i = 0, hairs = Math.round(amount * (2 + rand() * 5)); i < hairs; i++) {
-    const x = rand() * w, y = rand() * h, len = (20 + rand() * 120) * s, a = rand() * Math.PI * 2;
+  const hairs = Math.min(3, Math.floor(rand() * 4 * Math.min(1, dirt * 1.2 * (amount / 2.6))));
+  for (let i = 0; i < hairs; i++) {
+    const style = rand(), color = rand() < 0.65 ? "#fffbea" : "#15140f";
+    const fromEdge = rand() < 0.3;
+    const x = fromEdge ? (rand() < 0.5 ? 0 : w) : rand() * w, y = fromEdge ? rand() * h : rand() * h;
+    const len = (style < 0.4 ? 120 + rand() * 260 : 25 + rand() * 90) * s; // long strand or short curl
+    const a = fromEdge ? (x === 0 ? (rand() - 0.5) : Math.PI + (rand() - 0.5)) : rand() * Math.PI * 2;
     const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
-    const c = () => (rand() - 0.5) * len * 1.6;
-    parts.push(`<path d="M${x} ${y}C${x + c()} ${y + c()} ${ex + c()} ${ey + c()} ${ex} ${ey}" stroke="#fffbea" stroke-width="${(0.7 + rand() * 0.8) * s}" opacity="${0.45 + rand() * 0.4}" fill="none"/>`);
+    const curl = style < 0.4 ? 0.35 : 1.6; // strands bend gently, curls loop back
+    const c = () => (rand() - 0.5) * len * curl;
+    parts.push(`<path d="M${x} ${y}C${x + c()} ${y + c()} ${ex + c()} ${ey + c()} ${ex} ${ey}" stroke="${color}" stroke-width="${(0.5 + rand() * 1.3) * s}" stroke-linecap="round" opacity="${0.35 + rand() * 0.45}" fill="none"/>`);
   }
   if (scratch) {
     let x = w * (0.1 + rand() * 0.8);
     const y0 = rand() * h * 0.3, y1 = h * (0.6 + rand() * 0.4);
     let d = `M${x} ${y0}`;
     for (let k = 1; k <= 6; k++) d += `L${(x += (rand() - 0.5) * 4 * s)} ${y0 + ((y1 - y0) * k) / 6}`;
-    parts.push(`<path d="${d}" stroke="#fffbea" stroke-width="${1.2 * s}" opacity="${0.18 + rand() * 0.17}" fill="none"/>`);
+    parts.push(`<path d="${d}" stroke="#fffbea" stroke-width="${(0.8 + rand() * 0.8) * s}" opacity="${0.12 + rand() * 0.2}" fill="none"/>`);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">${parts.join("")}</svg>`;
+}
+
+// Instant-film card: warm off-white, thin top and sides, a deep bottom. A faint inner shadow where the picture sits
+// in the card, and a slight warm unevenness, so it reads as paper rather than a flat white box.
+async function polaroidCard(pic: Buffer, w: number, h: number, credit: Credit | null, quality: number): Promise<Buffer> {
+  const side = Math.round(w * 0.06), top = side, bottom = Math.round(w * 0.24);
+  const W = w + 2 * side, H = h + top + bottom;
+  const shade = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <defs><linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#6b5a3a" stop-opacity="0.06"/></linearGradient>
+    <filter id="s"><feGaussianBlur stdDeviation="${w * 0.004}"/></filter></defs>
+    <rect width="${W}" height="${H}" fill="url(#p)"/>
+    <rect x="${side}" y="${top}" width="${w}" height="${h}" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="${w * 0.006}" filter="url(#s)"/></svg>`;
+  const layers: OverlayOptions[] = [{ input: pic, raw: { width: w, height: h, channels: 3 }, left: side, top }, { input: Buffer.from(shade), left: 0, top: 0 }];
+  if (credit) {
+    const th = bottom * 0.17, tw = Math.min((th * credit.width) / credit.height, W * 0.5), k = tw / credit.width;
+    const x = W - side - tw, y = h + top + (bottom - tw * (credit.height / credit.width)) / 2;
+    layers.push({ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><path d="${credit.d}" transform="translate(${x} ${y}) scale(${k})" fill="#2b2924" opacity="0.72"/></svg>`), left: 0, top: 0 });
+  }
+  return sharp({ create: { width: W, height: H, channels: 3, background: "#f3efe6" } }).composite(layers).jpeg({ quality, mozjpeg: true }).toBuffer();
 }
 
 // Credit, bottom-right (the date stamp lives bottom-left), traced to a path (lib/credit.ts), so no fonts needed.

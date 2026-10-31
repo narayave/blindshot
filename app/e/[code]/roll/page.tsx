@@ -88,6 +88,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
         {tabLink("mine", "Mine", counts.n_mine)}
       </div>
       <Sheet
+        cards={event.look === "polaroid"}
         frames={rows.map((r) => ({ id: r.id, thumb: url(thumbPath(r.filtered_path)), src: url(r.filtered_path), by: r.mine ? "You" : r.name, n: r.shot_number, star: r.starred }))}
         moreHref={rows.length < total ? `?tab=${tab}&n=${limit + PAGE}` : null}
         empty={tab === "mine" ? "None of your shots are in yet." : "Nothing here yet."}

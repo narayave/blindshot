@@ -201,6 +201,7 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .sheet { background: var(--well); border-radius: 14px; padding: 14px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 10px; border: 1px solid var(--line); }
 .frame { position: relative; border: 0; padding: 0; background: none; display: flex; flex-direction: column; gap: 4px; text-align: left; min-width: 0; color: inherit; }
 .frame img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; display: block; border-radius: 2px; background: #111; }
+.sheet.cards .frame img { aspect-ratio: auto; object-fit: contain; background: none; box-shadow: 0 2px 6px rgba(0,0,0,0.35); } /* instant film: the whole card */
 .frame .edge { font-family: var(--font-archivo), sans-serif; font-weight: 700; font-stretch: 70%; font-size: 11px; color: var(--accent); letter-spacing: 0.08em; display: flex; justify-content: space-between; gap: 6px; text-transform: uppercase; }
 .frame .star { position: absolute; top: 6px; right: 6px; font-size: 14px; color: var(--accent); text-shadow: 0 1px 2px #000; }
 .more { grid-column: 1 / -1; justify-self: center; border: 1.5px solid var(--accent); color: var(--accent); border-radius: 999px; padding: 8px 16px; font-size: 13px; font-weight: 600; text-decoration: none; }

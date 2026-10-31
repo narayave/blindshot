@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Frame = { id: string; thumb: string; src: string; by: string; n: number; star: boolean };
 
-export default function Sheet({ frames, moreHref, empty, name, live }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean }) {
+export default function Sheet({ frames, moreHref, empty, name, live, cards = false }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean; cards?: boolean }) {
   const router = useRouter();
   const [start, setStart] = useState<number | null>(null); // the frame tapped to open the viewer
   const [cur, setCur] = useState(0); // the frame on screen now
@@ -59,7 +59,7 @@ export default function Sheet({ frames, moreHref, empty, name, live }: { frames:
 
   return (
     <>
-      <div className="sheet">
+      <div className={`sheet${cards ? " cards" : ""}`}>
         {frames.length === 0 && <p className="empty">{empty}</p>}
         {frames.map((f, i) => (
           <button key={f.id} className="frame" type="button" onClick={() => setStart(i)}>
