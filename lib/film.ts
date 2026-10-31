@@ -26,7 +26,8 @@ export type FilmOptions = {
   pan: { chance: number; strength: number }; // long exposure while the camera pans: the room smears sideways, the subject stays
   dust: number; // dust specks and hairs, 0 = clean scan
   scratches: number; // chance of a long scratch
-  dateStamp: Date | null; // orange LED date in the corner
+  dateStamp: Date | null; // 90s date-back stamp: LED date and time (Pacific) in the bottom-left corner
+  dateColor: string; // the LED's colour
   watermark: string | null; // faint credit in the bottom-right corner: who took it (@handle or first name); null = none
   seed: number; // same seed = same grain, leaks and dust. Use a per-photo value
   quality: number; // jpeg quality
@@ -58,6 +59,7 @@ export const DEFAULT_FILM: FilmOptions = {
   dust: 2.6,
   scratches: 0.3,
   dateStamp: null,
+  dateColor: "#ffb52e", // amber-yellow, like a 90s compact's date back
   watermark: null, // the worker passes each photo's credit
   seed: 1,
   quality: 86,
@@ -216,7 +218,7 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   if (o.overlay) layers.push({ input: await placeOverlay(o.overlay.image, w, h, rand, o.overlay.strength), raw: raw3.raw, blend: "screen" });
   else if (rand() < o.leak.chance) layers.push({ input: Buffer.from(leakSvg(w, h, rand, o.leak)), blend: "screen" });
   if (o.dust > 0 || o.scratches > 0) layers.push({ input: Buffer.from(dustSvg(w, h, rand, o.dust, rand() < o.scratches)) });
-  if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h)) });
+  if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h, o.dateColor)) });
   let img = sharp(base, raw3);
   const credit = o.watermark ? creditPath(o.watermark) : null;
   if (credit) {
@@ -406,8 +408,11 @@ const SEGMENTS: Record<string, string> = {
   "5": "acdfg", "6": "acdefg", "7": "abc", "8": "abcdefg", "9": "abcdfg",
 };
 
-function dateStampSvg(date: Date, w: number, h: number): string {
-  const text = `'${String(date.getFullYear()).slice(2)} ${date.getMonth() + 1} ${date.getDate()}`;
+// '26 10 31  21:42, in the party's time zone (the worker's clock is UTC).
+function dateStampSvg(date: Date, w: number, h: number, color: string): string {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", year: "2-digit", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(date).map((x) => [x.type, x.value]));
+  const text = `'${p.year} ${p.month} ${p.day}  ${p.hour}:${p.minute}`;
   const H = Math.round(Math.min(w, h) * 0.035), W = H * 0.55, t = H * 0.13, half = H / 2, gap = H * 0.22;
   const seg: Record<string, [number, number, number, number]> = {
     a: [t, 0, W - 2 * t, t], b: [W - t, t, t, half - 1.5 * t], c: [W - t, half + t / 2, t, half - 1.5 * t],
@@ -419,6 +424,7 @@ function dateStampSvg(date: Date, w: number, h: number): string {
   for (const ch of text) {
     if (ch === "'") { rects.push(`<rect x="${x}" y="0" width="${t}" height="${H * 0.3}"/>`); x += t + gap; continue; }
     if (ch === " ") { x += W * 0.6; continue; }
+    if (ch === ":") { rects.push(`<rect x="${x}" y="${H * 0.25}" width="${t}" height="${t}"/>`, `<rect x="${x}" y="${H * 0.65}" width="${t}" height="${t}"/>`); x += t + gap; continue; }
     for (const s of SEGMENTS[ch]) {
       const [sx, sy, sw, sh] = seg[s];
       rects.push(`<rect x="${x + sx}" y="${sy}" width="${sw}" height="${sh}" rx="${t / 3}"/>`);
@@ -428,7 +434,7 @@ function dateStampSvg(date: Date, w: number, h: number): string {
   const ox = H * 1.5, oy = h - H * 2.2; // bottom-left: the watermark has bottom-right
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
   <defs><filter id="glow"><feGaussianBlur stdDeviation="${H * 0.12}"/></filter></defs>
-  <g transform="translate(${ox} ${oy}) skewX(-6)" fill="#ff8a2a">
+  <g transform="translate(${ox} ${oy}) skewX(-6)" fill="${color}">
     <g filter="url(#glow)" opacity="0.9">${rects.join("")}</g>
     <g opacity="0.85">${rects.join("")}</g>
   </g></svg>`;

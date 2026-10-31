@@ -20,6 +20,7 @@ const optionsFor = async (c: Col) => {
   for (const [k, val] of Object.entries(c.options ?? {})) o[k] = val && typeof val === "object" && k in calm ? { ...(calm as Record<string, object>)[k], ...val } : val;
   const ov = o.overlay as { file?: string; strength?: number } | undefined;
   if (ov?.file) o.overlay = { image: await readFile(ov.file), strength: ov.strength ?? 1 };
+  if (typeof o.dateStamp === "string") o.dateStamp = new Date(o.dateStamp);
   return o as Partial<FilmOptions>;
 };
 const opts = await Promise.all(cols.map(optionsFor));

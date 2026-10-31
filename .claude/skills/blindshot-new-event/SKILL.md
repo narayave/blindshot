@@ -16,7 +16,8 @@ another (an event that isn't open is a 404).
 3. **Shots per roll.** They've used 6 for demos, 9 for Halloween, 13 for the main event. Guests can always load
    another roll when one is finished, so this sets the rhythm, not a hard cap.
 4. **Look:** reuse a theme (the page) or make a new one so the night feels different; and the film look of the photos:
-   default, or `--look night` (deeper blacks, punchier, brights clip) for dark parties. Looks live in `LOOKS` in
+   default, or `--look night` / `green` / `green-night` for dark parties; `--date-stamp` adds a 90s amber LED date and
+   time (Pacific) bottom-left, opposite the guest's @handle credit. Looks live in `LOOKS` in
    `lib/film.ts`; a new one is a look-lab job.
 
 ## The schedule (the user's standard night)

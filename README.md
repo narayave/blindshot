@@ -165,7 +165,7 @@ If the signal drops, the phone keeps retrying the same `photoId`. Because the id
 4. Halation glow around bright lights
 5. Clumped grain, stronger in the shadows
 6. Plastic-lens vignette, slight softness
-7. Defects drawn as SVG layers: dust, curly fibres, the odd scratch, light leaks on about 25% of frames (most likely on the first and last frame, as on a real roll), optional LED date stamp (bottom-left, off by default)
+7. Defects drawn as SVG layers: dust, curly fibres, the odd scratch, light leaks on about 25% of frames (most likely on the first and last frame, as on a real roll), optional 90s date-back stamp: amber-yellow LED date and time in Pacific time, bottom-left (`--date-stamp`, off by default)
 8. Credit watermark, bottom-right, set in Special Elite and pre-traced to SVG paths (no fonts needed on the server). Its tone flips light or dark from the brightness behind it, with an opposite-tone halo, so it stays readable on any frame.
 
 **Panned long exposure.** About 1 frame in 10 smears sideways as if the camera swept during a long exposure, by 4-9% of the width, a little brighter for the extra light. The smear is light in the middle of the frame and full toward the edges, so the subject (nearly always near the middle) stays readable while the room streaks past. It never stacks with the dragged shutter.
