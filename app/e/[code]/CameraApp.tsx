@@ -71,6 +71,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
         {event.maxShots} shots.<br /><em>No peeking.</em>
       </h1>
       <p className="lede">Shoot the night like a disposable. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.</p>
+      <HowItWorks event={event} />
       {event.decor ? <div className="toran" aria-hidden /> : <div className="stripes" aria-hidden><i /><i /><i /></div>}
       <form onSubmit={submit} noValidate>
         <label className="field" htmlFor="name">First name
@@ -120,6 +121,21 @@ const WIND_PX = 120;
 const TORCH_MIN_MS = 500;
 const TORCH_MAX_MS = 1500;
 const STEADY_FRAMES = 3; // in a row, before the shot
+
+// What you can and can't do, in five lines: shown before joining, and folded away under the camera.
+function HowItWorks({ event }: { event: EventInfo }) {
+  const until = event.closesAt ? ` until ${formatWhen(event.closesAt)}` : "";
+  const roll = event.released ? "It's open now." : event.releaseAt ? `It opens ${formatWhen(event.releaseAt)}.` : "It opens when the host says so.";
+  return (
+    <ol className="how" suppressHydrationWarning>
+      <li><b>{event.maxShots} shots a roll, no previews.</b> You don&apos;t see a photo until the roll opens.</li>
+      <li><b>Wind, then shoot.</b> Drag or tap the wheel between shots. Flash on for dark rooms; ↻ Selfie flips the camera.</li>
+      <li><b>Roll finished? Load another.</b> New film all night{until}.</li>
+      <li><b>One shared roll.</b> Everyone&apos;s photos, yours included. {roll}</li>
+      <li><b>Find your shots later</b> on any phone: join again with the same first name and Instagram.</li>
+    </ol>
+  );
+}
 
 // The event's QR code, so a guest can hand the camera on: friends scan it straight off this phone.
 function ShareQr({ event, qr }: { event: EventInfo; qr: string }) {
@@ -436,6 +452,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
         ? <a className="ghost" href={`/e/${event.code}/roll`}>The roll is out. See everyone&apos;s shots →</a>
         : <p className="fine center">Every shot joins the party&apos;s shared roll after the event.</p>}
       {!event.closed && <p className="fine center">Finished your roll? You&apos;ll get another one.</p>}
+      <details className="how-fold"><summary>How it works</summary><HowItWorks event={event} /></details>
       <ShareQr event={event} qr={qr} />
       <div className="flashfx" ref={fxRef} />
     </section>

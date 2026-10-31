@@ -26,6 +26,7 @@ export type Event = {
   opens_at: Date | null; // guests can reach it from here (with online on)
   closes_at: Date | null; // shooting stops here
   look: string | null; // named film look (LOOKS in lib/film.ts); null = default
+  credit: string | null; // fixed watermark on every photo; null = whoever took it (@handle or first name)
   focus_check: boolean; // camera trial: wait for focus too, and re-grab if the light missed the frame
 };
 

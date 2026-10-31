@@ -6,7 +6,8 @@
 // a 404) until the host switches it on at /e/admin, and nothing closes or releases by itself unless you pass the time.
 // Options: --shots 13, --no-opt-outs (hide the opt-out boxes at join), --date-stamp (LED date on photos),
 //   --overlays (film-artifact overlays and burns on some frames; see scripts/overlays.ts),
-//   --look night (a named look from LOOKS in lib/film.ts; leave out for the default).
+//   --look night (a named look from LOOKS in lib/film.ts; leave out for the default),
+//   --credit "@brand" (the same watermark on every photo; leave out to credit whoever took each one).
 // This is a full update: every option you leave out goes back to its default. Pass them all again on a re-run.
 import { parseArgs } from "node:util";
 import { MAX_SHOTS } from "../lib/config.ts";
@@ -17,7 +18,7 @@ const { values: v } = parseArgs({
   options: {
     code: { type: "string" }, name: { type: "string" }, subtitle: { type: "string" }, theme: { type: "string", default: "base" },
     opens: { type: "string" }, closes: { type: "string" }, release: { type: "string" }, shots: { type: "string" },
-    "no-opt-outs": { type: "boolean" }, "date-stamp": { type: "boolean" }, overlays: { type: "boolean" }, look: { type: "string" },
+    "no-opt-outs": { type: "boolean" }, "date-stamp": { type: "boolean" }, overlays: { type: "boolean" }, look: { type: "string" }, credit: { type: "string" },
   },
 });
 const fail = (m: string) => { console.error(m); process.exit(1); };
@@ -55,12 +56,12 @@ if (opens && closes && closes <= opens) fail("--closes must be after --opens");
 if (closes && release && release < closes) console.warn("note: the roll is released before shooting stops");
 
 const [e] = await sql<{ code: string; name: string; max_shots: number; online: boolean; opens_at: Date | null; closes_at: Date | null; release_at: Date | null }[]>`
-  insert into events (code, name, subtitle, theme, max_shots, opens_at, closes_at, release_at, allow_opt_outs, date_stamp, overlays, look, online)
+  insert into events (code, name, subtitle, theme, max_shots, opens_at, closes_at, release_at, allow_opt_outs, date_stamp, overlays, look, credit, online)
   values (${v.code!}, ${v.name!}, ${v.subtitle ?? null}, ${v.theme!}, ${Number(v.shots ?? MAX_SHOTS)}, ${opens}, ${closes}, ${release},
-          ${!v["no-opt-outs"]}, ${!!v["date-stamp"]}, ${!!v.overlays}, ${v.look ?? null}, ${!!opens})
+          ${!v["no-opt-outs"]}, ${!!v["date-stamp"]}, ${!!v.overlays}, ${v.look ?? null}, ${v.credit ?? null}, ${!!opens})
   on conflict (code) do update set name = excluded.name, subtitle = excluded.subtitle, theme = excluded.theme,
     max_shots = excluded.max_shots, opens_at = excluded.opens_at, closes_at = excluded.closes_at, release_at = excluded.release_at,
-    allow_opt_outs = excluded.allow_opt_outs, date_stamp = excluded.date_stamp, overlays = excluded.overlays, look = excluded.look,
+    allow_opt_outs = excluded.allow_opt_outs, date_stamp = excluded.date_stamp, overlays = excluded.overlays, look = excluded.look, credit = excluded.credit,
     online = events.online or excluded.online -- a schedule switches it on; without one, keep the host's switch
   returning code, name, max_shots, online, opens_at, closes_at, release_at`;
 const pt = (d: Date | null) => (d ? d.toLocaleString("en-US", { timeZone: TZ, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " PT" : "—");

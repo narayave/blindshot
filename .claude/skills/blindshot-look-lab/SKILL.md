@@ -13,9 +13,14 @@ They decide by eye, often in two or three rounds ("too strong", "the second colu
 
 1. **Name the look.** For a reference photo, say in a sentence what's physically happening (e.g. "flash freezes the
    subject while the shutter drags, so only lights streak") before coding. It picks the technique and sets expectations.
-2. **Photos:** `lab/in/` (gitignored, private) holds the user's test photos. Party shots with lights, faces near the
-   middle and off-centre, and one daylight frame make a fair test. Ask for better ones when an effect depends on content
-   (light streaks need point lights).
+2. **Photos: test on the latest real event, not the old samples.** The user wants changes judged on what guests
+   actually shot. Pull an even spread of a recent event's untouched originals (local only, gitignored):
+   ```bash
+   node --env-file=.env.local .claude/skills/blindshot-look-lab/scripts/sample-event.ts <event-code> 12   # → lab/in-<code>/
+   ```
+   then pass `--photos lab/in-<code>` to compare.ts. Pick 6 for a big, readable sheet (portraits with flash, a dark
+   room, a lit stage, string lights); 12 at small sizes hides subtle colour changes. These are guests' photos: never
+   commit or publish them.
 3. **Prototype** the effect in `lib/film.ts` as an option that defaults off, then render a sheet:
    ```bash
    node .claude/skills/blindshot-look-lab/scripts/compare.ts lab/out/<name>.jpg lab/cols.json   # columns: see script header
@@ -32,7 +37,9 @@ They decide by eye, often in two or three rounds ("too strong", "the second colu
 
 - **Rare effects get their own random stream**: `mulberry32(o.seed ^ <constant>)`, so adding one doesn't reshuffle
   grain, leaks or dust on every other frame. Mutually exclusive effects (pan vs shake) share a decision.
-- **Rates the user settled on:** artifact overlay ~1 in 12, burn ~1 in 10 at strength 0.5, shake ~1 in 8, pan ~1 in 10.
+- **Rates the user settled on:** artifact overlay ~1 in 12, burn ~1 in 10 at strength 0.5, shake ~1 in 8, pan ~1 in 10
+  by default; the `night`/`green`/`green-night` looks cut motion to shake ~1 in 20 and pan ~1 in 16 (guests found
+  the dragged-shutter frames hit-or-miss).
   They like "subtle, and different from a normal photo"; today's base grade is the one they prefer (a greener,
   contrastier base was rejected).
 - **Motion effects work on the raw RGB buffer before the tone curve.** Use O(n) tricks (running sums along a line,

@@ -224,6 +224,11 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .night-grid div { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; }
 .night-grid b { font-size: 22px; font-variant-numeric: tabular-nums; color: var(--accent); }
 .night-grid span { font-size: 11px; color: var(--muted); text-align: center; }
+.how { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--muted); }
+.how b { color: var(--fg); font-weight: 600; }
+.how-fold { font-size: 14px; color: var(--muted); }
+.how-fold summary { cursor: pointer; text-align: center; font-weight: 600; color: var(--fg); padding: 6px 0; }
+.how-fold .how { margin-top: 8px; }
 .share-qr { margin: 8px auto 0; width: 168px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .share-qr svg { width: 100%; height: auto; display: block; background: #fff; padding: 8px; border-radius: 12px; }
 .share-qr figcaption { font-size: 13px; color: var(--muted); text-align: center; }

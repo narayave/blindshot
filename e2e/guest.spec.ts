@@ -49,6 +49,9 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
   try {
     await page.goto(`/e/${e.code}`);
 
+    // what you can and can't do, before anything else
+    await expect(page.getByText("Roll finished? Load another.")).toBeVisible();
+
     // consent is required
     await page.getByLabel("First name").fill("Tester");
     await page.getByLabel(/Instagram/).fill("instagram.com/Tester.Shoots/");

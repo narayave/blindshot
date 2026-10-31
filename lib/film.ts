@@ -13,6 +13,7 @@ export type FilmOptions = {
   blackPoint: RGB; // faded, tinted blacks (0..1 per channel)
   whitePoint: RGB; // capped, warm whites
   shadowTint: RGB; // per-channel multiplier, fades in toward the shadows
+  tint: RGB; // per-channel multiplier over the whole frame (a colour cast, e.g. green film)
   saturation: number;
   warmth: number; // pushes red up / blue down (skin)
   halation: { strength: number; threshold: number; radius: number; color: RGB }; // glow around bright spots; radius = fraction of long edge
@@ -43,6 +44,7 @@ export const DEFAULT_FILM: FilmOptions = {
   blackPoint: [0.04, 0.062, 0.025],
   whitePoint: [0.96, 0.98, 0.93],
   shadowTint: [0.88, 1.0, 0.82],
+  tint: [1, 1, 1],
   saturation: 1.2,
   warmth: 0.15,
   halation: { strength: 0.35, threshold: 0.85, radius: 0.01, color: [1, 0.32, 0.12] },
@@ -63,11 +65,25 @@ export const DEFAULT_FILM: FilmOptions = {
 
 // Named looks an event can pick (events.look) on top of the default. Null/unknown = the default look.
 export const LOOKS: Record<string, Partial<FilmOptions>> = {
-  // For dark parties: deeper blacks, more contrast, brights that glow and clip a little.
+  // For dark parties: deeper blacks, more contrast, brights that glow and clip a little. Fewer motion frames.
   night: {
     exposure: 1.1, gamma: 1.12, shoulder: 0.95, contrast: 0.95,
     blackPoint: [0.012, 0.02, 0.008], whitePoint: [1, 1, 0.97],
     halation: { strength: 0.45, threshold: 0.85, radius: 0.01, color: [1, 0.32, 0.12] },
+    shake: { chance: 0.05, strength: 1 }, pan: { chance: 0.06, strength: 1 },
+  },
+  // Green film (like the film effects in Instagram stories): olive-green cast in the shadows and mids, softer colour.
+  green: {
+    contrast: 0.82, saturation: 1.0, warmth: 0.02,
+    blackPoint: [0.03, 0.08, 0.05], whitePoint: [0.97, 1, 0.9], shadowTint: [0.82, 1.05, 0.9], tint: [0.95, 1.04, 0.95],
+    shake: { chance: 0.05, strength: 1 }, pan: { chance: 0.06, strength: 1 },
+  },
+  // Both: the green cast with night's deep blacks and glowing brights.
+  "green-night": {
+    exposure: 1.08, gamma: 1.1, shoulder: 0.95, contrast: 0.92, saturation: 1.0, warmth: 0.02,
+    blackPoint: [0.015, 0.05, 0.03], whitePoint: [0.99, 1, 0.92], shadowTint: [0.82, 1.05, 0.9], tint: [0.95, 1.04, 0.95],
+    halation: { strength: 0.4, threshold: 0.85, radius: 0.01, color: [1, 0.32, 0.12] },
+    shake: { chance: 0.05, strength: 1 }, pan: { chance: 0.06, strength: 1 },
   },
 };
 
@@ -166,8 +182,9 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
       r = lum + (r - lum) * o.saturation;
       g = lum + (g - lum) * o.saturation;
       b = lum + (b - lum) * o.saturation;
-      r *= 1 + 0.1 * o.warmth;
-      b *= 1 - 0.18 * o.warmth;
+      r *= (1 + 0.1 * o.warmth) * o.tint[0];
+      g *= o.tint[1];
+      b *= (1 - 0.18 * o.warmth) * o.tint[2];
       const sh = (1 - lum) * (1 - lum);
       r *= 1 + (o.shadowTint[0] - 1) * sh;
       g *= 1 + (o.shadowTint[1] - 1) * sh;

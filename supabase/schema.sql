@@ -75,5 +75,8 @@ alter table events add column if not exists focus_check boolean not null default
 -- A named look from LOOKS in lib/film.ts (e.g. 'night'); null = the default film look.
 alter table events add column if not exists look text;
 
+-- Watermark: a fixed credit on every photo of the event; null = whoever took it (@handle, else first name).
+alter table events add column if not exists credit text;
+
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;
