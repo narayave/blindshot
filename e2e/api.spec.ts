@@ -149,7 +149,9 @@ test("roll: closed to non-guests, hidden until release, private rolls stay priva
   expect(await frames(a, e, "mine")).toBe(1);
   expect(await frames(a, e)).toBe(2); // you always see your own
   expect(await frames(b, e)).toBe(1); // a's private frame is not shared
+  await sql`update events set credit = '@the.host' where id = ${e.id}`;
   const roll = await (await b.get(`/e/${e.code}/roll`)).text(); // the night in numbers, once it's out
+  expect(roll).toContain("instagram.com/the.host"); // tag the host when posting
   expect(roll).toContain("The night in numbers");
   expect(roll).toMatch(/<b>1<\/b><span>photos<\/span>/); // the stats count what Everyone shows: a's private frame isn't in it
 

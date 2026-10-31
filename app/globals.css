@@ -294,6 +294,9 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .countdown { margin: 0; text-align: center; font-size: 15px; color: var(--muted); }
 .countdown b { display: block; font-size: 30px; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
 .countdown.open { display: block; color: var(--fg); font-weight: 700; text-decoration: none; border: 2px solid var(--accent); border-radius: 999px; padding: 12px 16px; }
+.tag-note { margin: 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; text-align: center; font-size: 14px; color: var(--fg); }
+.tag-note a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.tag-note small { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
 .share-qr { margin: 8px auto 0; width: 168px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .share-qr svg { width: 100%; height: auto; display: block; background: #fff; padding: 8px; border-radius: 12px; }
 .share-qr figcaption { font-size: 13px; color: var(--muted); text-align: center; }

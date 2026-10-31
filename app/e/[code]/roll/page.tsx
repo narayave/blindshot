@@ -82,6 +82,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
     <section className="stack">
       <h1 className="headline">The party&apos;s<br /><em>roll.</em></h1>
       {night.photos > 0 && <NightStats s={night} />}
+      {event.credit?.startsWith("@") && <TagNote handle={event.credit.slice(1)} />}
       <div className="tabs">
         {tabLink("all", "Everyone", counts.n_all)}
         {tabLink("picks", "Host picks", counts.n_picks)}
@@ -142,5 +143,16 @@ function NightStats({ s }: { s: Night }) {
         {s.top && s.top.n > 1 && <>Most film shot: {s.top.name}, {s.top.n} frames.</>}
       </p>
     </section>
+  );
+}
+
+// Credit where it's due, and the way to the next one: the host's handle, a tap away.
+function TagNote({ handle }: { handle: string }) {
+  const ig = <a href={`https://instagram.com/${handle}`} target="_blank" rel="noreferrer">@{handle}</a>;
+  return (
+    <p className="tag-note">
+      Posting a frame? Tag {ig}, who made blindshot.<br />
+      <small>Want a roll like this at your party? Message {ig}.</small>
+    </p>
   );
 }
