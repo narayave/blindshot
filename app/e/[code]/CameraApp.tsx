@@ -140,6 +140,9 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
   const wheelRef = useRef<HTMLButtonElement>(null);
   const queue = useRef<Promise<void>>(Promise.resolve());
   const busy = useRef(false);
+  const facing = useRef<"environment" | "user">("environment");
+  const [selfie, setSelfie] = useState(false);
+  const [canFlip, setCanFlip] = useState(false);
   const windRef = useRef({ acc: 0, pos: 0, lastX: null as number | null, moved: 0 });
 
   async function startCamera() {
@@ -151,8 +154,10 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: "environment", width: { ideal: 4032 }, height: { ideal: 3024 } },
+        video: { facingMode: facing.current, width: { ideal: 4032 }, height: { ideal: 3024 } },
       });
+      // Only offer Flip on phones that have a second camera (labels come after permission, so ask now).
+      navigator.mediaDevices.enumerateDevices().then((ds) => setCanFlip(ds.filter((d) => d.kind === "videoinput").length > 1)).catch(() => {});
       streamRef.current = stream;
       const v = videoRef.current!;
       v.srcObject = stream;
@@ -165,6 +170,12 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     }
   }
   const stopCamera = () => streamRef.current?.getTracks().forEach((t) => t.stop());
+  function flip() {
+    facing.current = facing.current === "user" ? "environment" : "user";
+    setSelfie(facing.current === "user");
+    tick();
+    startCamera();
+  }
 
   useEffect(() => {
     if (left > 0) startCamera();
@@ -236,7 +247,14 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
     const track = streamRef.current?.getVideoTracks()[0];
     // The phone light stays on until auto-exposure settles, then we grab a frame: light first, then the shot.
     // (ImageCapture's real flash was tried: on Android it often doesn't fire, and its pre-flash lags our click.)
-    const torch = flash && charged && !!track && !!(track.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
+    const front = facing.current === "user";
+    const torch = !front && flash && charged && !!track && !!(track.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
+    // Selfies: the front camera has no light, so the screen is the flash. White until the camera has adjusted to it.
+    const screenLight = front && flash && charged && !!track && !!fxRef.current;
+    if (screenLight) {
+      fxRef.current!.className = "flashfx hold";
+      await settle(v, track!, false);
+    }
     let before = 0;
     if (torch) {
       before = luma(v);
@@ -255,6 +273,7 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
       return { blob, w: c.width, h: c.height };
     } finally {
       if (torch) track!.applyConstraints({ advanced: [{ torch: false } as MediaTrackConstraintSet] }).catch(() => {});
+      if (screenLight) fxRef.current!.classList.remove("hold");
     }
   }
 
@@ -329,7 +348,7 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
         <div className="cam-row">
           <div className="vf-wrap">
             <div className="vf">
-              <video ref={videoRef} playsInline muted autoPlay aria-label="Viewfinder" />
+              <video ref={videoRef} className={selfie ? "mirror" : undefined} playsInline muted autoPlay aria-label="Viewfinder" />
               {cam !== "live" && (
                 <label className="vf-msg">
                   {cam === "starting" ? "Opening camera…" : "No camera access. Tap to shoot"}
@@ -382,6 +401,9 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
         <div className="flash-row">
           <span className={`diya${!flash ? "" : charged ? " on" : " charging"}`} aria-hidden><i /></span>
           <button className="switch" type="button" aria-pressed={flash} onClick={toggleFlash}>{flash ? "Flash on" : "Flash off"}</button>
+          {canFlip && cam === "live" && (
+            <button className="switch" type="button" onClick={flip} aria-label={selfie ? "Use the back camera" : "Take a selfie"}>{selfie ? "↺ Back" : "↻ Selfie"}</button>
+          )}
           <span className="tiny">{event.maxShots} EXP · ISO 400</span>
         </div>
         <div className="band"><b>blindshot</b><span>{event.chip}</span></div>

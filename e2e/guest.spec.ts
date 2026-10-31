@@ -153,6 +153,38 @@ for (const focusCheck of [false, true]) {
   });
 }
 
+test("flip to the front camera for a selfie: mirrored preview, the screen is the flash, and it saves", async ({ page }) => {
+  const e = await makeEvent({ shots: 2 });
+  await page.addInitScript(() => {
+    const w = window as unknown as { facings: string[] };
+    w.facings = [];
+    // a phone with two cameras; remember which one the app asks for
+    MediaDevices.prototype.enumerateDevices = async () => [{ kind: "videoinput" }, { kind: "videoinput" }] as MediaDeviceInfo[];
+    const real = MediaDevices.prototype.getUserMedia;
+    MediaDevices.prototype.getUserMedia = function (c?: MediaStreamConstraints) {
+      w.facings.push(String((c?.video as MediaTrackConstraints | undefined)?.facingMode));
+      return real.call(this, c);
+    };
+  });
+  try {
+    await join(page, e.code);
+    const live = () => expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+    await live();
+    await page.getByRole("button", { name: "Take a selfie" }).click();
+    await expect(page.getByRole("button", { name: "Use the back camera" })).toBeVisible();
+    await expect(page.locator("video")).toHaveClass(/mirror/);
+    await live();
+    const facings = await page.evaluate(() => (window as unknown as { facings: string[] }).facings);
+    expect([facings[0], facings.at(-1)]).toEqual(["environment", "user"]); // back camera first, front after the flip
+    await page.getByRole("button", { name: "SHOOT" }).click(); // flash is on by default: the screen lights up first
+    await expect(page.getByLabel("1 shots left")).toBeVisible();
+    await expect(page.locator(".flashfx")).not.toHaveClass(/hold/); // and goes back off
+    await waitDeveloped(e.id, 1);
+  } finally {
+    await dropEvent(e);
+  }
+});
+
 test("no camera access → falls back to the camera-app picker", async ({ page }) => {
   const e = await makeEvent({ shots: 2 });
   await page.addInitScript(() => {

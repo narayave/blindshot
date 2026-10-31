@@ -241,6 +241,9 @@ test("darkroom: password gate, star a frame, release the roll", async ({ page, b
   await expect(page.getByRole("heading", { name: "E2E Party" })).toBeVisible();
 
   await expect(page.locator("svg").filter({ has: page.locator("path") }).first()).toBeVisible(); // QR code
+  // tapping a photo opens the developed (film) version; the untouched original is its own button
+  await expect(page.locator(".card img").first().locator("xpath=..")).toHaveAttribute("href", /\/filtered\//);
+  await expect(page.getByRole("link", { name: "Original" }).first()).toHaveAttribute("href", /\/originals\//);
   await page.getByRole("button", { name: "☆ Star" }).click();
   await expect(page.getByRole("button", { name: "★ Starred" })).toBeVisible();
   await page.getByRole("button", { name: "Release the roll now" }).click();

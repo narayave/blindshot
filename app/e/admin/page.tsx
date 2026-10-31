@@ -58,13 +58,13 @@ export default async function EventsAdmin() {
               <div className="switches">
                 <form action={setOnline.bind(null, e.id, !e.online)}>
                   <span className="tiny-label">Event</span>
-                  <button type="submit" className={`switch${e.online ? " on" : ""}`} role="switch" aria-checked={e.online} aria-label={`${e.name}: event is live`}>
+                  <button type="submit" className={`toggle${e.online ? " on" : ""}`} role="switch" aria-checked={e.online} aria-label={`${e.name}: event is live`}>
                     <span>{e.online ? "On" : "Off"}</span>
                   </button>
                 </form>
                 <form action={setRelease.bind(null, e.id, on ? "hold" : "now")}>
                   <span className="tiny-label">Roll</span>
-                  <button type="submit" className={`switch${on ? " on" : ""}`} role="switch" aria-checked={on} aria-label={`${e.name}: guests see the roll`}>
+                  <button type="submit" className={`toggle${on ? " on" : ""}`} role="switch" aria-checked={on} aria-label={`${e.name}: guests see the roll`}>
                     <span>{on ? "On" : "Off"}</span>
                   </button>
                 </form>

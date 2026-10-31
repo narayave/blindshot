@@ -169,6 +169,8 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .flashfx { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: var(--flash); z-index: 10; }
 .flashfx.dark { background: #000; }
 .flashfx.go { animation: pop 420ms ease-out; }
+.flashfx.hold { opacity: 1; } /* selfie flash: the screen lights the face until the shot */
+.vf video.mirror { transform: scaleX(-1); } /* selfie preview reads like a mirror; the photo is saved the right way round */
 @keyframes pop { 0% { opacity: 1; } 100% { opacity: 0; } }
 
 /* roll done + roll */
@@ -228,8 +230,8 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .tiny-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .roll-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .roll-links .ghost { padding: 6px 12px; font-size: 13px; border-width: 1.5px; }
-.switch { min-width: 76px; border-radius: 999px; padding: 10px 16px; font-weight: 700; border: 2px solid var(--line); background: var(--bg); color: var(--muted); }
-.switch.on { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
+.toggle { min-width: 76px; border-radius: 999px; padding: 10px 16px; font-weight: 700; border: 2px solid var(--line); background: var(--bg); color: var(--muted); }
+.toggle.on { background: var(--accent-2); border-color: var(--accent-2); color: var(--on-accent); }
 .admin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
 .card { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .card img, .card-status { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 4px; display: block; background: var(--bg-2); }
@@ -238,8 +240,8 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .card-meta { display: flex; justify-content: space-between; gap: 6px; }
 .badges { display: flex; gap: 4px; }
 .badges i { font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; background: var(--fg); color: var(--bg); border-radius: 4px; padding: 1px 5px; }
-.card-actions { display: flex; gap: 6px; }
-.card-actions button { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+.card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.card-actions button, .card-actions a { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 4px 10px; font-size: 12px; color: inherit; text-decoration: none; }
 .card-actions button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
 @media (max-width: 560px) {
   .admin-head { grid-template-columns: 1fr; } .qr { width: 140px; }

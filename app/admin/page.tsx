@@ -105,7 +105,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
             <article key={r.id} className={`card${r.hidden ? " is-hidden" : ""}`}>
               {r.filtered_path
                 ? // eslint-disable-next-line @next/next/no-img-element
-                  <a href={original(r.original_path)} target="_blank" rel="noreferrer" title="Open the untouched original"><img src={filtered(thumbPath(r.filtered_path))} alt={`${r.name}, shot ${r.shot_number}`} loading="lazy" /></a>
+                  <a href={filtered(r.filtered_path)} target="_blank" rel="noreferrer" title="Open the developed photo full size"><img src={filtered(thumbPath(r.filtered_path))} alt={`${r.name}, shot ${r.shot_number}`} loading="lazy" /></a>
                 : <div className="card-status">{r.status === "failed" ? "Filter failed" : "Developing…"}</div>}
               <div className="card-meta">
                 <span>
@@ -120,6 +120,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
               <div className="card-actions">
                 <form action={toggle.bind(null, r.id, "starred")}><button type="submit" aria-pressed={r.starred}>{r.starred ? "★ Starred" : "☆ Star"}</button></form>
                 <form action={toggle.bind(null, r.id, "hidden")}><button type="submit" aria-pressed={r.hidden}>{r.hidden ? "Unhide" : "Hide"}</button></form>
+                <a href={original(r.original_path)} target="_blank" rel="noreferrer" title="The untouched file from the phone">Original</a>
                 {r.status !== "done" && <form action={reprocess.bind(null, r.id)}><button type="submit" title={r.error ?? undefined}>Retry</button></form>}
               </div>
             </article>
