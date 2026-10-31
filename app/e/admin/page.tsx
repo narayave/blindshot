@@ -6,7 +6,7 @@ import Login from "@/app/admin/Login";
 // /e/admin wins over /e/[code], and no event can be called "admin" (scripts/event.ts refuses it).
 export const metadata = { title: "Admin · blindshot", robots: { index: false, follow: false } };
 
-type Row = Event & { guests: number; photos: number };
+type Row = Event & { guests: number; photos: number; rolls: number };
 
 // Host-only: every event on one page, with the switch that decides whether its guests can see the roll.
 export default async function EventsAdmin() {
@@ -25,7 +25,8 @@ export default async function EventsAdmin() {
 
   const events = await sql<Row[]>`
     select e.*, (select count(*)::int from sessions s where s.event_id = e.id) as guests,
-           (select count(*)::int from photos p where p.event_id = e.id and p.status = 'done') as photos
+           (select count(*)::int from photos p where p.event_id = e.id and p.status = 'done') as photos,
+           (select coalesce(sum(rolls), 0)::int from sessions s where s.event_id = e.id) as rolls
     from events e order by e.created_at desc`;
   const pt = (d: Date) => d.toLocaleString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "medium", timeStyle: "short" });
 
@@ -44,7 +45,7 @@ export default async function EventsAdmin() {
               <div>
                 <b>{e.name}</b>
                 <span className="fine"> {e.subtitle ? `${e.subtitle} · ` : ""}/e/{e.code}</span>
-                <div className="stats"><span><b>{e.guests}</b> guests</span><span><b>{e.photos}</b> photos</span></div>
+                <div className="stats"><span><b>{e.guests}</b> guests</span><span><b>{e.rolls}</b> rolls</span><span><b>{e.photos}</b> photos</span></div>
                 <span className="fine">
                   {!e.online ? "Event is off: guests get a 404. " : !isOpen(e) ? `Opens by itself ${pt(e.opens_at!)} PT. ` : isClosed(e) ? "Shooting has ended. " : "Event is live. "}
                   {e.closes_at && !isClosed(e) ? `Shooting stops ${pt(e.closes_at)} PT. ` : ""}

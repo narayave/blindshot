@@ -153,7 +153,8 @@ test("roll: closed to non-guests, hidden until release, private rolls stay priva
   const roll = await (await b.get(`/e/${e.code}/roll`)).text(); // the night in numbers, once it's out
   expect(roll).toContain("instagram.com/the.host"); // tag the host when posting
   expect(roll).toContain("The night in numbers");
-  expect(roll).toMatch(/<b>1<\/b><span>photos<\/span>/); // the stats count what Everyone shows: a's private frame isn't in it
+  expect(roll).toMatch(/<b>2<\/b><span>photos<\/span>/); // every photo taken counts…
+  expect(roll).toContain("1 was kept private by the person who took it."); // …and the stats say why Everyone shows fewer
 
   await sql`update events set release_at = null where id = ${e.id}`;
   expect(await (await b.get(`/e/${e.code}/roll`)).text()).toContain("developing.");

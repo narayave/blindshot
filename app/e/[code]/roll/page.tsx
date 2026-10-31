@@ -101,27 +101,31 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
 }
 
 type Night = {
-  photos: number; guests: number; rolls: number; picks: number; first: Date | null; last: Date | null;
+  photos: number; kept: number; guests: number; rolls: number; picks: number; first: Date | null; last: Date | null;
   busiest: { hour: Date; n: number } | null; top: { name: string; n: number } | null;
 };
 
-// The night in numbers, counting exactly what the Everyone tab shows: developed, not hidden by the host, and not from
-// guests who kept their roll private (their frames would otherwise show up in the totals but nowhere on the roll).
+// The night in numbers: every photo taken (developed) counts, including ones their photographers kept private; `kept`
+// says how many of those aren't on the shared roll. Host picks count only shared frames, so the Picks tab matches.
 async function nightStats(eventId: string): Promise<Night> {
+  const taken = sql`p.event_id = ${eventId} and p.status = 'done'`;
   const shared = sql`p.event_id = ${eventId} and p.status = 'done' and not p.hidden and not s.private_roll`;
-  const [t] = await sql<{ photos: number; picks: number; first: Date | null; last: Date | null; guests: number; rolls: number }[]>`
-    select count(*)::int as photos, count(*) filter (where p.starred)::int as picks, min(p.captured_at) as first, max(p.captured_at) as last,
+  const [t] = await sql<{ photos: number; kept: number; picks: number; first: Date | null; last: Date | null; guests: number; rolls: number }[]>`
+    select count(*)::int as photos,
+           count(*) filter (where s.private_roll and not p.hidden)::int as kept,
+           count(*) filter (where p.starred and not p.hidden and not s.private_roll)::int as picks,
+           min(p.captured_at) as first, max(p.captured_at) as last,
            (select count(*)::int from sessions where event_id = ${eventId}) as guests,
            (select coalesce(sum(rolls), 0)::int from sessions where event_id = ${eventId}) as rolls
-    from photos p join sessions s on s.id = p.session_id where ${shared}`;
+    from photos p join sessions s on s.id = p.session_id where ${taken}`;
   const [busiest] = await sql<{ hour: Date; n: number }[]>`
     select date_trunc('hour', p.captured_at) as hour, count(*)::int as n from photos p join sessions s on s.id = p.session_id
-    where ${shared} and p.captured_at is not null
+    where ${taken} and p.captured_at is not null
     group by 1 order by 2 desc, 1 limit 1`;
   // the same person across phones (first name + Instagram) counts once
   const [top] = await sql<{ name: string; n: number }[]>`
     select min(s.name) as name, count(*)::int as n from photos p join sessions s on s.id = p.session_id
-    where ${shared}
+    where ${taken}
     group by coalesce(s.instagram || '|' || lower(trim(s.name)), s.id::text) order by 2 desc limit 1`;
   return { ...t, busiest: busiest ?? null, top: top ?? null };
 }
@@ -140,7 +144,8 @@ function NightStats({ s }: { s: Night }) {
       <p className="fine">
         {s.first && s.last && <>First shot {time(s.first)}, last {time(s.last)}. </>}
         {s.busiest && <>Busiest hour: {hour(s.busiest.hour)}, with {s.busiest.n} shots. </>}
-        {s.top && s.top.n > 1 && <>Most film shot: {s.top.name}, {s.top.n} frames.</>}
+        {s.top && s.top.n > 1 && <>Most film shot: {s.top.name}, {s.top.n} frames. </>}
+        {s.kept > 0 && (s.kept === 1 ? "1 was kept private by the person who took it." : `${s.kept} were kept private by the people who took them.`)}
       </p>
     </section>
   );
