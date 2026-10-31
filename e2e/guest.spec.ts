@@ -60,6 +60,8 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     // live viewfinder from the (fake) camera; the roll is already out, so it's one tap away
     await expect(page.getByLabel("2 shots left")).toBeVisible();
     await expect(page.getByRole("link", { name: /See everyone/ })).toBeVisible();
+    await expect(page.getByRole("img", { name: "QR code to join E2E Party" })).toBeVisible(); // to bring friends in
+    await expect(page.getByText("Finished your roll? You'll get another one.")).toBeVisible();
     await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
 
     // a fresh roll comes wound: first shot is instant

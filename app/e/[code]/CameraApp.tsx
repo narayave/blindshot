@@ -30,7 +30,7 @@ export default function CameraApp({ event, guest, qr }: { event: EventInfo; gues
           {event.subtitle && <><br />{event.subtitle}</>}
         </div>
       </header>
-      {me ? <Camera event={event} me={me} /> : <Join event={event} qr={qr} onJoined={setMe} />}
+      {me ? <Camera event={event} me={me} qr={qr} /> : <Join event={event} qr={qr} onJoined={setMe} />}
     </div>
   );
 }
@@ -107,10 +107,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
         </button>
         <p className="fine">No password. Coming back later or on another phone? Use the same first name and Instagram, and your earlier shots are still yours.</p>
       </form>
-      <figure className="share-qr">
-        <div dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label={`QR code to join ${event.name}`} />
-        <figcaption>Friends can scan this to join</figcaption>
-      </figure>
+      <ShareQr event={event} qr={qr} />
     </section>
   );
 }
@@ -124,7 +121,17 @@ const TORCH_MIN_MS = 500;
 const TORCH_MAX_MS = 1500;
 const STEADY_FRAMES = 3; // in a row, before the shot
 
-function Camera({ event, me }: { event: EventInfo; me: Guest }) {
+// The event's QR code, so a guest can hand the camera on: friends scan it straight off this phone.
+function ShareQr({ event, qr }: { event: EventInfo; qr: string }) {
+  return (
+    <figure className="share-qr">
+      <div dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label={`QR code to join ${event.name}`} />
+      <figcaption>Friends can scan this to join</figcaption>
+    </figure>
+  );
+}
+
+function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) {
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
   const [wound, setWound] = useState(true);
   const [flash, setFlash] = useState(true);
@@ -428,6 +435,8 @@ function Camera({ event, me }: { event: EventInfo; me: Guest }) {
       {event.released
         ? <a className="ghost" href={`/e/${event.code}/roll`}>The roll is out. See everyone&apos;s shots →</a>
         : <p className="fine center">Every shot joins the party&apos;s shared roll after the event.</p>}
+      {!event.closed && <p className="fine center">Finished your roll? You&apos;ll get another one.</p>}
+      <ShareQr event={event} qr={qr} />
       <div className="flashfx" ref={fxRef} />
     </section>
   );
