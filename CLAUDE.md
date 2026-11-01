@@ -89,6 +89,13 @@ never change the live event's settings unless asked.
 
 ## Backlog (agreed ideas, not built)
 
+- **Provenance on every exported photo (owner asked, 1 Nov):** whenever a photo is personalised for posting (credit
+  removed, re-developed, cropped), record who took it and what was applied, so it can be traced later. Done so far:
+  `carousel/manifest.csv` (slide, photo id, event, photographer, look, date stamp, overlays, seed, credit, what was
+  removed). To build: (1) `scripts/export.ts` writes that manifest for every export; (2) a tiny visible code on the
+  photo (a few-mm dot strip or short id like a film edge code, e.g. `BS·b446`) that survives Instagram's metadata
+  stripping, decoded by a lookup page; (3) the photo id + settings in the JPEG's XMP for files shared directly.
+
 - **Super 8 video** event mode: short clips (a cartridge: ~3 × 10 s per guest), worker runs ffmpeg: 18 fps, gate weave,
   flicker, grain/dust, rounded gate, and a **Technicolor** grade (rich saturated primaries, warm skin, deep
   blacks, vintage). Needs a video worker or more memory; real-device testing. ~2–3 days. Cost mostly viewing (~$6/event).
