@@ -59,7 +59,9 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 - **Guests never see a photo before release.** New rolls are unlimited until closing. **Mine = this phone**: a random
   id in a long-lived site-wide cookie (`bs_device`, hashed into `sessions.device_id`); name + Instagram never unlock
   anyone's frames. The darkroom shows each photo's phone and flags a name+handle seen on two phones.
-- **Stats on the roll count exactly what Everyone shows** (no hidden, no private-roll frames).
+- **Roll stats:** photos = every photo taken (incl. private-roll frames), with a "N were kept private" note; host picks
+  count only shared frames so the Picks tab matches. The events page (`/e/admin`) shows guests, rolls, photos.
+- **Roll page** shows "Posting a frame? Tag @handle" (from the event's credit) and "Want a roll at your party? Message".
 - **Join-page sample prints** (`public/samples/`) are the host's own photos, hand-picked, no recognisable faces (motion blur is fine), web-size, no EXIF; the caption says they are picks.
 - **Credit:** `--credit "@handle"` puts the host's handle on every photo (the owner's choice: he introduces people to
   the product). Without it, each photo credits whoever took it.
@@ -73,7 +75,13 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 ## Events (prod)
 
 `test` is the owner's private bench: off (404 to guests), 1 shot, look picker. `polaroid` is the instant-film trial.
-Halloween nights are `halloween-fri` (done) and `halloween`. Check the live list with the new-event skill.
+`halloween-fri` is done (released). **`halloween` (Sat Oct 31, a live event at a rooftop venue):** theme `ember`,
+look `green-night`, 13 shots, `--date-stamp`, `--overlays`, credit = host's handle; opens 6pm PT, roll opens midnight,
+shooting stops 1:30am. Re-run with all of these if you ever update it:
+`npm run event -- --code halloween --name "Halloween Night" --subtitle "Sat Oct 31" --theme ember --shots 13 --overlays --date-stamp --opens "2026-10-31 18:00" --closes "2026-11-01 01:30" --release "2026-11-01 00:00" --look green-night --credit "@veefaceswest"`
+
+**During a live event:** one change at a time; `npm test`; deploy; verify on the live site (check-event / health);
+never change the live event's settings unless asked.
 
 ## Backlog (agreed ideas, not built)
 
