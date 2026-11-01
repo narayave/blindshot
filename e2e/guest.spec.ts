@@ -168,11 +168,13 @@ test("flip to the front camera for a selfie: mirrored preview, the screen is the
   await page.addInitScript(() => {
     const w = window as unknown as { facings: string[] };
     w.facings = [];
-    // a phone with two cameras; remember which one the app asks for
+    // a phone with two cameras; remember which one the app asks for, and that it insists (Safari otherwise opens
+    // the back camera for a selfie)
     MediaDevices.prototype.enumerateDevices = async () => [{ kind: "videoinput" }, { kind: "videoinput" }] as MediaDeviceInfo[];
     const real = MediaDevices.prototype.getUserMedia;
     MediaDevices.prototype.getUserMedia = function (c?: MediaStreamConstraints) {
-      w.facings.push(String((c?.video as MediaTrackConstraints | undefined)?.facingMode));
+      const f = (c?.video as MediaTrackConstraints | undefined)?.facingMode as { exact?: string } | string | undefined;
+      w.facings.push(typeof f === "object" ? `exact:${f.exact}` : String(f));
       return real.call(this, c);
     };
   });
@@ -185,7 +187,9 @@ test("flip to the front camera for a selfie: mirrored preview, the screen is the
     await expect(page.locator("video")).toHaveClass(/mirror/);
     await live();
     const facings = await page.evaluate(() => (window as unknown as { facings: string[] }).facings);
-    expect([facings[0], facings.at(-1)]).toEqual(["environment", "user"]); // back camera first, front after the flip
+    expect(facings[0]).toBe("exact:environment"); // back camera first...
+    expect(facings).toContain("exact:user"); // ...then the app insists on the front one
+    expect(facings.at(-1)).toMatch(/user$/); // and the flip stays on it
     await page.getByRole("button", { name: "SHOOT" }).click(); // flash is on by default: the screen lights up first
     await expect(page.getByLabel("1 shots left")).toBeVisible();
     await expect(page.locator(".flashfx")).not.toHaveClass(/hold/); // and goes back off

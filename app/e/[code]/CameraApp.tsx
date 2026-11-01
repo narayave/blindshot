@@ -225,10 +225,12 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     const stuck = setTimeout(() => setCam((c) => (c === "starting" ? "off" : c)), 8000);
     try {
       streamRef.current?.getTracks().forEach((t) => t.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: facing.current, width: { ideal: 4032 }, height: { ideal: 3024 } },
-      });
+      const want = facing.current;
+      const open = (facingMode: ConstrainDOMString) =>
+        navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode, width: { ideal: 4032 }, height: { ideal: 3024 } } });
+      // Insist on the side: asked politely, Safari opens the back camera for a selfie because it suits the big size
+      // better. Cameras that don't say which way they face (laptops) refuse "exact", so then take any camera.
+      const stream = await open({ exact: want }).catch((e) => (e?.name === "NotAllowedError" ? Promise.reject(e) : open(want)));
       streamRef.current = stream;
       const v = videoRef.current!;
       v.srcObject = stream;
