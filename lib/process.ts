@@ -3,31 +3,42 @@ import exifr from "exifr";
 import sharp from "sharp";
 import { FILTERED, ORIGINALS, thumbPath } from "./config.ts";
 import { sql } from "./db.ts";
-import { DEFAULT_FILM, LOOKS, applyFilmFilter, developStrip } from "./film.ts";
+import { DEFAULT_FILM, LOOKS, applyFilmFilter, developStrip, type FilmOptions } from "./film.ts";
 import { download, upload } from "./storage.ts";
+
+type Row = { original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; overlays: boolean; look: string | null; credit: string | null; captured_at: Date | null; name: string; instagram: string | null };
+const ROW = (photoId: string) => sql<Row[]>`
+  select p.original_path, p.shot_number, e.max_shots, e.date_stamp, e.overlays, e.look, e.credit, p.captured_at, s.name, s.instagram
+  from photos p join events e on e.id = p.event_id join sessions s on s.id = p.session_id where p.id = ${photoId}`;
+
+// One photo through its event's film look. `override` changes options without changing anything else (same seed, so
+// the same grain, dust and overlay): scripts/export.ts uses it to develop a copy without the credit.
+export async function developFrame(photoId: string, original: Buffer, override: Partial<FilmOptions> = {}, row?: Row): Promise<Buffer> {
+  const p = row ?? (await ROW(photoId))[0];
+  // Like a real roll, leaks are most likely on the first and last frames.
+  const frame = ((p.shot_number - 1) % p.max_shots) + 1; // within its roll
+  const edgeFrame = frame === 1 || frame === p.max_shots;
+  const seed = seedOf(photoId);
+  const develop = p.look && LOOKS[p.look]?.frame === "strip" ? developStrip : applyFilmFilter;
+  return develop(original, {
+    ...(p.look ? LOOKS[p.look] : undefined),
+    seed,
+    watermark: p.credit ?? (p.instagram ? `@${p.instagram}` : p.name.trim()), // the event's fixed credit, else whoever took it
+    overlay: p.overlays ? await pickOverlay(seed) : null,
+    ...(edgeFrame && { leak: { ...DEFAULT_FILM.leak, chance: 0.8 } }),
+    dateStamp: p.date_stamp ? (p.captured_at ?? new Date()) : null,
+    ...override,
+  });
+}
 
 // Original in, filtered copy out.
 export async function processPhoto(photoId: string): Promise<void> {
-  const [p] = await sql<{ original_path: string; shot_number: number; max_shots: number; date_stamp: boolean; overlays: boolean; look: string | null; credit: string | null; captured_at: Date | null; name: string; instagram: string | null }[]>`
-    select p.original_path, p.shot_number, e.max_shots, e.date_stamp, e.overlays, e.look, e.credit, p.captured_at, s.name, s.instagram
-    from photos p join events e on e.id = p.event_id join sessions s on s.id = p.session_id where p.id = ${photoId}`;
+  const [p] = await ROW(photoId);
   if (!p) return;
   try {
     const original = await download(ORIGINALS, p.original_path);
     const exif = await exifr.parse(original, { gps: true }).catch(() => null);
-    // Like a real roll, leaks are most likely on the first and last frames.
-    const frame = ((p.shot_number - 1) % p.max_shots) + 1; // within its roll
-    const edgeFrame = frame === 1 || frame === p.max_shots;
-    const seed = seedOf(photoId);
-    const develop = p.look && LOOKS[p.look]?.frame === "strip" ? developStrip : applyFilmFilter;
-    const filtered = await develop(original, {
-      ...(p.look ? LOOKS[p.look] : undefined),
-      seed,
-      watermark: p.credit ?? (p.instagram ? `@${p.instagram}` : p.name.trim()), // the event's fixed credit, else whoever took it
-      overlay: p.overlays ? await pickOverlay(seed) : null,
-      ...(edgeFrame && { leak: { ...DEFAULT_FILM.leak, chance: 0.8 } }),
-      dateStamp: p.date_stamp ? (p.captured_at ?? new Date()) : null,
-    });
+    const filtered = await developFrame(photoId, original, {}, p);
     const filteredPath = p.original_path.replace(/\.[a-z]+$/i, ".jpg");
     // Small copy for grids: ~60 KB instead of ~700 KB, full size only loads when someone opens a frame.
     const thumb = await sharp(filtered).resize(640, 640, { fit: "inside" }).jpeg({ quality: 78, mozjpeg: true }).toBuffer();

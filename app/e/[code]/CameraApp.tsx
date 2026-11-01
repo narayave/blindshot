@@ -19,7 +19,7 @@ type EventInfo = {
   photobooth: boolean; // one shutter press = 3-2-1 and a burst of four, developed as a booth strip
   closesAt: string | null;
 };
-type Guest = { name: string; shotsUsed: number };
+type Guest = { name: string; shotsUsed: number; roll?: number }; // shotsUsed: on the current roll; roll: 1, 2, 3…
 
 export default function CameraApp({ event, guest, qr }: { event: EventInfo; guest: Guest | null; qr: string }) {
   const [me, setMe] = useState(guest);
@@ -70,7 +70,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
   return (
     <section className="stack">
       <h1 className="headline">
-        {event.maxShots} shots.<br /><em>No peeking.</em>
+        {event.maxShots} shots a roll.<br /><em>Rolls never run out.</em>
       </h1>
       <p className="lede">Shoot the night like a disposable. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.</p>
       <Prints />
@@ -132,7 +132,7 @@ function HowItWorks({ event }: { event: EventInfo }) {
   const roll = event.released ? "It's open now." : event.releaseAt ? `It opens ${formatWhen(event.releaseAt)}.` : "It opens when the host says so.";
   return (
     <ol className="how" suppressHydrationWarning>
-      <li><b>{event.maxShots} shots a roll, no previews.</b> You don&apos;t see a photo until the roll opens.</li>
+      <li><b>Shoot freely: film never runs out.</b> {event.maxShots} shots a roll, and a fresh roll loads the moment you finish. No previews: you see nothing until the roll opens.</li>
       <li><b>Wind, then shoot.</b> Drag or tap the wheel between shots. Flash on for dark rooms; ↻ Selfie flips the camera.</li>
       <li><b>Roll finished? Load another.</b> New film all night{until}.</li>
       <li><b>One shared roll.</b> Everyone&apos;s photos, yours included. {roll}</li>
@@ -500,8 +500,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
             {Array.from({ length: event.maxShots }, (_, i) => <i key={i} className={i < used ? "used" : undefined} />)}
           </div>
           <div className="pips-label">
-            <span className="tiny">Your roll</span>
-            <span className="tiny">{used} / {event.maxShots}</span>
+            <span className="tiny">Roll {me.roll ?? 1} · {used} / {event.maxShots}</span>
+            <span className="tiny">{((me.roll ?? 1) - 1) * event.maxShots + used} shots tonight</span>
           </div>
         </div>
       </div>

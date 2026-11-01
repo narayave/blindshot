@@ -63,6 +63,10 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
   count only shared frames so the Picks tab matches. The events page (`/e/admin`) shows guests, rolls, photos.
 - **Roll page** shows "Posting a frame? Tag @handle" (from the event's credit) and "Want a roll at your party? Message".
 - **Join-page sample prints** (`public/samples/`) are the host's own photos, hand-picked, no recognisable faces (motion blur is fine), web-size, no EXIF; the caption says they are picks.
+- **House look (locked 1 Nov after Halloween):** `green-night` + `--date-stamp` + `--overlays` + host credit, 13 shots,
+  no opt-outs (default; `--opt-outs` re-enables them). Saved on `diwali` for the partner event.
+- **Export for posting:** `npm run export` re-develops (same seed, pixel-identical) without the credit into
+  `~/Desktop/blindshot-posts`; never uploaded. The site always keeps the credit.
 - **Credit:** `--credit "@handle"` puts the host's handle on every photo (the owner's choice: he introduces people to
   the product). Without it, each photo credits whoever took it.
 - **Looks** (`LOOKS` in `lib/film.ts`, names mirrored in `LOOK_NAMES` in `lib/config.ts`): default 35mm disposable,

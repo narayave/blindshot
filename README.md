@@ -26,7 +26,7 @@ The longer-term aim is a product hosts can buy per event: one camera, with a **t
 | Moment | What the guest sees |
 |---|---|
 | **Scan** | A QR code at the venue opens `/e/{event}` in the phone's browser. No app, no account. |
-| **Load film** | First name, an optional Instagram handle (so the host can tag you; shown in the darkroom; the same name + Instagram on another phone or visit brings your earlier shots back under Mine), one consent tick, and two optional opt-outs (no promotional use; keep my photos out of the shared roll). |
+| **Load film** | First name, an optional Instagram handle (so the host can tag you; shown in the darkroom), and one consent tick: every photo goes to the shared roll and the host may post it. Events created with `--opt-outs` also offer "no promotional use" and "keep my photos out of the shared roll". |
 | **Shoot** | A camera body on screen: 1-inch live viewfinder, a thumbwheel you drag to wind on, a flash switch, a mechanical shot counter. Shutter → click, flash, vibration, "Saved". Never the photo. |
 | **Wrap** | After the last shot: "That's a wrap", when the roll develops, and **Load a new roll** for a fresh roll, no rejoining. After the event's closing time: "The night's over", no more shots. |
 | **Develop** | At the release time, the shared roll opens: everyone's frames, host picks, your own. Any frame can be saved to the phone's camera roll. |
@@ -249,7 +249,9 @@ You need **Supabase** (database, free tier) and **Azure** (photo storage + Stati
    ```
    The event opens itself at `--opens` (Pacific), shooting stops at 2am the next morning and the roll is released at
    8am; override with `--closes` / `--release`. Without `--opens` the event starts off until you switch it on at
-   `/e/admin`. Other flags: `--no-opt-outs`, `--date-stamp`.
+   `/e/admin`. Other flags: `--opt-outs`, `--date-stamp`, `--look`, `--credit`, `--overlays`.
+   To post photos without the credit: `npm run export -- <code> …` re-develops them (same look and seed) into
+   `~/Desktop/blindshot-posts`, Instagram 4:5, only the host's and consenting guests' shots. The site keeps the credit.
    To start a roll over (deletes every photo and guest; the link stays): `npm run reset -- diwali`, optionally with `--shots 6`.
 6. **Run it:** `npm run dev` and, in a second terminal, `npm run worker` (it develops the photos). Then open `http://localhost:3000/e/diwali` and `http://localhost:3000/admin`.
 

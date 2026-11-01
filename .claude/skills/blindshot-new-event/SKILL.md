@@ -25,6 +25,12 @@ another (an event that isn't open is a 404).
    introducing people to the product and wants them to find him); leave it out to credit whoever took each photo. Looks live in `LOOKS` in
    `lib/film.ts`; a new one is a look-lab job.
 
+## The house look (locked after Halloween; use it unless asked otherwise)
+
+`--look green-night --date-stamp --overlays --credit "@veefaceswest"`, theme to match the venue, 13 shots, and no
+opt-outs (default): at an event every photo goes to the shared roll; the consent tick says so. `--opt-outs` only for
+private parties. Posting without the credit: `npm run export -- <code>` (local only; the site keeps the credit).
+
 ## The schedule (the user's standard night)
 
 - **Opens** at the start time: before that, the link is a 404 for everyone but the host.

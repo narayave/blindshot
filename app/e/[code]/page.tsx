@@ -40,7 +40,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           closesAt: event.closes_at?.toISOString() ?? null,
         }}
         qr={qr}
-        guest={session ? { name: session.name, shotsUsed: session.shot_count - event.max_shots * (session.rolls - 1) } : null}
+        guest={session ? { name: session.name, shotsUsed: session.shot_count - event.max_shots * (session.rolls - 1), roll: session.rolls } : null}
       />
     </div>
   );

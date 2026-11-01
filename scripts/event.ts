@@ -5,7 +5,8 @@
 // roll opens at midnight (--release), so everyone sees it together while the party's still on;
 // pass any of them to override. Without --opens a new event starts off (guests get
 // a 404) until the host switches it on at /e/admin, and nothing closes or releases by itself unless you pass the time.
-// Options: --shots 13, --no-opt-outs (hide the opt-out boxes at join), --date-stamp (LED date on photos),
+// Options: --shots 13, --opt-outs (offer "don't use for promotion" / "keep out of the shared roll" at join; off by
+//   default: at an event every photo goes to the shared roll), --date-stamp (LED date on photos),
 //   --overlays (film-artifact overlays and burns on some frames; see scripts/overlays.ts),
 //   --look night (a named look from LOOKS in lib/film.ts; leave out for the default),
 //   --credit "@brand" (the same watermark on every photo; leave out to credit whoever took each one).
@@ -19,7 +20,7 @@ const { values: v } = parseArgs({
   options: {
     code: { type: "string" }, name: { type: "string" }, subtitle: { type: "string" }, theme: { type: "string", default: "base" },
     opens: { type: "string" }, closes: { type: "string" }, release: { type: "string" }, shots: { type: "string" },
-    "no-opt-outs": { type: "boolean" }, "date-stamp": { type: "boolean" }, overlays: { type: "boolean" }, look: { type: "string" }, credit: { type: "string" },
+    "opt-outs": { type: "boolean" }, "date-stamp": { type: "boolean" }, overlays: { type: "boolean" }, look: { type: "string" }, credit: { type: "string" },
   },
 });
 const fail = (m: string) => { console.error(m); process.exit(1); };
@@ -59,7 +60,7 @@ if (opens && release && release < opens) console.warn("note: the roll is release
 const [e] = await sql<{ code: string; name: string; max_shots: number; online: boolean; opens_at: Date | null; closes_at: Date | null; release_at: Date | null }[]>`
   insert into events (code, name, subtitle, theme, max_shots, opens_at, closes_at, release_at, allow_opt_outs, date_stamp, overlays, look, credit, online)
   values (${v.code!}, ${v.name!}, ${v.subtitle ?? null}, ${v.theme!}, ${Number(v.shots ?? MAX_SHOTS)}, ${opens}, ${closes}, ${release},
-          ${!v["no-opt-outs"]}, ${!!v["date-stamp"]}, ${!!v.overlays}, ${v.look ?? null}, ${v.credit ?? null}, ${!!opens})
+          ${!!v["opt-outs"]}, ${!!v["date-stamp"]}, ${!!v.overlays}, ${v.look ?? null}, ${v.credit ?? null}, ${!!opens})
   on conflict (code) do update set name = excluded.name, subtitle = excluded.subtitle, theme = excluded.theme,
     max_shots = excluded.max_shots, opens_at = excluded.opens_at, closes_at = excluded.closes_at, release_at = excluded.release_at,
     allow_opt_outs = excluded.allow_opt_outs, date_stamp = excluded.date_stamp, overlays = excluded.overlays, look = excluded.look, credit = excluded.credit,
