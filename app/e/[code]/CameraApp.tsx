@@ -70,13 +70,14 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
   return (
     <section className="stack">
       <h1 className="headline">
-        {event.maxShots} shots a roll.<br /><em>Rolls never run out.</em>
+        A digital<br /><em>disposable camera.</em>
       </h1>
-      <p className="lede">Shoot the night like a disposable. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.</p>
+      <p className="lede"><b>No app, no sign-up.</b> It works right here in your browser. {event.maxShots} shots a roll and rolls never run out. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.</p>
       <Prints />
       <HowItWorks event={event} />
       {event.decor ? <div className="toran" aria-hidden /> : <div className="stripes" aria-hidden><i /><i /><i /></div>}
       <form onSubmit={submit} noValidate>
+        <p className="fine"><b>That&apos;s the whole sign-up:</b> your first name, plus your Instagram if you want to be tagged. No email, no password, nothing to download.</p>
         <label className="field" htmlFor="name">First name
           <input id="name" name="name" autoComplete="given-name" required />
         </label>
@@ -109,7 +110,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
           <span>{busy ? "Loading film…" : "Load film"}</span>
           <span aria-hidden>→</span>
         </button>
-        <p className="fine">No password. This phone remembers you: come back later on it and your shots are still yours.</p>
+        <p className="fine">This phone remembers you: open the link again on it later and your shots are still yours.</p>
       </form>
       <ShareQr event={event} qr={qr} />
     </section>
