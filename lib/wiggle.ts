@@ -2,8 +2,9 @@
 // forth (0.2 s each) look like a frozen moment you can walk around. Shared by the darkroom (find + align) and
 // scripts/wiggle.ts (render).
 
-// Within this many seconds of the previous shot counts as "the same moment" (phones' clocks are corrected on upload).
-export const WIGGLE_GAP_S = 2;
+// Within this many seconds of the previous shot counts as "the same moment" (phones' clocks are corrected on upload;
+// a phone with the flash on waits up to 1.5 s for its light, so a count of 3 lands within about this).
+export const WIGGLE_GAP_S = 3;
 export const WIGGLE_ASPECT = 4 / 5; // Instagram's tallest feed shape
 
 type Shot = { id: string; at: Date | null; phone: string };

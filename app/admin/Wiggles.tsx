@@ -12,8 +12,9 @@ export default function Wiggles({ saved, candidates }: { saved: { id: string; fr
   return (
     <div className="wiggles">
       <p className="lede">
-        Shots from two or more phones within {WIGGLE_GAP_S} s of each other. Tick the frames of one subject and make a wiggle,
-        then tap the subject on each frame so they line up. Render it with <code>npm run wiggle -- &lt;event&gt;</code>.
+        Shots from two or more phones within {WIGGLE_GAP_S} s of each other. Untick anything that isn&apos;t the subject, press
+        Make a wiggle, then render with <code>npm run wiggle -- &lt;event&gt;</code>. Frames are lined up on their centres;
+        only if the preview jumps, tap the subject on each frame.
       </p>
       {saved.map((g) => <Saved key={g.id} id={g.id} frames={g.frames} />)}
       <h2 className="wg-h">Same moment, different phones</h2>
@@ -78,7 +79,7 @@ function Saved({ id, frames }: { id: string; frames: WFrame[] }) {
               <i style={{ left: `${pivots[f.id].x * 100}%`, top: `${pivots[f.id].y * 100}%` }} aria-hidden />
             </div>
             <figcaption>
-              {f.name} · {f.at} {f.x === null && pivots[f.id].x === 0.5 && pivots[f.id].y === 0.5 && <b>tap the subject</b>}
+              {f.name} · {f.at}
               <button type="button" onClick={() => leaveWiggle([f.id])}>Remove</button>
             </figcaption>
           </figure>

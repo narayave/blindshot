@@ -68,8 +68,9 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 - **Export for posting:** `npm run export` re-develops (same seed, pixel-identical) without the credit into
   `~/Desktop/blindshot-posts`; never uploaded. The site always keeps the credit.
 - **Wigglegrams:** guests shoot one subject on the count of 3; the darkroom's Wiggles tab lists shots from 2+ phones
-  within 2 s (capture times are clock-corrected on upload), the host ticks the frames and taps the subject on each
-  (`photos.wiggle`, `wiggle_x/y`). `npm run wiggle -- <code|id>` renders locally: shared seed, no pan/shake, one date
+  within 3 s (capture times are clock-corrected on upload), the host unticks strays and presses Make a wiggle
+  (`photos.wiggle`). Frames align on their centres (the owner has everyone shoot the same subject, same orientation);
+  tapping the subject (`wiggle_x/y`) is only for a preview that jumps. `npm run wiggle -- <code|id>` renders locally: shared seed, no pan/shake, one date
   stamp, colour matched to the middle frame, 4:5 crop centred on the subject; 0.2 s a frame (`--speed`). One tap fixes
   position, not size: a subject much closer to one phone looks bigger in that frame.
 - **Credit:** `--credit "@handle"` puts the host's handle on every photo (the owner's choice: he introduces people to
