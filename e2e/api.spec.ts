@@ -280,3 +280,37 @@ test("darkroom: password gate, star a frame, release the roll", async ({ page, b
   await page.getByRole("link", { name: "← All events" }).click();
   await expect(page).toHaveURL(/\/e\/admin$/);
 });
+
+test("darkroom wiggles: same-moment shots from two phones → group them → tap the subject", async ({ page, baseURL }) => {
+  test.skip(!process.env.ADMIN_PASSWORD, "needs ADMIN_PASSWORD");
+  const w = await makeEvent({ shots: 3 });
+  try {
+    const at = new Date().toISOString();
+    const [a, b] = [await guest(baseURL!, w, { name: "Ana" }), await guest(baseURL!, w, { name: "Ben" })]; // two phones
+    const sa = await shoot(a, w, undefined, { capturedAt: at, sentAt: at });
+    const sb = await shoot(b, w, undefined, { capturedAt: at, sentAt: at });
+    await waitDeveloped(w.id, 2);
+
+    await page.goto(`/admin?event=${w.code}`);
+    await page.getByLabel("Host password").fill(process.env.ADMIN_PASSWORD!);
+    await page.getByRole("button", { name: /Open the darkroom/ }).click();
+    await expect(page.getByLabel("Host password")).toBeHidden();
+    await page.goto(`/admin?event=${w.code}&view=wiggles`);
+    await page.getByRole("button", { name: "Make a wiggle" }).click();
+
+    const tap = page.getByRole("img", { name: "By Ana: tap the subject" });
+    await expect(tap).toBeVisible();
+    await expect(page.getByLabel("Preview").locator("img")).toBeVisible(); // the aligned loop
+    const box = (await tap.boundingBox())!;
+    await tap.click({ position: { x: box.width * 0.25, y: box.height * 0.75 } });
+    await expect.poll(async () => (await sql`select wiggle_x, wiggle_y from photos where id = ${sa.id}`)[0]).toEqual({ wiggle_x: expect.closeTo(0.25, 1), wiggle_y: expect.closeTo(0.75, 1) });
+    const [g] = await sql`select count(distinct wiggle)::int as groups, count(*)::int as n from photos where id in (${sa.id}, ${sb.id}) and wiggle is not null`;
+    expect(g).toEqual({ groups: 1, n: 2 });
+    await page.screenshot({ path: test.info().outputPath("wiggles.png"), fullPage: true });
+
+    await page.getByRole("button", { name: "Ungroup" }).click();
+    await expect(page.getByRole("button", { name: "Make a wiggle" })).toBeVisible(); // back to a candidate
+  } finally {
+    await dropEvent(w);
+  }
+});

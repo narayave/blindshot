@@ -16,7 +16,8 @@
     "overlays": "node scripts/overlays.ts",
     "worker": "node --env-file-if-exists=.env.local scripts/worker.ts",
     "test": "playwright test",
-    "load": "node --env-file-if-exists=.env.local scripts/load.ts"
+    "load": "node --env-file-if-exists=.env.local scripts/load.ts",
+    "wiggle": "node --env-file-if-exists=.env.local scripts/wiggle.ts"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.34.0",

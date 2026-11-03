@@ -152,3 +152,25 @@ test("photobooth: a burst of four becomes a four-frame strip on paper; one photo
   for (let i = 0; i < s.length; i += 3) spread = Math.max(spread, Math.abs(s[i] - s[i + 2]));
   expect(spread).toBeLessThan(40); // only the warm sepia tilt
 });
+
+test("wiggles: same-moment shots from two or more phones group; the crop keeps every subject dead centre", async () => {
+  const { wiggleCandidates, wiggleCrop, WIGGLE_ASPECT } = await import("../lib/wiggle.ts");
+  const t = (s: number) => new Date(Date.UTC(2026, 10, 7, 4, 0, s));
+  const groups = wiggleCandidates([
+    { id: "a", at: t(0), phone: "1" }, { id: "b", at: t(1), phone: "2" }, { id: "c", at: t(2.5), phone: "3" }, // a chain
+    { id: "d", at: t(30), phone: "1" }, { id: "e", at: t(31), phone: "1" }, // one phone twice: not a wiggle
+    { id: "f", at: null, phone: "2" },
+  ]);
+  expect(groups.map((g) => g.map((s) => s.id))).toEqual([["a", "b", "c"]]);
+
+  const frames = [{ x: 0.5, y: 0.5, ratio: 3 / 4 }, { x: 0.3, y: 0.6, ratio: 3 / 4 }, { x: 0.7, y: 0.4, ratio: 9 / 16 }];
+  const crops = wiggleCrop(frames);
+  crops.forEach((c, i) => {
+    expect(c.left + c.width / 2).toBeCloseTo(frames[i].x); // subject in the middle
+    expect(c.top + c.height / 2).toBeCloseTo(frames[i].y);
+    expect((c.width * frames[i].ratio) / c.height).toBeCloseTo(WIGGLE_ASPECT); // 4:5 everywhere
+    expect(c.left).toBeGreaterThanOrEqual(-1e-9); expect(c.top).toBeGreaterThanOrEqual(-1e-9); // never off the frame
+    expect(c.left + c.width).toBeLessThanOrEqual(1 + 1e-9); expect(c.top + c.height).toBeLessThanOrEqual(1 + 1e-9);
+  });
+  expect(new Set(crops.map((c) => c.height.toFixed(6))).size).toBe(1); // same scale on every frame
+});

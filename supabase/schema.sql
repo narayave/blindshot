@@ -83,3 +83,9 @@ alter table sessions add column if not exists device_id text;
 
 -- Worker tries per photo: transient failures are retried, the third failure sticks.
 alter table photos add column if not exists attempts int not null default 0;
+
+-- Wigglegrams: frames the host groups in the darkroom share an id; (wiggle_x, wiggle_y) is the subject, as fractions of
+-- the frame, so every frame can be cropped around it (lib/wiggle.ts, scripts/wiggle.ts).
+alter table photos add column if not exists wiggle uuid;
+alter table photos add column if not exists wiggle_x real;
+alter table photos add column if not exists wiggle_y real;

@@ -303,7 +303,6 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .qr { margin: 0; width: 180px; display: flex; flex-direction: column; gap: 6px; }
 .qr svg { width: 100%; height: auto; background: #fff; border-radius: 8px; }
 .qr figcaption { font-size: 11px; word-break: break-all; color: var(--muted); }
-.admin-tabs { grid-template-columns: repeat(4, 1fr); max-width: 520px; }
 .rolls { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
 .roll-row { flex-direction: row; align-items: center; justify-content: space-between; gap: 16px; }
 .roll-row > div { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -333,3 +332,36 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
   .admin .admin-events { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; align-items: center; padding-bottom: 4px; }
   .admin .admin-events a { white-space: nowrap; }
 }
+
+/* Darkroom: wigglegrams */
+.admin-tabs { grid-template-columns: repeat(5, 1fr); max-width: 640px; }
+.wiggles { display: flex; flex-direction: column; gap: 18px; }
+.wg-h { font-size: 15px; margin: 8px 0 0; }
+.wg { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.wg-row { display: flex; gap: 10px; overflow-x: auto; align-items: flex-start; }
+.wg-frame { flex: 0 0 160px; margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.wg-frame img { width: 100%; height: auto; display: block; border-radius: 4px; }
+.wg-frame.pick { position: relative; }
+.wg-frame.pick input { position: absolute; top: 6px; left: 6px; width: 18px; height: 18px; }
+.wg-frame figcaption { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.wg-frame figcaption b { color: var(--hot); font-weight: 600; }
+.wg-frame figcaption button, .linkish { border: 1px solid var(--line); background: transparent; color: inherit; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
+.wg-tap { position: relative; cursor: crosshair; }
+.wg-tap i { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border: 2px solid #F7B526; border-radius: 50%; box-shadow: 0 0 0 1px #000; pointer-events: none; }
+.wg-preview { flex: 0 0 200px; position: relative; overflow: hidden; border-radius: 4px; background: #111; }
+.wg-preview img { position: absolute; max-width: none; }
+
+/* Roll viewer: make the swipe obvious */
+.sheet-hint { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+.lightbox .lb-arrow { position: absolute; top: 45%; transform: translateY(-50%); z-index: 1; width: 44px; height: 44px; padding: 0; border-radius: 50%; font-size: 28px; line-height: 1; background: rgba(247, 181, 38, 0.85); }
+.lightbox .lb-arrow.prev { left: 8px; }
+.lightbox .lb-arrow.next { right: 8px; }
+.lb-hint { position: absolute; top: 45%; left: 50%; translate: -50% -50%; pointer-events: none; background: rgba(0, 10, 20, 0.75); color: #F3EEDD; border-radius: 999px; padding: 10px 18px; font-weight: 600; font-size: 15px; animation: lb-hint 2.6s ease-in-out forwards; }
+@keyframes lb-hint {
+  0% { opacity: 0; transform: translateX(0); }
+  15%, 35% { opacity: 1; transform: translateX(-14px); }
+  25%, 50% { opacity: 1; transform: translateX(14px); }
+  70% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .lb-hint { animation: none; opacity: 0; } }

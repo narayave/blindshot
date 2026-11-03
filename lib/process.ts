@@ -18,7 +18,7 @@ export async function developFrame(photoId: string, original: Buffer, override: 
   // Like a real roll, leaks are most likely on the first and last frames.
   const frame = ((p.shot_number - 1) % p.max_shots) + 1; // within its roll
   const edgeFrame = frame === 1 || frame === p.max_shots;
-  const seed = seedOf(photoId);
+  const seed = override.seed ?? seedOf(photoId); // a wigglegram passes one seed for all its frames (overlay included)
   const develop = p.look && LOOKS[p.look]?.frame === "strip" ? developStrip : applyFilmFilter;
   return develop(original, {
     ...(p.look ? LOOKS[p.look] : undefined),
@@ -112,4 +112,4 @@ async function pickOverlay(seed: number): Promise<{ image: Buffer; strength: num
   return all.length ? { image: all[(seed >>> 8) % all.length], strength: k.strength } : null;
 }
 
-const seedOf = (id: string) => [...id].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);
+export const seedOf = (id: string) => [...id].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) | 0, 7);

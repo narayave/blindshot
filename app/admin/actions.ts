@@ -48,3 +48,24 @@ export async function reprocess(photoId: string) {
   await sql`update photos set status = 'uploaded', processed_at = null, attempts = 0 where id = ${photoId} and status <> 'pending'`;
   revalidatePath("/admin");
 }
+
+// Wigglegrams (Wiggles tab): group the ticked frames, tap each frame's subject, take frames out again.
+export async function makeWiggle(form: FormData) {
+  await guard();
+  const ids = form.getAll("photo").map(String);
+  if (ids.length >= 2) await sql`update photos set wiggle = ${crypto.randomUUID()}, wiggle_x = null, wiggle_y = null where id in ${sql(ids)}`;
+  revalidatePath("/admin");
+}
+
+export async function setPivot(photoId: string, x: number, y: number) {
+  await guard();
+  const f = (n: number) => Math.min(0.99, Math.max(0.01, Number(n) || 0.5));
+  await sql`update photos set wiggle_x = ${f(x)}, wiggle_y = ${f(y)} where id = ${photoId}`;
+  revalidatePath("/admin");
+}
+
+export async function leaveWiggle(photoIds: string[]) {
+  await guard();
+  await sql`update photos set wiggle = null, wiggle_x = null, wiggle_y = null where id in ${sql(photoIds)}`;
+  revalidatePath("/admin");
+}

@@ -5,6 +5,8 @@ import { isAdmin } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
 import { reprocess, setRelease, toggle } from "./actions";
 import Login from "./Login";
+import Wiggles, { type WFrame } from "./Wiggles";
+import { wiggleCandidates } from "@/lib/wiggle";
 
 export const metadata = { title: "Darkroom · blindshot" };
 
@@ -12,7 +14,7 @@ type Row = {
   id: string; filtered_path: string | null; original_path: string; status: string; error: string | null;
   starred: boolean; hidden: boolean; shot_number: number; name: string; instagram: string | null; device: string | null; twin: boolean; no_promo: boolean; private_roll: boolean;
 };
-const VIEWS = ["all", "starred", "hidden", "problems"] as const;
+const VIEWS = ["all", "starred", "hidden", "problems", "wiggles"] as const;
 
 export default async function Admin({ searchParams }: PageProps<"/admin">) {
   if (!(await isAdmin())) {
@@ -97,12 +99,12 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
         <nav className="tabs admin-tabs">
           {VIEWS.map((v) => (
             <a key={v} href={`?event=${event.code}&view=${v}`} aria-current={view === v ? "page" : undefined}>
-              {v === "all" ? "All" : v === "starred" ? "Starred" : v === "hidden" ? "Hidden" : "Problems"}
+              {v === "all" ? "All" : v === "starred" ? "Starred" : v === "hidden" ? "Hidden" : v === "problems" ? "Problems" : "Wiggles"}
             </a>
           ))}
         </nav>
 
-        <div className="admin-grid">
+        {view === "wiggles" ? await wigglesView(event.id, filtered) : <div className="admin-grid">
           {rows.length === 0 && <p className="lede">No photos here yet.</p>}
           {rows.map((r) => (
             <article key={r.id} className={`card${r.hidden ? " is-hidden" : ""}`}>
@@ -129,10 +131,26 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
               </div>
             </article>
           ))}
-        </div>
+        </div>}
       </div>
     </div>
   );
+}
+
+// Developed shots from the same moment on different phones, and the wiggles already grouped.
+async function wigglesView(eventId: string, filtered: (path: string) => string) {
+  const shots = await sql<{ id: string; filtered_path: string; captured_at: Date | null; phone: string; name: string; wiggle: string | null; wiggle_x: number | null; wiggle_y: number | null }[]>`
+    select p.id, p.filtered_path, p.captured_at, coalesce(s.device_id, s.id::text) as phone, s.name, p.wiggle::text, p.wiggle_x, p.wiggle_y
+    from photos p join sessions s on s.id = p.session_id
+    where p.event_id = ${eventId} and p.status = 'done' and not p.hidden
+    order by p.captured_at`;
+  const frame = (r: (typeof shots)[number]): WFrame => ({
+    id: r.id, thumb: filtered(thumbPath(r.filtered_path)), name: r.name, x: r.wiggle_x, y: r.wiggle_y,
+    at: r.captured_at?.toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", timeStyle: "medium" }) ?? "",
+  });
+  const saved = [...Map.groupBy(shots.filter((r) => r.wiggle), (r) => r.wiggle!)].map(([id, fs]) => ({ id, frames: fs.map(frame) }));
+  const candidates = wiggleCandidates(shots.filter((r) => !r.wiggle).map((r) => ({ ...r, at: r.captured_at }))).reverse().map((g) => g.map(frame));
+  return <Wiggles saved={saved} candidates={candidates} />;
 }
 
 // "iPhone · Safari", "Samsung SM-S918B · Chrome": enough to tell phones apart at a glance.

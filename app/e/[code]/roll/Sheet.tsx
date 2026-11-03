@@ -48,6 +48,8 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
     return () => { live = false; };
   }, [frame, name]);
 
+  const step = (d: number) => track.current?.scrollBy({ left: d * track.current.clientWidth, behavior: "smooth" });
+
   // Phones: the share sheet, where "Save Image" puts it in the camera roll. Elsewhere: a plain download.
   function save() {
     if (!file) return;
@@ -59,6 +61,7 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
 
   return (
     <>
+      {frames.length > 1 && <p className="sheet-hint">Tap a photo to open it, then swipe ← → through the roll.</p>}
       <div className={`sheet${cards ? " cards" : ""}`}>
         {frames.length === 0 && <p className="empty">{empty}</p>}
         {frames.map((f, i) => (
@@ -90,6 +93,10 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
               </figure>
             ))}
           </div>
+          {/* Arrows on both sides (also for laptops), and a hint that fades after a moment, so nobody misses the swipe. */}
+          {cur > 0 && <button type="button" className="lb-arrow prev" aria-label="Previous photo" onClick={() => step(-1)}>‹</button>}
+          {cur < frames.length - 1 && <button type="button" className="lb-arrow next" aria-label="Next photo" onClick={() => step(1)}>›</button>}
+          {frames.length > 1 && <span className="lb-hint" aria-hidden>← swipe →</span>}
           <p className="lb-count" aria-live="polite">{cur + 1} / {frames.length}{frames.length > 1 ? " · swipe for more" : ""}</p>
           <div className="lb-bar">
             <button type="button" onClick={save} disabled={!file}>{file ? "Save photo" : "Getting photo…"}</button>

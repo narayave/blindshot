@@ -252,6 +252,9 @@ You need **Supabase** (database, free tier) and **Azure** (photo storage + Stati
    `/e/admin`. Other flags: `--opt-outs`, `--date-stamp`, `--look`, `--credit`, `--overlays`.
    To post photos without the credit: `npm run export -- <code> …` re-develops them (same look and seed) into
    `~/Desktop/blindshot-posts`, Instagram 4:5, only the host's and consenting guests' shots. The site keeps the credit.
+   Wigglegrams: in the darkroom's **Wiggles** tab, group shots taken at the same moment on different phones and tap the
+   subject on each; `npm run wiggle -- <code>` renders each group (one seed, motion off, colours matched, aligned on the
+   subject) as a looping MP4 and GIF in `~/Desktop/blindshot-posts/wiggles` (needs `ffmpeg`).
    To start a roll over (deletes every photo and guest; the link stays): `npm run reset -- diwali`, optionally with `--shots 6`.
 6. **Run it:** `npm run dev` and, in a second terminal, `npm run worker` (it develops the photos). Then open `http://localhost:3000/e/diwali` and `http://localhost:3000/admin`.
 
