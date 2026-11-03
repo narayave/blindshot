@@ -365,3 +365,5 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
   100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .lb-hint { animation: none; opacity: 0; } }
+.wiggle-pick { position: sticky; top: 8px; z-index: 2; }
+.wiggle-tick { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }

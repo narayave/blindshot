@@ -3,7 +3,7 @@ import { isReleased, sql, type Event } from "@/lib/db";
 import { eventLink } from "@/lib/qr";
 import { isAdmin } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
-import { reprocess, setRelease, toggle } from "./actions";
+import { makeWiggle, reprocess, setRelease, toggle } from "./actions";
 import Login from "./Login";
 import Wiggles, { type WFrame } from "./Wiggles";
 import { wiggleCandidates } from "@/lib/wiggle";
@@ -104,7 +104,14 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
           ))}
         </nav>
 
-        {view === "wiggles" ? await wigglesView(event.id, filtered) : <div className="admin-grid">
+        {view === "all" && rows.length > 1 && (
+          // Tick frames below (their boxes point at this form, since each card already holds its own forms).
+          <form id="wiggle-pick" action={makeWiggle} className="wiggle-pick">
+            <input type="hidden" name="event" value={event.code} />
+            <button className="ghost" type="submit">Make a wiggle from the ticked frames</button>
+          </form>
+        )}
+        {view === "wiggles" ? await wigglesView(event.id, event.code, filtered) : <div className="admin-grid">
           {rows.length === 0 && <p className="lede">No photos here yet.</p>}
           {rows.map((r) => (
             <article key={r.id} className={`card${r.hidden ? " is-hidden" : ""}`}>
@@ -127,6 +134,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
                 <form action={toggle.bind(null, r.id, "starred")}><button type="submit" aria-pressed={r.starred}>{r.starred ? "★ Starred" : "☆ Star"}</button></form>
                 <form action={toggle.bind(null, r.id, "hidden")}><button type="submit" aria-pressed={r.hidden}>{r.hidden ? "Unhide" : "Hide"}</button></form>
                 <a href={original(r.original_path)} target="_blank" rel="noreferrer" title="The untouched file from the phone">Original</a>
+                {view === "all" && r.status === "done" && <label className="wiggle-tick"><input type="checkbox" name="photo" value={r.id} form="wiggle-pick" /> Wiggle</label>}
                 {r.status !== "done" && <form action={reprocess.bind(null, r.id)}><button type="submit" title={r.error ?? undefined}>Retry</button></form>}
               </div>
             </article>
@@ -138,7 +146,7 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
 }
 
 // Developed shots from the same moment on different phones, and the wiggles already grouped.
-async function wigglesView(eventId: string, filtered: (path: string) => string) {
+async function wigglesView(eventId: string, code: string, filtered: (path: string) => string) {
   const shots = await sql<{ id: string; filtered_path: string; captured_at: Date | null; phone: string; name: string; wiggle: string | null; wiggle_x: number | null; wiggle_y: number | null }[]>`
     select p.id, p.filtered_path, p.captured_at, coalesce(s.device_id, s.id::text) as phone, s.name, p.wiggle::text, p.wiggle_x, p.wiggle_y
     from photos p join sessions s on s.id = p.session_id
@@ -148,9 +156,11 @@ async function wigglesView(eventId: string, filtered: (path: string) => string) 
     id: r.id, thumb: filtered(thumbPath(r.filtered_path)), name: r.name, x: r.wiggle_x, y: r.wiggle_y,
     at: r.captured_at?.toLocaleTimeString("en-US", { timeZone: "America/Los_Angeles", timeStyle: "medium" }) ?? "",
   });
-  const saved = [...Map.groupBy(shots.filter((r) => r.wiggle), (r) => r.wiggle!)].map(([id, fs]) => ({ id, frames: fs.map(frame) }));
+  const byWiggle: Record<string, WFrame[]> = {}; // (no Map.groupBy: the site runs on Node 20)
+  for (const r of shots) if (r.wiggle) (byWiggle[r.wiggle] ??= []).push(frame(r));
+  const saved = Object.entries(byWiggle).map(([id, frames]) => ({ id, frames }));
   const candidates = wiggleCandidates(shots.filter((r) => !r.wiggle).map((r) => ({ ...r, at: r.captured_at }))).reverse().map((g) => g.map(frame));
-  return <Wiggles saved={saved} candidates={candidates} />;
+  return <Wiggles code={code} saved={saved} candidates={candidates} />;
 }
 
 // "iPhone · Safari", "Samsung SM-S918B · Chrome": enough to tell phones apart at a glance.

@@ -36,6 +36,9 @@ when it's done, and the shared roll opens at a set time while the party is still
 | Worker (Azure Functions, timer every minute, 512 MB) | `worker/index.ts` | `scripts/deploy-worker.sh` |
 | Schema (idempotent, additive) | `supabase/schema.sql` | apply by hand to prod, then deploy code |
 
+The website runs on **Node 20** (Azure; `engines` in package.json) while local Node is newer: no `Map.groupBy` or other
+Node 21+ APIs in `app/` or `lib/` (a darkroom page once crashed only in prod).
+
 Website changes go live on push; **filter/queue changes only go live with `scripts/deploy-worker.sh`.** Deploy the
 worker first when both change.
 

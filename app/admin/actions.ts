@@ -55,6 +55,7 @@ export async function makeWiggle(form: FormData) {
   const ids = form.getAll("photo").map(String);
   if (ids.length >= 2) await sql`update photos set wiggle = ${crypto.randomUUID()}, wiggle_x = null, wiggle_y = null where id in ${sql(ids)}`;
   revalidatePath("/admin");
+  redirect(`/admin?event=${encodeURIComponent(String(form.get("event") ?? ""))}&view=wiggles`);
 }
 
 export async function setPivot(photoId: string, x: number, y: number) {

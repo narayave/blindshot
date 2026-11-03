@@ -8,19 +8,21 @@ export type WFrame = { id: string; thumb: string; name: string; at: string; x: n
 
 // The darkroom's Wiggles tab: shots taken at the same moment on different phones, grouped by you, aligned on the
 // subject you tap. The live preview loops the aligned frames; scripts/wiggle.ts renders the matched MP4 and GIF.
-export default function Wiggles({ saved, candidates }: { saved: { id: string; frames: WFrame[] }[]; candidates: WFrame[][] }) {
+export default function Wiggles({ code, saved, candidates }: { code: string; saved: { id: string; frames: WFrame[] }[]; candidates: WFrame[][] }) {
   return (
     <div className="wiggles">
       <p className="lede">
-        Shots from two or more phones within {WIGGLE_GAP_S} s of each other. Untick anything that isn&apos;t the subject, press
-        Make a wiggle, then render with <code>npm run wiggle -- &lt;event&gt;</code>. Frames are lined up on their centres;
-        only if the preview jumps, tap the subject on each frame.
+        Below: shots from two or more phones within {WIGGLE_GAP_S} s of each other. Untick anything that isn&apos;t the
+        subject and press Make a wiggle (or tick any frames on the <a href={`?event=${code}&view=all`}>All</a> tab). Then
+        render with <code>npm run wiggle -- {code}</code>. Frames line up on their centres; only if the preview jumps, tap
+        the subject on each frame.
       </p>
       {saved.map((g) => <Saved key={g.id} id={g.id} frames={g.frames} />)}
       <h2 className="wg-h">Same moment, different phones</h2>
       {candidates.length === 0 && <p className="fine">None yet. Get a few people to shoot one subject on the count of 3.</p>}
       {candidates.map((c) => (
         <form key={c[0].id} action={makeWiggle} className="wg">
+          <input type="hidden" name="event" value={code} />
           <div className="wg-row">
             {c.map((f) => (
               <label key={f.id} className="wg-frame pick">

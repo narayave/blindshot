@@ -238,8 +238,15 @@ test("rotation locked, phone held sideways (tilt sensor): labels turn and the ph
     await join(page, e.code);
     await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
     const [vw, vh] = await page.locator("video").evaluate((v: HTMLVideoElement) => [v.videoWidth, v.videoHeight]);
-    await page.evaluate(() => dispatchEvent(Object.assign(new Event("deviceorientation"), { alpha: 0, beta: 5, gamma: -85 })));
-    await expect(page.getByRole("button", { name: "SHOOT" }).locator(".turn")).toHaveCSS("transform", /matrix\(0, 1, -1, 0/); // labels turned 90°
+    const tilt = (beta: number, gamma: number) => page.evaluate(([b, g]) => dispatchEvent(Object.assign(new Event("deviceorientation"), { alpha: 0, beta: b, gamma: g })), [beta, gamma]);
+    const label = page.getByRole("button", { name: "SHOOT" }).locator(".turn");
+    await tilt(5, -85);
+    await expect(label).toHaveCSS("transform", /matrix\(0, 1, -1, 0/); // sideways: labels turned 90°
+    // upright but aimed up at a ceiling: the sensor's gamma swings wildly there, and that once turned upright shots sideways
+    await tilt(100, -80);
+    await expect(label).toHaveCSS("transform", /none|matrix\(1, 0, 0, 1/);
+    await tilt(5, -85);
+    await expect(label).toHaveCSS("transform", /matrix\(0, 1, -1, 0/);
     await expect(page.getByText("Wide shot · upright works too")).toBeVisible();
     await page.getByRole("button", { name: "SHOOT" }).click();
     await expect(page.getByLabel("1 shots left")).toBeVisible();

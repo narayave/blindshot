@@ -200,11 +200,16 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
         setSide(a === 90 ? "left" : "right");
       } else setSide("up");
     };
-    // Rotation locked: the page stays upright, so read the tilt sensor (gamma ≈ -90 when the top points left).
+    // Rotation locked: the page stays upright, so read the tilt sensor. Use where gravity points across the screen
+    // (x > 0: the top points left), not gamma alone: aimed up at a ceiling or down at a table, gamma swings wildly and
+    // upright shots came out sideways. Too flat to tell: keep what we had.
     const fromTilt = (e: DeviceOrientationEvent) => {
-      if (e.gamma == null || innerWidth > innerHeight) return;
-      const g = e.gamma;
-      setSide((s) => (Math.abs(g) > 60 ? (g < 0 ? "left" : "right") : Math.abs(g) < 30 ? "up" : s));
+      if (e.beta == null || e.gamma == null || innerWidth > innerHeight) return;
+      const b = (e.beta * Math.PI) / 180, g = (e.gamma * Math.PI) / 180;
+      const x = -Math.cos(b) * Math.sin(g), y = Math.sin(b);
+      if (Math.hypot(x, y) < 0.5) return;
+      const a = Math.abs((Math.atan2(x, y) * 180) / Math.PI); // 0 upright, 90 sideways, 180 upside down
+      setSide((s) => (a > 60 && a < 120 ? (x > 0 ? "left" : "right") : a < 30 || a > 150 ? "up" : s));
     };
     fromScreen();
     addEventListener("resize", fromScreen);

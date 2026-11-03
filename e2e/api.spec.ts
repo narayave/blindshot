@@ -310,6 +310,13 @@ test("darkroom wiggles: same-moment shots from two phones → group them → tap
 
     await page.getByRole("button", { name: "Ungroup" }).click();
     await expect(page.getByRole("button", { name: "Make a wiggle" })).toBeVisible(); // back to a candidate
+
+    // or pick any frames by hand on the All tab (e.g. one phone testing alone)
+    await page.goto(`/admin?event=${w.code}&view=all`);
+    for (const box of await page.getByLabel("Wiggle").all()) await box.check();
+    await page.getByRole("button", { name: "Make a wiggle from the ticked frames" }).click();
+    await expect(page).toHaveURL(/view=wiggles/);
+    await expect(page.getByRole("img", { name: "By Ben: tap the subject" })).toBeVisible();
   } finally {
     await dropEvent(w);
   }
