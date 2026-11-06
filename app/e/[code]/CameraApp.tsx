@@ -187,8 +187,9 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
 const WIND_PX = 60;
 // Torch fallback: the light burns at least TORCH_MIN_MS (LED warm-up), then until brightness stops changing
 // (auto-exposure has caught up), but never longer than TORCH_MAX_MS. Tune per phone.
-const TORCH_MIN_MS = 500;
-const TORCH_MAX_MS = 1500;
+const TORCH_MIN_MS = 250;
+const TORCH_MAX_MS = 800;
+const CHARGE_MS = 800; // the flash "recharging" after it's switched on or fired (the whine)
 const STEADY_FRAMES = 3; // in a row, before the shot
 // Selfie screen-flash: the screen is full white almost at once (no LED warm-up), so the camera gets a shorter window.
 const SCREEN_MIN_MS = 150;
@@ -374,10 +375,13 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     return () => window.removeEventListener("beforeunload", warn);
   }, [pending]);
 
+  const chargedAt = useRef(0); // when the flash is ready again
+  const pressed = useRef(false); // the shutter already fired on press: skip the click that follows
   function charge() {
+    chargedAt.current = Date.now() + CHARGE_MS;
     setCharged(false);
     whine();
-    setTimeout(() => setCharged(true), 1500);
+    setTimeout(() => setCharged(true), CHARGE_MS);
   }
 
   function toggleFlash() {
@@ -421,9 +425,9 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     // The phone light stays on until auto-exposure settles, then we grab a frame: light first, then the shot.
     // (ImageCapture's real flash was tried: on Android it often doesn't fire, and its pre-flash lags our click.)
     const front = facing.current === "user";
-    const torch = !front && flash && charged && !!track && !!(track.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
+    const torch = !front && flash && !!track && !!(track.getCapabilities?.() as { torch?: boolean } | undefined)?.torch;
     // Selfies: the front camera has no light, so the screen is the flash. White until the camera has adjusted to it.
-    const screenLight = front && flash && charged && !!track && !!fxRef.current;
+    const screenLight = front && flash && !!track && !!fxRef.current;
     if (screenLight) {
       fxRef.current!.className = "flashfx hold";
       await sleep(100); // let the screen reach full white before the camera starts adjusting to it
@@ -469,7 +473,12 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     if (!file && cam !== "live") return;
     busy.current = true;
     // No light to fire (back camera, browser can't use the phone's light): no fake white pop either.
-    const fired = flash && charged && (facing.current === "user" || torchOk !== false);
+    const fired = flash && (facing.current === "user" || torchOk !== false);
+    if (fired) {
+      setStatus(["Flash…", "Hold still"]); // the tap registered: the light needs a moment
+      const wait = chargedAt.current - Date.now(); // pressed mid-recharge: wait it out rather than shoot without flash
+      if (wait > 0) await sleep(wait);
+    }
     const snap = () => {
       click();
       buzz(18);
@@ -651,7 +660,11 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
             </button>
           )}
         </div>
-        <button className="shutter" type="button" aria-disabled={!wound} aria-label="SHOOT" onClick={() => shoot()}><span className="turn">SHOOT</span></button>
+        {/* Fires on press, like a real shutter (a click only comes on release). The click still fires it when no press
+            came first (keyboards, some browsers), and never twice. */}
+        <button className="shutter" type="button" aria-disabled={!wound} aria-label="SHOOT"
+          onPointerDown={(e) => { if (e.button === 0) { pressed.current = true; shoot(); } }}
+          onClick={() => { if (pressed.current) pressed.current = false; else shoot(); }}><span className="turn">SHOOT</span></button>
         <div className="tb-side">
           <button
             key={nudge}

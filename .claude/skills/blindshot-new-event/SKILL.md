@@ -27,8 +27,8 @@ another (an event that isn't open is a 404).
 
 ## The house look (locked after Halloween; use it unless asked otherwise)
 
-`--look green-night --overlays`, theme to match the venue, 13 shots, no `--credit` (each photo carries its guest's
-@handle, so every frame traces back to who took it), no `--date-stamp`, and no opt-outs (default): at an event every
+`--look green-night --overlays --date-stamp`, theme to match the venue, 9 shots, no `--credit` (each photo carries
+its guest's @handle, so every frame traces back to who took it), and no opt-outs (default): at an event every
 photo goes to the shared album; the consent tick says so and Load film stays locked until it's ticked. `--opt-outs` only for
 private parties. Posting without the credit: `npm run export -- <code>` (local only; the site keeps the credit).
 

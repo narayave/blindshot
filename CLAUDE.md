@@ -69,10 +69,10 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 - **Join-page sample prints** (`public/samples/`) are the host's own photos, picked by the owner to show off the film
   effects (6 Nov: three Halloween frames re-developed without the credit; the promo post uses a separate set), web-size 480x640, no EXIF, no clearly
   recognisable guests (the repo is public); the caption says they are picks.
-- **House look (updated 6 Nov for Diwali):** `green-night` + `--overlays`, 13 shots, no opt-outs (default;
+- **House look (updated 6 Nov for Diwali):** `green-night` + `--overlays`, 9 shots, no opt-outs (default;
   `--opt-outs` re-enables them), **no `--credit`** (each photo carries its guest's @handle, else first name, so every
-  frame can be traced to who took it) and **no `--date-stamp`** (the owner dropped it). Halloween used host credit +
-  date stamp.
+  frame can be traced to who took it) and **`--date-stamp`** (kept: the signature dispo look, balanced against the
+  handle, and it records when). Halloween used host credit + date stamp.
 - **Consent (events without opt-outs):** "Shoot free, get every photo": all photos go into one shared album everyone
   can see and save; hosts and event partners may use them in promotional content. Load film stays disabled until the
   box is ticked, and `/api/session` rejects a join without consent.
@@ -92,7 +92,8 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 - **Camera:** controls in a bottom bar for one thumb; layout never rotates (labels do); flash is **off by default**;
   flash = phone light held until exposure settles (only where the browser can switch it on: Chrome on Android yes,
   Firefox on Android no, so there it says "No flash in this browser" and does no fake white pop); selfie = screen
-  as flash, kept short (~0.35-0.7 s, `SCREEN_MIN_MS`/`SCREEN_MAX_MS`). Uploads never block: each shot is claimed in
+  as flash, kept short (~0.35-0.7 s, `SCREEN_MIN_MS`/`SCREEN_MAX_MS`); phone light 0.25-0.8 s, recharge 0.8 s, and a
+  shot pressed mid-recharge waits for it rather than going out dark. The shutter fires on press, not release. Uploads never block: each shot is claimed in
   order, photos upload in parallel in the background, and "Load a new roll" is instant (no page reload).
 - **Times** are Pacific everywhere guests see them; the worker runs in UTC. DST nights: use wall-clock helpers.
 
