@@ -14,3 +14,6 @@ export function instagramHandle(input: string): string | null {
 
 // Grid-sized copy stored next to each filtered photo.
 export const thumbPath = (filteredPath: string) => filteredPath.replace(/\.jpg$/, "_thumb.jpg");
+
+// Who made blindshot: the roll page's "Posting a frame? Tag …" note, whatever credit the photos carry.
+export const MAKER_HANDLE = "veefaceswest";

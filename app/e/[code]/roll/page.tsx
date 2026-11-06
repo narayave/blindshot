@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { FILTERED, thumbPath } from "@/lib/config";
+import { FILTERED, MAKER_HANDLE, thumbPath } from "@/lib/config";
 import { CLOSE_GRACE_MS, isClosed, isReleased, sql } from "@/lib/db";
 import { currentSession, isAdmin, openEvent } from "@/lib/session";
 import { readUrls } from "@/lib/storage";
@@ -82,7 +82,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
     <section className="stack">
       <h1 className="headline">The party&apos;s<br /><em>roll.</em></h1>
       {night.photos > 0 && <NightStats s={night} />}
-      {event.credit?.startsWith("@") && <TagNote handle={event.credit.slice(1)} />}
+      <TagNote handle={MAKER_HANDLE} />
       <div className="tabs">
         {tabLink("all", "Everyone", counts.n_all)}
         {tabLink("picks", "Host picks", counts.n_picks)}

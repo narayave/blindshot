@@ -24,9 +24,9 @@ if (!target) { console.error("Usage: npm run wiggle -- <event-code | wiggle id> 
 const speed = Number(v.speed);
 const W = 1600, H = 2000; // developed at roll size (grain matches the roll), shrunk to 1080x1350 at the end
 
-type Row = { id: string; wiggle: string; code: string; look: string | null; original_path: string; captured_at: Date | null; x: number | null; y: number | null };
+type Row = { id: string; wiggle: string; code: string; look: string | null; date_stamp: boolean; original_path: string; captured_at: Date | null; x: number | null; y: number | null };
 const rows = await sql<Row[]>`
-  select p.id, p.wiggle::text, e.code, e.look, p.original_path, p.captured_at, p.wiggle_x as x, p.wiggle_y as y
+  select p.id, p.wiggle::text, e.code, e.look, e.date_stamp, p.original_path, p.captured_at, p.wiggle_x as x, p.wiggle_y as y
   from photos p join events e on e.id = p.event_id
   where p.wiggle is not null and (e.code = ${target} or p.wiggle::text like ${target + "%"})
   order by p.captured_at, p.id`;
@@ -59,7 +59,7 @@ for (const [id, frames] of groups) {
     seed: seedOf(id),
     shake: { ...look.shake, chance: 0 }, pan: { ...look.pan, chance: 0 }, // motion would make the subject jump
     leak: look.leak, // not the roll's "first and last frame" leak bump, which differs per frame
-    dateStamp: frames[0].captured_at,
+    dateStamp: frames[0].date_stamp ? frames[0].captured_at : null, // one stamp for all frames, if the event has them
     frame: "none" as const, // polaroid cards and strips don't wiggle
     ...(v["keep-credit"] ? {} : { watermark: null }),
   };

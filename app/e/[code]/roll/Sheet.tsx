@@ -27,11 +27,16 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
     track.current.scrollLeft = start * track.current.clientWidth;
     setCur(start);
   }, [start]);
+  // Arrows and arrow keys jump straight to the next frame (fingers still glide): Safari drops an animated scroll inside
+  // a snapping strip often enough that "next" sometimes did nothing.
+  const step = (d: number) => {
+    const t = track.current;
+    if (t) t.scrollTo({ left: (Math.round(t.scrollLeft / t.clientWidth) + d) * t.clientWidth });
+  };
   useEffect(() => {
     const keys = (e: KeyboardEvent) => {
       if (e.key === "Escape") setStart(null);
-      const t = track.current;
-      if (t && (e.key === "ArrowRight" || e.key === "ArrowLeft")) t.scrollBy({ left: (e.key === "ArrowRight" ? 1 : -1) * t.clientWidth, behavior: "smooth" });
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") step(e.key === "ArrowRight" ? 1 : -1);
     };
     addEventListener("keydown", keys);
     return () => removeEventListener("keydown", keys);
@@ -48,7 +53,6 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
     return () => { live = false; };
   }, [frame, name]);
 
-  const step = (d: number) => track.current?.scrollBy({ left: d * track.current.clientWidth, behavior: "smooth" });
 
   // Phones: the share sheet, where "Save Image" puts it in the camera roll. Elsewhere: a plain download.
   function save() {

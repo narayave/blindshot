@@ -55,9 +55,10 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     // consent is required
     await page.getByLabel("First name").fill("Tester");
     await page.getByLabel(/Instagram/).fill("instagram.com/Tester.Shoots/");
-    await page.locator("form button[type=submit]").click();
-    await expect(page.getByText(/Tick the box/)).toBeVisible();
+    await expect(page.locator("form button[type=submit]")).toBeDisabled(); // no film until they agree
+    await expect(page.locator("form button[type=submit]")).toHaveText(/Tick the box to load film/);
     await page.locator("#consent").check();
+    await expect(page.locator("form button[type=submit]")).toHaveText(/Load film/);
     await page.locator("form button[type=submit]").click();
 
     // live viewfinder from the (fake) camera; the roll is already out, so it's one tap away

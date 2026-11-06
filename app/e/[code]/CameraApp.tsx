@@ -42,6 +42,7 @@ export default function CameraApp({ event, guest, qr }: { event: EventInfo; gues
 function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined: (g: Guest) => void }) {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [agreed, setAgreed] = useState(false); // no film until the guest agrees to the shared album
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -86,11 +87,20 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
         </label>
         <div className="consent">
           <label className="check" htmlFor="consent">
-            <input id="consent" name="consent" type="checkbox" />
-            <span>
-              My photos are saved, seen by the host, and go into the party&apos;s shared roll. The host may post them
-              {event.allowOptOuts ? ", unless I opt out below." : "."}
-            </span>
+            <input id="consent" name="consent" type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+            {event.allowOptOuts ? (
+              <span>
+                My photos are saved, seen by the host, and go into the party&apos;s shared roll. The host may post them,
+                unless I opt out below.
+              </span>
+            ) : (
+              // Events: no opt-outs, so say the whole deal up front.
+              <span>
+                <b>Shoot free, get every photo.</b> All of tonight&apos;s photos, mine and everyone&apos;s, go into one
+                shared album that everyone here can see and save. The hosts and event partners may use them in
+                promotional content.
+              </span>
+            )}
           </label>
           {event.allowOptOuts && (
             <>
@@ -106,8 +116,8 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
           )}
         </div>
         <p className="err" role="alert">{err}</p>
-        <button className="cta" type="submit" disabled={busy}>
-          <span>{busy ? "Loading film…" : "Load film"}</span>
+        <button className="cta" type="submit" disabled={busy || !agreed}>
+          <span>{busy ? "Loading film…" : agreed ? "Load film" : "Tick the box to load film"}</span>
           <span aria-hidden>→</span>
         </button>
         <p className="fine">This phone remembers you: open the link again on it later and your shots are still yours.</p>

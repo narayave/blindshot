@@ -64,20 +64,26 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
   anyone's frames. The darkroom shows each photo's phone and flags a name+handle seen on two phones.
 - **Roll stats:** photos = every photo taken (incl. private-roll frames), with a "N were kept private" note; host picks
   count only shared frames so the Picks tab matches. The events page (`/e/admin`) shows guests, rolls, photos.
-- **Roll page** shows "Posting a frame? Tag @handle" (from the event's credit) and "Want a roll at your party? Message".
+- **Roll page** shows "Posting a frame? Tag @handle" and "Want a roll at your party? Message": always the maker's
+  handle (`MAKER_HANDLE` in `lib/config.ts`), whatever credit the photos carry.
 - **Join-page sample prints** (`public/samples/`) are the host's own photos, hand-picked, no recognisable faces (motion blur is fine), web-size, no EXIF; the caption says they are picks.
-- **House look (locked 1 Nov after Halloween):** `green-night` + `--date-stamp` + `--overlays` + host credit, 13 shots,
-  no opt-outs (default; `--opt-outs` re-enables them). Saved on `diwali` for the partner event.
+- **House look (updated 6 Nov for Diwali):** `green-night` + `--overlays`, 13 shots, no opt-outs (default;
+  `--opt-outs` re-enables them), **no `--credit`** (each photo carries its guest's @handle, else first name, so every
+  frame can be traced to who took it) and **no `--date-stamp`** (the owner dropped it). Halloween used host credit +
+  date stamp.
+- **Consent (events without opt-outs):** "Shoot free, get every photo": all photos go into one shared album everyone
+  can see and save; hosts and event partners may use them in promotional content. Load film stays disabled until the
+  box is ticked, and `/api/session` rejects a join without consent.
 - **Export for posting:** `npm run export` re-develops (same seed, pixel-identical) without the credit into
   `~/Desktop/blindshot-posts`; never uploaded. The site always keeps the credit.
 - **Wigglegrams:** guests shoot one subject on the count of 3; the darkroom's Wiggles tab lists shots from 2+ phones
   within 3 s (capture times are clock-corrected on upload), the host unticks strays and presses Make a wiggle
   (`photos.wiggle`). Frames align on their centres (the owner has everyone shoot the same subject, same orientation);
   tapping the subject (`wiggle_x/y`) is only for a preview that jumps. `npm run wiggle -- <code|id>` renders locally: shared seed, no pan/shake, one date
-  stamp, colour matched to the middle frame, 4:5 crop centred on the subject; 0.2 s a frame (`--speed`). One tap fixes
+  stamp (if the event has them), colour matched to the middle frame, 4:5 crop centred on the subject; 0.2 s a frame (`--speed`). One tap fixes
   position, not size: a subject much closer to one phone looks bigger in that frame.
-- **Credit:** `--credit "@handle"` puts the host's handle on every photo (the owner's choice: he introduces people to
-  the product). Without it, each photo credits whoever took it.
+- **Credit:** without `--credit`, each photo credits whoever took it (the default now). `--credit "@handle"` puts one
+  fixed handle on every photo instead (Halloween used the host's).
 - **Looks** (`LOOKS` in `lib/film.ts`, names mirrored in `LOOK_NAMES` in `lib/config.ts`): default 35mm disposable,
   `night`, `green`, `green-night`, `polaroid` (2:3 card, portrait only), `photobooth` (B&W sepia, 3-2-1 burst of four,
   front camera, strip). `--date-stamp`: 90s amber LED date/time, Pacific. Offline events show a look picker to the host.
