@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { instagramHandle } from "@/lib/config";
+import { MAKER_HANDLE, instagramHandle } from "@/lib/config";
 import { clock } from "./Countdown";
 
 type EventInfo = {
@@ -35,8 +35,25 @@ export default function CameraApp({ event, guest, qr }: { event: EventInfo; gues
           {event.subtitle && <><br />{event.subtitle}</>}
         </div>
       </header>
-      {event.soon ? <Soon event={event} /> : me ? <Camera event={event} me={me} qr={qr} /> : <Join event={event} qr={qr} onJoined={setMe} />}
+      {event.soon ? <Soon event={event} qr={qr} /> : me ? <Camera event={event} me={me} qr={qr} /> : <Join event={event} qr={qr} onJoined={setMe} />}
+      {(event.soon || !me) && (
+        <p className="made-by">
+          blindshot is made by <a href={`https://instagram.com/${MAKER_HANDLE}`} target="_blank" rel="noreferrer">@{MAKER_HANDLE}</a>
+        </p>
+      )}
     </div>
+  );
+}
+
+// What it is, in one breath: free photos, no app, the rhythm of the roll, and when everyone gets them.
+function Lede({ event }: { event: EventInfo }) {
+  return (
+    <p className="lede">
+      <b>Free dispo cam photos, all night. No app, just your phone.</b> {event.maxShots} shots a roll and rolls never run
+      out. Nobody sees a frame until the roll develops
+      {event.releaseAt && !event.released ? <span suppressHydrationWarning> ({formatWhen(event.releaseAt)})</span> : null}, then
+      everyone gets everything.
+    </p>
   );
 }
 
@@ -44,7 +61,7 @@ export default function CameraApp({ event, guest, qr }: { event: EventInfo; gues
 
 // The link works as soon as it's shared (say, in a promo post): what it is, how it works, and when sign-ups open.
 // The sign-up, consent and camera arrive at opening time, on their own: the page reloads when the clock hits zero.
-function Soon({ event }: { event: EventInfo }) {
+function Soon({ event, qr }: { event: EventInfo; qr: string }) {
   const opens = event.opensAt ? new Date(event.opensAt).getTime() : null;
   const [now, setNow] = useState<number | null>(null); // after mount, so server and phone render the same thing
   useEffect(() => {
@@ -59,16 +76,14 @@ function Soon({ event }: { event: EventInfo }) {
   return (
     <section className="stack">
       <h1 className="headline">A digital<br /><em>disposable camera.</em></h1>
-      <p className="lede">
-        <b>Free disposable camera photos, all night. No app, just your phone.</b> {event.maxShots} shots a roll and
-        rolls never run out. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.
-      </p>
+      <Lede event={event} />
+      <Prints />
+      <ShareQr event={event} qr={qr} caption="Share it: friends can scan this" />
       <div className="soon" role="timer" suppressHydrationWarning>
         <span>Sign-ups open in</span>
         <b>{now !== null && opens ? clock(opens - now) : "…"}</b>
         {event.opensAt && <small suppressHydrationWarning>{formatWhen(event.opensAt)}</small>}
       </div>
-      <Prints />
       <HowItWorks event={event} />
       {event.decor ? <div className="toran" aria-hidden /> : <div className="stripes" aria-hidden><i /><i /><i /></div>}
       <p className="fine">Open this link again at the event (or scan the QR code there) to sign in with your name and start shooting.</p>
@@ -112,10 +127,8 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
       <h1 className="headline">
         A digital<br /><em>disposable camera.</em>
       </h1>
-      <p className="lede"><b>No app, just your phone.</b> It works right here in your browser. {event.maxShots} shots a roll and rolls never run out. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.</p>
+      <Lede event={event} />
       <Prints />
-      <HowItWorks event={event} />
-      {event.decor ? <div className="toran" aria-hidden /> : <div className="stripes" aria-hidden><i /><i /><i /></div>}
       <form onSubmit={submit} noValidate>
         <p className="fine"><b>That&apos;s the whole sign-up:</b> your first name, plus your Instagram if you want to be tagged. No email, no password, nothing to download.</p>
         <label className="field" htmlFor="name">First name
@@ -159,8 +172,10 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
           <span>{busy ? "Loading film…" : agreed ? "Load film" : "Tick the box to load film"}</span>
           <span aria-hidden>→</span>
         </button>
-        <p className="fine">This phone remembers you: open the link again on it later and your shots are still yours.</p>
+        <p className="fine">No password: this phone remembers you, so open the link on it later to get back to your photos.</p>
       </form>
+      {event.decor ? <div className="toran" aria-hidden /> : <div className="stripes" aria-hidden><i /><i /><i /></div>}
+      <HowItWorks event={event} />
       <ShareQr event={event} qr={qr} />
     </section>
   );
@@ -179,14 +194,14 @@ const STEADY_FRAMES = 3; // in a row, before the shot
 // What you can and can't do, in five lines: shown before joining, and folded away under the camera.
 function HowItWorks({ event }: { event: EventInfo }) {
   const until = event.closesAt ? ` until ${formatWhen(event.closesAt)}` : "";
-  const roll = event.released ? "It's open now." : event.releaseAt ? `It opens ${formatWhen(event.releaseAt)}.` : "It opens when the host says so.";
+  const roll = event.released ? "It's open now." : event.releaseAt ? `Everyone gets their photos ${formatWhen(event.releaseAt)}.` : "It opens when the host says so.";
   return (
     <ol className="how" suppressHydrationWarning>
       <li><b>Shoot freely: film never runs out.</b> {event.maxShots} shots a roll, and a fresh roll loads the moment you finish. No previews: you see nothing until the roll opens.</li>
       <li><b>Wind, then shoot.</b> Drag or tap the wheel between shots. Flash on for dark rooms; ↻ Selfie flips the camera.</li>
       <li><b>Roll finished? Load another.</b> New film all night{until}.</li>
-      <li><b>One shared roll.</b> Everyone&apos;s photos, yours included. {roll}</li>
-      <li><b>Your shots stay with this phone.</b> Open the link again on it, any time, and they&apos;re under Mine.</li>
+      <li><b>One shared album.</b> Everyone&apos;s photos, yours included. {roll}</li>
+      <li><b>Your photos are saved online.</b> After the reveal, open this link on this phone: yours are under Mine, and you can download any photo.</li>
     </ol>
   );
 }
@@ -196,9 +211,9 @@ function Prints() {
   return (
     <figure className="prints">
       <div className="prints-row">
-        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+        {[1, 2, 3].map((n) => (
           // eslint-disable-next-line @next/next/no-img-element
-          <img key={n} src={`/samples/${n}.jpg`} alt="" loading={n > 3 ? "lazy" : "eager"} decoding="async" />
+          <img key={n} src={`/samples/${n}.jpg`} alt="" decoding="async" />
         ))}
       </div>
       <figcaption>A few picks from a past night</figcaption>
@@ -207,11 +222,11 @@ function Prints() {
 }
 
 // The event's QR code, so a guest can hand the camera on: friends scan it straight off this phone.
-function ShareQr({ event, qr }: { event: EventInfo; qr: string }) {
+function ShareQr({ event, qr, caption = "Friends can scan this to join" }: { event: EventInfo; qr: string; caption?: string }) {
   return (
     <figure className="share-qr">
       <div dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label={`QR code to join ${event.name}`} />
-      <figcaption>Friends can scan this to join</figcaption>
+      <figcaption>{caption}</figcaption>
     </figure>
   );
 }
@@ -219,7 +234,7 @@ function ShareQr({ event, qr }: { event: EventInfo; qr: string }) {
 function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) {
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
   const [wound, setWound] = useState(true);
-  const [flash, setFlash] = useState(true);
+  const [flash, setFlash] = useState(false); // off until the guest turns it on (it then charges for 1.5 s)
   const [charged, setCharged] = useState(true);
   const [cam, setCam] = useState<"starting" | "live" | "off">("starting");
   const [pending, setPending] = useState(0);
@@ -728,8 +743,13 @@ const nextFrame = (v: HTMLVideoElement) =>
   });
 const postJSON = (url: string, body: unknown) =>
   fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-const formatWhen = (iso: string) =>
-  new Date(iso).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+// "Sun, Nov 8, 2:00 AM", always Pacific and built from parts: the server's and Safari's own date formats differ
+// ("Nov 8, 2:00" vs "Nov 8 at 2:00"), which made iPhones redraw the page (a hydration mismatch).
+const WHEN = new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const formatWhen = (iso: string) => {
+  const p = Object.fromEntries(WHEN.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${p.weekday}, ${p.month} ${p.day}, ${p.hour}:${p.minute} ${p.dayPeriod}`;
+};
 function buzz(p: number | number[]) {
   try { navigator.vibrate?.(p); } catch {}
 }

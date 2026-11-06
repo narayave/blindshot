@@ -66,7 +66,9 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
   count only shared frames so the Picks tab matches. The events page (`/e/admin`) shows guests, rolls, photos.
 - **Roll page** shows "Posting a frame? Tag @handle" and "Want a roll at your party? Message": always the maker's
   handle (`MAKER_HANDLE` in `lib/config.ts`), whatever credit the photos carry.
-- **Join-page sample prints** (`public/samples/`) are the host's own photos, hand-picked, no recognisable faces (motion blur is fine), web-size, no EXIF; the caption says they are picks.
+- **Join-page sample prints** (`public/samples/`) are the host's own photos, picked by the owner to show off the film
+  effects (6 Nov: three Halloween frames re-developed without the credit; the promo post uses a separate set), web-size 480x640, no EXIF, no clearly
+  recognisable guests (the repo is public); the caption says they are picks.
 - **House look (updated 6 Nov for Diwali):** `green-night` + `--overlays`, 13 shots, no opt-outs (default;
   `--opt-outs` re-enables them), **no `--credit`** (each photo carries its guest's @handle, else first name, so every
   frame can be traced to who took it) and **no `--date-stamp`** (the owner dropped it). Halloween used host credit +

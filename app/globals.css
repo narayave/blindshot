@@ -14,20 +14,24 @@
   color-scheme: light;
 }
 /* Diwali night: navy #001F3B, marigold, saffron, bright red */
+/* Diwali: matched to the partner's carnival posts. Midnight navy, cream type with a red 3D drop, marigold + gold,
+   condensed poster capitals (Anton) for headlines. */
 .theme-diwali {
-  --bg: #001F3B; --bg-2: #00294D; --fg: #F3EEDD; --muted: #9DB3CC; --line: rgba(243, 238, 221, 0.16);
-  --dots: rgba(247, 181, 38, 0.10); --dots-2: rgba(227, 20, 30, 0.12);
-  --body: #00335F; --body-2: #0A4377; --well: #00101F; --cam-fg: #F3EEDD; --cam-muted: #9DB3CC;
-  --ridge: #1E5487; --ridge-ready: #8A6A1E; --vf-ring: #F7B526;
-  --accent: #F7B526; --accent-2: #F07A1A; --hot: #E3141E; --on-accent: #001F3B;
-  --cta: #F7B526; --cta-ink: #001F3B; --cta-shadow: #E3141E;
-  --shutter: #E3141E; --shutter-deep: #8A0A10; --shutter-ink: #F3EEDD; --shutter-ring: #F7B526;
-  --hl-em: #F7B526; --hl-shadow: 3px 3px 0 #E3141E;
-  --band: linear-gradient(#F7B526 0 33.3%, #E3141E 0 66.6%, #F7B526 0);
-  --chip-bg: #001F3B; --chip-fg: #F7B526; --leaf: #3F8F3A; --flash: #FFF8E6;
-  --hl-font: var(--font-rozha), Georgia, serif; --hl-weight: 400; --hl-stretch: 100%;
+  --bg: #1A2038; --bg-2: #232B4A; --fg: #F6E7C8; --muted: #C9BFA8; --line: rgba(246, 231, 200, 0.16);
+  --dots: rgba(242, 169, 59, 0.10); --dots-2: rgba(201, 56, 43, 0.12);
+  --body: #232B4A; --body-2: #2E3860; --well: #121729; --cam-fg: #F6E7C8; --cam-muted: #C9BFA8;
+  --ridge: #3A4570; --ridge-ready: #8A6A1E; --vf-ring: #F2A93B;
+  --accent: #F2A93B; --accent-2: #EC7F1F; --hot: #C9382B; --on-accent: #1A2038;
+  --cta: #F2A93B; --cta-ink: #1A2038; --cta-shadow: #C9382B;
+  --shutter: #C9382B; --shutter-deep: #7E1E17; --shutter-ink: #F6E7C8; --shutter-ring: #F2A93B;
+  --hl-em: #F2A93B;
+  --hl-shadow: 1px 1px 0 #C9382B, 2px 2px 0 #C9382B, 3px 3px 0 #C9382B, 4px 4px 0 #C9382B, 5px 5px 0 #7E1E17;
+  --band: linear-gradient(#F2A93B 0 33.3%, #C9382B 0 66.6%, #F2A93B 0);
+  --chip-bg: #1A2038; --chip-fg: #F2A93B; --leaf: #3F8F3A; --flash: #FFF8E6;
+  --hl-font: var(--font-anton), Impact, sans-serif; --hl-weight: 400; --hl-stretch: 100%;
   color-scheme: dark;
 }
+.theme-diwali .headline { text-transform: uppercase; letter-spacing: 0.01em; line-height: 1; }
 /* Halloween: night black-purple, pumpkin, slime green, bone white */
 .theme-halloween {
   --bg: #120A1C; --bg-2: #1D1030; --fg: #F2E8D5; --muted: #A99BBF; --line: rgba(242, 232, 213, 0.16);
@@ -221,7 +225,7 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .panel { display: flex; flex-direction: column; gap: 8px; padding: 16px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 16px; }
 .row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
 .row span:first-child { color: var(--muted); }
-.tabs { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 4px; }
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--bg-2); border: 1px solid var(--line); border-radius: 999px; padding: 4px; gap: 4px; }
 .tabs a { text-align: center; text-decoration: none; border-radius: 999px; padding: 8px 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
 .tabs a[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
 .tabs small { display: block; font-weight: 400; font-size: 11px; opacity: 0.8; font-variant-numeric: tabular-nums; }
@@ -268,7 +272,7 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .look-pick button { border: 1px solid #1A0A04; background: transparent; color: #1A0A04; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; }
 .look-pick button[aria-pressed="true"] { background: #1A0A04; color: #F0A73A; }
 .night { display: flex; flex-direction: column; gap: 8px; }
-.night-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.night-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .night-grid div { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; }
 .night-grid b { font-size: 22px; font-variant-numeric: tabular-nums; color: var(--accent); }
 .night-grid span { font-size: 11px; color: var(--muted); text-align: center; }
@@ -373,3 +377,5 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .soon span { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .soon b { font-size: 34px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--accent); }
 .soon small { font-size: 13px; color: var(--muted); }
+.made-by { margin: 28px 0 8px; text-align: center; font-size: 12px; color: var(--muted); }
+.made-by a { color: var(--accent); text-decoration: none; font-weight: 600; }

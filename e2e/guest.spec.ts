@@ -157,6 +157,8 @@ for (const focusCheck of [false, true]) {
     try {
       await join(page, e.code);
       await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+      await page.getByRole("button", { name: "Flash off" }).click(); // off by default; the guest turns it on
+      await page.waitForTimeout(1700); // the flash charges for 1.5 s
       const t = Date.now();
       await page.getByRole("button", { name: "SHOOT" }).click();
       await expect(page.getByLabel("1 shots left")).toBeVisible();
@@ -196,7 +198,9 @@ test("flip to the front camera for a selfie: mirrored preview, the screen is the
     expect(facings[0]).toBe("exact:environment"); // back camera first...
     expect(facings).toContain("exact:user"); // ...then the app insists on the front one
     expect(facings.at(-1)).toMatch(/user$/); // and the flip stays on it
-    await page.getByRole("button", { name: "SHOOT" }).click(); // flash is on by default: the screen lights up first
+    await page.getByRole("button", { name: "Flash off" }).click(); // off by default; turned on, the screen is the flash
+    await page.waitForTimeout(1700); // it charges for 1.5 s
+    await page.getByRole("button", { name: "SHOOT" }).click(); // the screen lights up first
     await expect(page.getByLabel("1 shots left")).toBeVisible();
     await expect(page.locator(".flashfx")).not.toHaveClass(/hold/); // and goes back off
     await waitDeveloped(e.id, 1);
@@ -328,7 +332,9 @@ test("before opening: the link shows what it is and a countdown, no sign-up; the
   try {
     await page.goto(`/e/${e.code}`);
     await expect(page.getByText("Sign-ups open in")).toBeVisible();
-    await expect(page.getByText(/Free disposable camera photos, all night/)).toBeVisible();
+    await expect(page.getByText(/Free dispo cam photos, all night/)).toBeVisible();
+    await expect(page.getByRole("img", { name: /QR code to join/ })).toBeVisible(); // shareable before it opens
+    await expect(page.getByRole("link", { name: "@veefaceswest" })).toBeVisible(); // who made it
     await expect(page.getByLabel("First name")).toHaveCount(0); // no sign-up, no consent, no camera yet
     await expect(page.locator("#consent")).toHaveCount(0);
     await expect(page.getByLabel("First name")).toBeVisible({ timeout: 20_000 }); // opening time: the page turns into the sign-up
