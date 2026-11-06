@@ -4,7 +4,7 @@ import { dropEvent, makeEvent, sql, testJpeg, waitDeveloped } from "./support.ts
 
 async function join(page: Page, code: string, name = "Tester") {
   await page.goto(`/e/${code}`);
-  await page.getByLabel("First name").fill(name);
+  await page.getByLabel("Name", { exact: true }).fill(name);
   await page.getByLabel(/Instagram/).fill(`@${name.toLowerCase()}`);
   await page.locator("#consent").check();
   await page.locator("form button[type=submit]").click();
@@ -53,7 +53,7 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     await expect(page.getByText("Roll finished? Load another.")).toBeVisible();
 
     // consent is required
-    await page.getByLabel("First name").fill("Tester");
+    await page.getByLabel("Name", { exact: true }).fill("Tester");
     await page.getByLabel(/Instagram/).fill("instagram.com/Tester.Shoots/");
     await expect(page.locator("form button[type=submit]")).toBeDisabled(); // no film until they agree
     await expect(page.locator("form button[type=submit]")).toHaveText(/Tick the box to load film/);
@@ -131,7 +131,7 @@ test("finished roll → load a new roll without joining again", async ({ page })
     await expect(wrap).toBeVisible();
     await page.getByRole("button", { name: /Load a new roll/ }).click();
     await expect(page.getByLabel("1 shots left")).toBeVisible();
-    await expect(page.getByLabel("First name")).toHaveCount(0); // still the same guest
+    await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0); // still the same guest
     await live();
     await page.getByRole("button", { name: "SHOOT" }).click();
     await expect(wrap).toBeVisible();
@@ -335,9 +335,9 @@ test("before opening: the link shows what it is and a countdown, no sign-up; the
     await expect(page.getByText(/Free dispo cam photos, all night/)).toBeVisible();
     await expect(page.getByRole("img", { name: /QR code to join/ })).toBeVisible(); // shareable before it opens
     await expect(page.getByRole("link", { name: "@veefaceswest" })).toBeVisible(); // who made it
-    await expect(page.getByLabel("First name")).toHaveCount(0); // no sign-up, no consent, no camera yet
+    await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0); // no sign-up, no consent, no camera yet
     await expect(page.locator("#consent")).toHaveCount(0);
-    await expect(page.getByLabel("First name")).toBeVisible({ timeout: 20_000 }); // opening time: the page turns into the sign-up
+    await expect(page.getByLabel("Name", { exact: true })).toBeVisible({ timeout: 20_000 }); // opening time: the page turns into the sign-up
     await expect(page.locator("#consent")).toBeVisible();
   } finally {
     await dropEvent(e);

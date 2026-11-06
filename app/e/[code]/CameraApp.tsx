@@ -103,7 +103,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
     const f = new FormData(e.currentTarget);
     const name = String(f.get("name") ?? "").trim();
     const ig = String(f.get("instagram") ?? "").trim();
-    if (!name) return setErr("Add your first name so your frames are credited to you.");
+    if (!name) return setErr("Add your name so your frames are credited to you.");
     if (ig && !instagramHandle(ig)) return setErr("That Instagram handle doesn't look right. Leave it blank if you're not on Instagram.");
     if (f.get("consent") !== "on") return setErr("Tick the box to agree to how photos are shared.");
     setErr("");
@@ -130,8 +130,8 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
       <Lede event={event} />
       <Prints />
       <form onSubmit={submit} noValidate>
-        <p className="fine"><b>That&apos;s the whole sign-up:</b> your first name, plus your Instagram if you want to be tagged. No email, no password, nothing to download.</p>
-        <label className="field" htmlFor="name">First name
+        <p className="fine"><b>That&apos;s the whole sign-up:</b> your name, plus your Instagram if you want to be tagged. No email, no password, nothing to download.</p>
+        <label className="field" htmlFor="name">Name
           <input id="name" name="name" autoComplete="given-name" required />
         </label>
         <label className="field" htmlFor="instagram">Instagram, so the host can tag you (optional)

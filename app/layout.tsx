@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Archivo, Creepster, Instrument_Sans, Pirata_One, Rozha_One } from "next/font/google";
+import { Alfa_Slab_One, Anton, Archivo, Creepster, Instrument_Sans, Pirata_One, Rozha_One } from "next/font/google";
 import "./globals.css";
 
 const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-archivo" });
@@ -8,6 +8,7 @@ const rozha = Rozha_One({ subsets: ["latin"], weight: "400", variable: "--font-r
 const creepster = Creepster({ subsets: ["latin"], weight: "400", variable: "--font-creepster" });
 const pirata = Pirata_One({ subsets: ["latin"], weight: "400", variable: "--font-pirata" });
 const anton = Anton({ subsets: ["latin"], weight: "400", variable: "--font-anton" });
+const alfa = Alfa_Slab_One({ subsets: ["latin"], weight: "400", variable: "--font-alfa" });
 
 export const metadata: Metadata = {
   title: "blindshot",
@@ -18,7 +19,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, view
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${archivo.variable} ${instrument.variable} ${rozha.variable} ${creepster.variable} ${pirata.variable} ${anton.variable}`}>
+    <html lang="en" className={`${archivo.variable} ${instrument.variable} ${rozha.variable} ${creepster.variable} ${pirata.variable} ${anton.variable} ${alfa.variable}`}>
       <body>{children}</body>
     </html>
   );

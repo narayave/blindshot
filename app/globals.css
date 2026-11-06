@@ -17,21 +17,22 @@
 /* Diwali: matched to the partner's carnival posts. Midnight navy, cream type with a red 3D drop, marigold + gold,
    condensed poster capitals (Anton) for headlines. */
 .theme-diwali {
-  --bg: #1A2038; --bg-2: #232B4A; --fg: #F6E7C8; --muted: #C9BFA8; --line: rgba(246, 231, 200, 0.16);
+  --bg: #0F1326; --bg-2: #1A2038; --fg: #F6E7C8; --muted: #C9BFA8; --line: rgba(246, 231, 200, 0.16);
   --dots: rgba(242, 169, 59, 0.10); --dots-2: rgba(201, 56, 43, 0.12);
-  --body: #232B4A; --body-2: #2E3860; --well: #121729; --cam-fg: #F6E7C8; --cam-muted: #C9BFA8;
+  --body: #1A2038; --body-2: #252D4D; --well: #0A0D1C; --cam-fg: #F6E7C8; --cam-muted: #C9BFA8;
   --ridge: #3A4570; --ridge-ready: #8A6A1E; --vf-ring: #F2A93B;
-  --accent: #F2A93B; --accent-2: #EC7F1F; --hot: #C9382B; --on-accent: #1A2038;
-  --cta: #F2A93B; --cta-ink: #1A2038; --cta-shadow: #C9382B;
+  --accent: #F2A93B; --accent-2: #EC7F1F; --hot: #C9382B; --on-accent: #0F1326;
+  --cta: #F2A93B; --cta-ink: #0F1326; --cta-shadow: #C9382B;
   --shutter: #C9382B; --shutter-deep: #7E1E17; --shutter-ink: #F6E7C8; --shutter-ring: #F2A93B;
   --hl-em: #F2A93B;
   --hl-shadow: 1px 1px 0 #C9382B, 2px 2px 0 #C9382B, 3px 3px 0 #C9382B, 4px 4px 0 #C9382B, 5px 5px 0 #7E1E17;
   --band: linear-gradient(#F2A93B 0 33.3%, #C9382B 0 66.6%, #F2A93B 0);
-  --chip-bg: #1A2038; --chip-fg: #F2A93B; --leaf: #3F8F3A; --flash: #FFF8E6;
+  --chip-bg: #0F1326; --chip-fg: #F2A93B; --leaf: #3F8F3A; --flash: #FFF8E6;
   --hl-font: var(--font-anton), Impact, sans-serif; --hl-weight: 400; --hl-stretch: 100%;
   color-scheme: dark;
 }
 .theme-diwali .headline { text-transform: uppercase; letter-spacing: 0.01em; line-height: 1; }
+.theme-diwali .wordmark { font-family: var(--font-alfa), Georgia, serif; font-size: 28px; color: #F6E7C8; text-shadow: 1px 1px 0 #C9382B, 2px 2px 0 #C9382B, 3px 3px 0 #7E1E17; }
 /* Halloween: night black-purple, pumpkin, slime green, bone white */
 .theme-halloween {
   --bg: #120A1C; --bg-2: #1D1030; --fg: #F2E8D5; --muted: #A99BBF; --line: rgba(242, 232, 213, 0.16);
