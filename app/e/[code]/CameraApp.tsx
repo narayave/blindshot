@@ -190,6 +190,9 @@ const WIND_PX = 60;
 const TORCH_MIN_MS = 500;
 const TORCH_MAX_MS = 1500;
 const STEADY_FRAMES = 3; // in a row, before the shot
+// Selfie screen-flash: the screen is full white almost at once (no LED warm-up), so the camera gets a shorter window.
+const SCREEN_MIN_MS = 150;
+const SCREEN_MAX_MS = 600;
 
 // What you can and can't do, in five lines: shown before joining, and folded away under the camera.
 function HowItWorks({ event }: { event: EventInfo }) {
@@ -238,6 +241,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const [wound, setWound] = useState(true);
   const [flash, setFlash] = useState(false); // off until the guest turns it on (it then charges for 1.5 s)
   const [charged, setCharged] = useState(true);
+  // Can this browser switch on the phone's light for the back camera? (Firefox can't; Chrome can.) null = not known yet.
+  const [torchOk, setTorchOk] = useState<boolean | null>(null);
   const [cam, setCam] = useState<"starting" | "live" | "off">("starting");
   const [pending, setPending] = useState(0);
   const [status, setStatus] = useState<[string, string]>([`Ready, ${me.name}`, "Frame it in the little window. That's all you get."]);
@@ -305,6 +310,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
       // better. Cameras that don't say which way they face (laptops) refuse "exact", so then take any camera.
       const stream = await open({ exact: want }).catch((e) => (e?.name === "NotAllowedError" ? Promise.reject(e) : open(want)));
       streamRef.current = stream;
+      const caps = stream.getVideoTracks()[0]?.getCapabilities?.() as { torch?: boolean } | undefined;
+      setTorchOk(facing.current === "user" ? null : !!caps?.torch);
       const v = videoRef.current!;
       v.srcObject = stream;
       // Phones swap the stream's width and height when turned: follow that, so sideways visibly means a wide shot.
@@ -377,6 +384,10 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     const on = !flash;
     setFlash(on);
     if (on) charge();
+    if (on && facing.current !== "user" && torchOk === false)
+      setStatus(["No flash in this browser", /iPhone|iPad/.test(navigator.userAgent)
+        ? "It can't switch on your phone's light. Flip to the selfie camera (the screen is its flash), or shoot as is."
+        : "It can't switch on your phone's light. Chrome can, or flip to the selfie camera (the screen is its flash)."]);
   }
 
   function addWind(px: number) {
@@ -415,8 +426,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     const screenLight = front && flash && charged && !!track && !!fxRef.current;
     if (screenLight) {
       fxRef.current!.className = "flashfx hold";
-      await sleep(250); // let the screen reach full white before the camera starts adjusting to it
-      await settle(v, track!, false);
+      await sleep(100); // let the screen reach full white before the camera starts adjusting to it
+      await settle(v, track!, false, SCREEN_MIN_MS, SCREEN_MAX_MS);
     }
     let before = 0;
     if (torch) {
@@ -457,7 +468,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     }
     if (!file && cam !== "live") return;
     busy.current = true;
-    const fired = flash && charged;
+    // No light to fire (back camera, browser can't use the phone's light): no fake white pop either.
+    const fired = flash && charged && (facing.current === "user" || torchOk !== false);
     const snap = () => {
       click();
       buzz(18);
@@ -753,15 +765,15 @@ function sharpness(v: HTMLVideoElement) {
 // The phone light is on: wait until the picture settles before grabbing it. Always brightness (auto-exposure catching up);
 // with the focus check also sharpness that has stopped improving and, on phones that report it, a lens that has
 // stopped moving. Never shorter than TORCH_MIN_MS (LED warm-up) or longer than TORCH_MAX_MS.
-async function settle(v: HTMLVideoElement, track: MediaStreamTrack, focus: boolean) {
+async function settle(v: HTMLVideoElement, track: MediaStreamTrack, focus: boolean, minMs = TORCH_MIN_MS, maxMs = TORCH_MAX_MS) {
   const lens = () => (track.getSettings?.() as { focusDistance?: number } | undefined)?.focusDistance;
   const start = performance.now();
   let prev = luma(v), prevSharp = sharpness(v), prevLens = lens(), calm = 0;
-  while (performance.now() - start < TORCH_MAX_MS) {
+  while (performance.now() - start < maxMs) {
     await nextFrame(v);
     const l = luma(v), s = sharpness(v), f = lens();
     const steady = Math.abs(l - prev) < 0.01 && (!focus || (s <= prevSharp * 1.03 && f === prevLens));
-    calm = performance.now() - start > TORCH_MIN_MS && steady ? calm + 1 : 0;
+    calm = performance.now() - start > minMs && steady ? calm + 1 : 0;
     if (calm >= STEADY_FRAMES) return;
     prev = l;
     prevSharp = s;

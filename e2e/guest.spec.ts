@@ -200,8 +200,10 @@ test("flip to the front camera for a selfie: mirrored preview, the screen is the
     expect(facings.at(-1)).toMatch(/user$/); // and the flip stays on it
     await page.getByRole("button", { name: "Flash off" }).click(); // off by default; turned on, the screen is the flash
     await page.waitForTimeout(1700); // it charges for 1.5 s
+    const t = Date.now();
     await page.getByRole("button", { name: "SHOOT" }).click(); // the screen lights up first
     await expect(page.getByLabel("1 shots left")).toBeVisible();
+    expect(Date.now() - t).toBeLessThan(1300); // a quick white flash, not a long hold (was up to ~1.75 s)
     await expect(page.locator(".flashfx")).not.toHaveClass(/hold/); // and goes back off
     await waitDeveloped(e.id, 1);
   } finally {
@@ -383,6 +385,23 @@ test("the host opens the album early: a guest's open camera page picks it up whe
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange"))); // back to the tab
     await expect(page.getByRole("link", { name: /The album is open/ })).toBeVisible();
     await expect(page.getByLabel("3 shots left")).toBeVisible(); // the camera carried on
+  } finally {
+    await dropEvent(e);
+  }
+});
+
+test("back camera in a browser that can't use the phone's light: flash says so, and there's no fake white flash", async ({ page }) => {
+  const e = await makeEvent({ shots: 2 });
+  await page.addInitScript(() => { MediaStreamTrack.prototype.getCapabilities = function () { return {} as MediaTrackCapabilities; }; });
+  try {
+    await join(page, e.code);
+    await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+    await page.getByRole("button", { name: "Flash off" }).click();
+    await expect(page.getByText("No flash in this browser")).toBeVisible();
+    await page.waitForTimeout(1700); // charged, so only the missing light can stop the pop
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(page.getByLabel("1 shots left")).toBeVisible();
+    await expect(page.locator(".flashfx")).toHaveClass(/dark/); // the shutter's dark blink, not a white flash
   } finally {
     await dropEvent(e);
   }
