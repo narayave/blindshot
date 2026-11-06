@@ -10,7 +10,7 @@ const pirata = Pirata_One({ subsets: ["latin"], weight: "400", variable: "--font
 
 export const metadata: Metadata = {
   title: "blindshot",
-  description: "A digital disposable camera for your party. No app, no sign-up: it runs in your browser.",
+  description: "A digital disposable camera for your party. No app, just your phone: it runs in your browser.",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };

@@ -86,13 +86,20 @@ test("new rolls: only once the roll is shot, and the limit grows by one roll", a
   expect(shots.map((s) => s.shot_number)).toEqual([1, 2, 3, 4]);
 });
 
-test("schedule: not reachable before it opens; after closing, no new shots or rolls (with a grace period for late uploads)", async ({ baseURL, request }) => {
+test("schedule: before it opens, a countdown page but no joining or shooting; after closing, no new shots or rolls (with a grace period for late uploads)", async ({ baseURL, request }) => {
   const a = await guest(baseURL!, e);
   const init = () => a.post("/api/photos/init", { data: { eventCode: e.code, photoId: randomUUID() } });
 
   await sql`update events set opens_at = now() + interval '1 hour' where id = ${e.id}`;
-  expect((await request.get(`/e/${e.code}`)).status()).toBe(404);
-  await sql`update events set opens_at = now() - interval '1 hour' where id = ${e.id}`;
+  const soon = await request.get(`/e/${e.code}`);
+  expect(soon.status()).toBe(200); // the link works the minute it's shared...
+  expect(await soon.text()).toContain("Sign-ups open in");
+  expect((await request.post("/api/session", { data: { eventCode: e.code, name: "Early", consent: true } })).status()).toBe(404); // ...but no joining
+  expect((await init()).status()).toBe(404); // ...and no shooting, even for someone who joined before
+  expect((await a.get(`/e/${e.code}/roll`)).status()).toBe(404); // ...and no roll
+  await sql`update events set online = false where id = ${e.id}`;
+  expect((await request.get(`/e/${e.code}`)).status()).toBe(404); // switched off: nothing at all
+  await sql`update events set online = true, opens_at = now() - interval '1 hour' where id = ${e.id}`;
   expect((await request.get(`/e/${e.code}`)).status()).toBe(200);
 
   await sql`update events set closes_at = now() - interval '5 minutes' where id = ${e.id}`;

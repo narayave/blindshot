@@ -321,3 +321,19 @@ test("a shot taken with no signal uploads once signal is back", async ({ page, c
     await dropEvent(e);
   }
 });
+
+test("before opening: the link shows what it is and a countdown, no sign-up; the form arrives on its own at opening", async ({ page }) => {
+  const e = await makeEvent({ shots: 9 });
+  await sql`update events set opens_at = now() + interval '6 seconds' where id = ${e.id}`;
+  try {
+    await page.goto(`/e/${e.code}`);
+    await expect(page.getByText("Sign-ups open in")).toBeVisible();
+    await expect(page.getByText(/Free disposable camera photos, all night/)).toBeVisible();
+    await expect(page.getByLabel("First name")).toHaveCount(0); // no sign-up, no consent, no camera yet
+    await expect(page.locator("#consent")).toHaveCount(0);
+    await expect(page.getByLabel("First name")).toBeVisible({ timeout: 20_000 }); // opening time: the page turns into the sign-up
+    await expect(page.locator("#consent")).toBeVisible();
+  } finally {
+    await dropEvent(e);
+  }
+});

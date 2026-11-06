@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { instagramHandle } from "@/lib/config";
+import { clock } from "./Countdown";
 
 type EventInfo = {
   code: string;
@@ -18,6 +19,8 @@ type EventInfo = {
   polaroid: boolean; // instant film: portrait only, the photo comes back as a 2:3 card
   photobooth: boolean; // one shutter press = 3-2-1 and a burst of four, developed as a booth strip
   closesAt: string | null;
+  opensAt: string | null;
+  soon: boolean; // before opening: what it is and a countdown, no sign-up yet
 };
 type Guest = { name: string; shotsUsed: number; roll?: number }; // shotsUsed: on the current roll; roll: 1, 2, 3…
 
@@ -32,8 +35,44 @@ export default function CameraApp({ event, guest, qr }: { event: EventInfo; gues
           {event.subtitle && <><br />{event.subtitle}</>}
         </div>
       </header>
-      {me ? <Camera event={event} me={me} qr={qr} /> : <Join event={event} qr={qr} onJoined={setMe} />}
+      {event.soon ? <Soon event={event} /> : me ? <Camera event={event} me={me} qr={qr} /> : <Join event={event} qr={qr} onJoined={setMe} />}
     </div>
+  );
+}
+
+/* ---------------- before opening ---------------- */
+
+// The link works as soon as it's shared (say, in a promo post): what it is, how it works, and when sign-ups open.
+// The sign-up, consent and camera arrive at opening time, on their own: the page reloads when the clock hits zero.
+function Soon({ event }: { event: EventInfo }) {
+  const opens = event.opensAt ? new Date(event.opensAt).getTime() : null;
+  const [now, setNow] = useState<number | null>(null); // after mount, so server and phone render the same thing
+  useEffect(() => {
+    const tick = () => {
+      setNow(Date.now());
+      if (opens && Date.now() >= opens) location.reload();
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, [opens]);
+  return (
+    <section className="stack">
+      <h1 className="headline">A digital<br /><em>disposable camera.</em></h1>
+      <p className="lede">
+        <b>Free disposable camera photos, all night. No app, just your phone.</b> {event.maxShots} shots a roll and
+        rolls never run out. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.
+      </p>
+      <div className="soon" role="timer" suppressHydrationWarning>
+        <span>Sign-ups open in</span>
+        <b>{now !== null && opens ? clock(opens - now) : "…"}</b>
+        {event.opensAt && <small suppressHydrationWarning>{formatWhen(event.opensAt)}</small>}
+      </div>
+      <Prints />
+      <HowItWorks event={event} />
+      {event.decor ? <div className="toran" aria-hidden /> : <div className="stripes" aria-hidden><i /><i /><i /></div>}
+      <p className="fine">Open this link again at the event (or scan the QR code there) to sign in with your name and start shooting.</p>
+    </section>
   );
 }
 
@@ -73,7 +112,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
       <h1 className="headline">
         A digital<br /><em>disposable camera.</em>
       </h1>
-      <p className="lede"><b>No app, no sign-up.</b> It works right here in your browser. {event.maxShots} shots a roll and rolls never run out. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.</p>
+      <p className="lede"><b>No app, just your phone.</b> It works right here in your browser. {event.maxShots} shots a roll and rolls never run out. Nobody sees a frame until the party&apos;s roll develops, then everyone sees everything.</p>
       <Prints />
       <HowItWorks event={event} />
       {event.decor ? <div className="toran" aria-hidden /> : <div className="stripes" aria-hidden><i /><i /><i /></div>}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const clock = (ms: number) => {
+export const clock = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
 };

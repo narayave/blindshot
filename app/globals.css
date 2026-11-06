@@ -367,3 +367,9 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .lb-hint { animation: none; opacity: 0; } }
 .wiggle-pick { position: sticky; top: 8px; z-index: 2; }
 .wiggle-tick { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
+
+/* Before opening: the countdown to sign-ups */
+.soon { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 16px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--line); text-align: center; }
+.soon span { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.soon b { font-size: 34px; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; color: var(--accent); }
+.soon small { font-size: 13px; color: var(--muted); }
