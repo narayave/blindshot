@@ -89,8 +89,11 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 - **Looks** (`LOOKS` in `lib/film.ts`, names mirrored in `LOOK_NAMES` in `lib/config.ts`): default 35mm disposable,
   `night`, `green`, `green-night`, `polaroid` (2:3 card, portrait only), `photobooth` (B&W sepia, 3-2-1 burst of four,
   front camera, strip). `--date-stamp`: 90s amber LED date/time, Pacific. Offline events show a look picker to the host.
-- **Camera:** controls in a bottom bar for one thumb; layout never rotates (labels do); flash = phone light held until
-  exposure settles; selfie = screen as flash.
+- **Camera:** controls in a bottom bar for one thumb; layout never rotates (labels do); flash is **off by default**;
+  flash = phone light held until exposure settles (only where the browser can switch it on: Chrome on Android yes,
+  Firefox on Android no, so there it says "No flash in this browser" and does no fake white pop); selfie = screen
+  as flash, kept short (~0.35-0.7 s, `SCREEN_MIN_MS`/`SCREEN_MAX_MS`). Uploads never block: each shot is claimed in
+  order, photos upload in parallel in the background, and "Load a new roll" is instant (no page reload).
 - **Times** are Pacific everywhere guests see them; the worker runs in UTC. DST nights: use wall-clock helpers.
 
 ## Events (prod)
