@@ -274,8 +274,8 @@ test("darkroom: password gate, star a frame, release the roll", async ({ page, b
   await expect(page.getByRole("link", { name: "Original" }).first()).toHaveAttribute("href", /\/originals\//);
   await page.getByRole("button", { name: "☆ Star" }).click();
   await expect(page.getByRole("button", { name: "★ Starred" })).toBeVisible();
-  await page.getByRole("button", { name: "Release the roll now" }).click();
-  await expect(page.getByRole("button", { name: "Hide the roll again" })).toBeVisible();
+  await page.getByRole("button", { name: "Release the album now" }).click();
+  await expect(page.getByRole("button", { name: "Hide the album again" })).toBeVisible();
   expect(await (await a.get(`/e/${e.code}/roll?tab=picks`)).text()).not.toContain("Host picks"); // guests get Mine + Everyone only
 
   // hiding takes a frame off the guests' roll

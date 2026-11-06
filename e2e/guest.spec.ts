@@ -372,3 +372,18 @@ test("slow venue signal: a finished roll gives way to a new one instantly while 
     await dropEvent(e);
   }
 });
+
+test("the host opens the album early: a guest's open camera page picks it up when they come back to it", async ({ page }) => {
+  const e = await makeEvent({ shots: 3 });
+  await sql`update events set release_at = now() + interval '1 day' where id = ${e.id}`;
+  try {
+    await join(page, e.code);
+    await expect(page.getByText("Album opens in")).toBeVisible();
+    await sql`update events set release_at = now() where id = ${e.id}`; // "Release the album now" in the darkroom
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange"))); // back to the tab
+    await expect(page.getByRole("link", { name: /The album is open/ })).toBeVisible();
+    await expect(page.getByLabel("3 shots left")).toBeVisible(); // the camera carried on
+  } finally {
+    await dropEvent(e);
+  }
+});

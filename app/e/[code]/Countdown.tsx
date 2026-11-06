@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export const clock = (ms: number) => {
@@ -11,11 +12,20 @@ export const clock = (ms: number) => {
 // The anticipation is the point, so it's always in view.
 export default function Countdown({ release, closes, code }: { release: string | null; closes: string | null; code: string }) {
   const [now, setNow] = useState<number | null>(null); // set after mount, so server and phone render the same thing
+  const router = useRouter();
   useEffect(() => {
     setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+  // The host can open (or hide) the album early from the darkroom: pick that up when the guest comes back to the tab,
+  // and every 2 minutes while it's open. Only the event's details are re-read; the camera keeps its state.
+  useEffect(() => {
+    const check = () => document.visibilityState === "visible" && router.refresh();
+    const t = setInterval(check, 120_000);
+    document.addEventListener("visibilitychange", check);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", check); };
+  }, [router]);
   const r = release ? new Date(release).getTime() : null, c = closes ? new Date(closes).getTime() : null;
   if (now === null || (!r && !c)) return null;
   if (r && now < r)

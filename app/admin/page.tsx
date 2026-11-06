@@ -81,13 +81,13 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
             </div>
             <div className="panel">
               <div className="row">
-                <span>Shared roll</span>
+                <span>Shared album</span>
                 <span>{released ? "Released" : event.release_at ? `Develops ${event.release_at.toLocaleString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "medium", timeStyle: "short" })} PT` : "Held until you release it"}</span>
               </div>
               <form action={setRelease.bind(null, event.id, released ? "hold" : "now")}>
-                <button className="ghost" type="submit">{released ? "Hide the roll again" : "Release the roll now"}</button>
+                <button className="ghost" type="submit">{released ? "Hide the album again" : "Release the album now"}</button>
               </form>
-              <a className="fine" href={`/e/${event.code}/roll`}>Preview the roll as a guest →</a>
+              <a className="fine" href={`/e/${event.code}/roll`}>Preview the album as a guest →</a>
             </div>
           </div>
           <figure className="qr">
