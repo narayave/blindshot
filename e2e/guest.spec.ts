@@ -343,3 +343,32 @@ test("before opening: the link shows what it is and a countdown, no sign-up; the
     await dropEvent(e);
   }
 });
+
+test("slow venue signal: a finished roll gives way to a new one instantly while its shots upload in the background", async ({ page }) => {
+  const e = await makeEvent({ shots: 2 });
+  // Every photo upload crawls: held back 5 s each (the quick claims and the new roll are not).
+  await page.route(/\.blob\.core\.windows\.net/, async (route) => { await new Promise((r) => setTimeout(r, 5000)); await route.continue(); });
+  const live = () => expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+  try {
+    await join(page, e.code);
+    await live();
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await wind(page);
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(page.getByRole("heading", { name: /wrap/ })).toBeVisible();
+    await expect(page.getByText(/uploading in the background/)).toBeVisible(); // still sending...
+    const t = Date.now();
+    await page.getByRole("button", { name: /Load a new roll/ }).click(); // ...and no waiting for it
+    await expect(page.getByLabel("2 shots left")).toBeVisible();
+    expect(Date.now() - t).toBeLessThan(3000);
+    await expect(page.getByText("Roll 2 · 0 / 2")).toBeVisible();
+    await live(); // the viewfinder is back, no reload
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(page.getByLabel("1 shots left")).toBeVisible();
+    await waitDeveloped(e.id, 3); // every shot lands, numbered in order across both rolls
+    const ns = await sql<{ shot_number: number }[]>`select shot_number from photos where event_id = ${e.id} order by shot_number`;
+    expect(ns.map((p) => p.shot_number)).toEqual([1, 2, 3]);
+  } finally {
+    await dropEvent(e);
+  }
+});

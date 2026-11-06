@@ -19,14 +19,14 @@ export default function Countdown({ release, closes, code }: { release: string |
   const r = release ? new Date(release).getTime() : null, c = closes ? new Date(closes).getTime() : null;
   if (now === null || (!r && !c)) return null;
   if (r && now < r)
-    return <div className="topbar" role="timer"><span>Roll opens in</span><b>{clock(r - now)}</b></div>;
+    return <div className="topbar" role="timer"><span>Album opens in</span><b>{clock(r - now)}</b></div>;
   if (r && (!c || now < c))
     return (
       <a className="topbar open" href={`/e/${code}/roll`}>
-        <span>The roll is open</span><b>See everyone&apos;s shots →</b>
+        <span>The album is open</span><b>See everyone&apos;s shots →</b>
         {c && <small>Shooting until {new Date(c).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</small>}
       </a>
     );
   if (c && now < c) return <div className="topbar" role="timer"><span>Last call in</span><b>{clock(c - now)}</b></div>;
-  return r ? <a className="topbar open" href={`/e/${code}/roll`}><span>That&apos;s a wrap.</span><b>See the roll →</b></a> : null;
+  return r ? <a className="topbar open" href={`/e/${code}/roll`}><span>That&apos;s a wrap.</span><b>See the album →</b></a> : null;
 }

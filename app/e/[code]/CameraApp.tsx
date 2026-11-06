@@ -50,7 +50,7 @@ function Lede({ event }: { event: EventInfo }) {
   return (
     <p className="lede">
       <b>Free dispo cam photos, all night. No app, just your phone.</b> {event.maxShots} shots a roll and rolls never run
-      out. Nobody sees a frame until the roll develops
+      out. Nobody sees a frame until the shared album opens
       {event.releaseAt && !event.released ? <span suppressHydrationWarning> ({formatWhen(event.releaseAt)})</span> : null}, then
       everyone gets everything.
     </p>
@@ -142,7 +142,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
             <input id="consent" name="consent" type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
             {event.allowOptOuts ? (
               <span>
-                My photos are saved, seen by the host, and go into the party&apos;s shared roll. The host may post them,
+                My photos are saved, seen by the host, and go into the party&apos;s shared album. The host may post them,
                 unless I opt out below.
               </span>
             ) : (
@@ -162,7 +162,7 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
               </label>
               <label className="check opt" htmlFor="privateRoll">
                 <input id="privateRoll" name="privateRoll" type="checkbox" />
-                <span>Keep my photos out of the shared roll. Only the host sees them.</span>
+                <span>Keep my photos out of the shared album. Only the host sees them.</span>
               </label>
             </>
           )}
@@ -197,11 +197,11 @@ function HowItWorks({ event }: { event: EventInfo }) {
   const roll = event.released ? "It's open now." : event.releaseAt ? `Everyone gets their photos ${formatWhen(event.releaseAt)}.` : "It opens when the host says so.";
   return (
     <ol className="how" suppressHydrationWarning>
-      <li><b>Shoot freely: film never runs out.</b> {event.maxShots} shots a roll, and a fresh roll loads the moment you finish. No previews: you see nothing until the roll opens.</li>
+      <li><b>Shoot freely: film never runs out.</b> {event.maxShots} shots a roll, and a fresh roll loads the moment you finish. No previews: you see nothing until the album opens.</li>
       <li><b>Wind, then shoot.</b> Drag or tap the wheel between shots. Flash on for dark rooms; ↻ Selfie flips the camera.</li>
       <li><b>Roll finished? Load another.</b> New film all night{until}.</li>
       <li><b>One shared album.</b> Everyone&apos;s photos, yours included. {roll}</li>
-      <li><b>Your photos are saved online.</b> After the reveal, open this link on this phone: yours are under Mine, and you can download any photo.</li>
+      <li><b>Saved on our server, not your phone.</b> Nothing fills up your camera roll. After the reveal, come back to this link to see and download every photo; on this phone, yours are under Mine.</li>
     </ol>
   );
 }
@@ -233,6 +233,8 @@ function ShareQr({ event, qr, caption = "Friends can scan this to join" }: { eve
 
 function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) {
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
+  const [roll, setRoll] = useState(me.roll ?? 1); // goes up on a new roll, without reloading the page
+  const [over, setOver] = useState(false); // the server said the night's over (closing time passed while shooting)
   const [wound, setWound] = useState(true);
   const [flash, setFlash] = useState(false); // off until the guest turns it on (it then charges for 1.5 s)
   const [charged, setCharged] = useState(true);
@@ -245,7 +247,9 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const streamRef = useRef<MediaStream | null>(null);
   const fxRef = useRef<HTMLDivElement>(null);
   const wheelRef = useRef<HTMLButtonElement>(null);
-  const queue = useRef<Promise<void>>(Promise.resolve());
+  // Claims (one quick request per shot, reserving its frame) and new rolls run strictly in order, so a new roll is only
+  // asked for after every earlier shot is counted. The photos themselves upload in parallel, in the background.
+  const claims = useRef<Promise<unknown>>(Promise.resolve());
   const busy = useRef(false);
   const facing = useRef<"environment" | "user">(event.photobooth ? "user" : "environment"); // a booth faces you
   const [selfie, setSelfie] = useState(event.photobooth);
@@ -348,8 +352,11 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const outOfFilm = useRef(left === 0);
   useEffect(() => {
-    if (left === 0) stopCamera();
+    if (left === 0) { stopCamera(); outOfFilm.current = true; }
+    else if (outOfFilm.current) { outOfFilm.current = false; startCamera(); } // a new roll: the viewfinder is back
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left]);
 
   // Don't let people close the page with shots still uploading.
@@ -491,38 +498,76 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     return { blob, w: W, h: H * 4 };
   }
 
+  // The shutter never waits on the network: shrinking starts now, the claim joins the line, and the upload goes as
+  // soon as both are done, alongside any others.
   function enqueue(blob: Blob, w: number, h: number, capturedAt: Date) {
     const photoId = crypto.randomUUID();
+    const type = blob.type || "image/jpeg";
     setPending((p) => p + 1);
-    queue.current = queue.current
-      .then(() => shrink(blob, w, h))
-      .then((s) => upload(photoId, s.blob, s.w, s.h, capturedAt))
+    const shrunk = shrink(blob, w, h);
+    const claimed = claims.current.then(() => claim(photoId, type));
+    claims.current = claimed;
+    Promise.all([shrunk, claimed])
+      .then(([s, url]) => (url ? send(photoId, url, s.blob, s.w, s.h, capturedAt) : undefined))
       .finally(() => setPending((p) => p - 1));
   }
 
-  // Keeps retrying while the page is open: venue signal comes and goes.
-  async function upload(photoId: string, blob: Blob, w: number, h: number, capturedAt: Date) {
-    const type = blob.type || "image/jpeg";
+  // Keep trying while the page is open: venue signal comes and goes. Backs off to every 15 s.
+  async function retrying<T>(step: () => Promise<T | "retry">): Promise<T> {
     for (let attempt = 0; ; attempt++) {
-      try {
-        const init = await postJSON("/api/photos/init", { eventCode: event.code, photoId, contentType: type });
-        if (init.status === 409) { setLeft(0); return; }
-        if (!init.ok) throw new Error(`init ${init.status}`);
-        const { uploadUrl, shotsLeft } = await init.json();
-        setLeft((l) => Math.min(l, shotsLeft));
-        const put = await fetch(uploadUrl, { method: "PUT", headers: { "x-ms-blob-type": "BlockBlob", "Content-Type": type }, body: blob });
-        if (!put.ok) throw new Error(`upload ${put.status}`);
-        const done = await postJSON("/api/photos/complete", { photoId, capturedAt: capturedAt.toISOString(), sentAt: new Date().toISOString(), width: w || undefined, height: h || undefined });
-        if (!done.ok) throw new Error(`complete ${done.status}`);
-        return;
-      } catch {
-        if (attempt >= 1) setStatus(["Waiting for signal", "Keep this page open. Your shots will finish uploading."]);
-        await sleep(Math.min(15_000, 1000 * 2 ** attempt));
-      }
+      const r = await step().catch(() => "retry" as const);
+      if (r !== "retry") return r;
+      if (attempt >= 1) setStatus(["Waiting for signal", "Keep this page open. Your shots will finish uploading."]);
+      await sleep(Math.min(15_000, 1000 * 2 ** attempt));
     }
   }
 
-  if (left === 0 || event.closed) return <RollDone event={event} uploading={pending} />;
+  // Reserve the shot's frame on the server (quick, in order); null = no film left (the night's over).
+  const claim = (photoId: string, type: string) =>
+    retrying<string | null>(async () => {
+      const init = await postJSON("/api/photos/init", { eventCode: event.code, photoId, contentType: type });
+      if (init.status === 409) {
+        // Closing time passed, or (rarely) this roll was already full: either way no film for now.
+        if ((await init.json().catch(() => null))?.error?.includes("over")) setOver(true);
+        setLeft(0);
+        return null;
+      }
+      return init.ok ? (await init.json()).uploadUrl as string : "retry";
+    });
+
+  // The photo itself. A retry asks for a fresh upload link for the same, already counted, shot.
+  async function send(photoId: string, firstUrl: string, blob: Blob, w: number, h: number, capturedAt: Date) {
+    let url: string | null = firstUrl;
+    await retrying<true | null>(async () => {
+      if (!url) {
+        const init = await postJSON("/api/photos/init", { eventCode: event.code, photoId, contentType: blob.type || "image/jpeg" });
+        if (init.status === 409) return null; // past closing and its grace period: give up on this one
+        if (!init.ok) return "retry";
+        url = (await init.json()).uploadUrl as string;
+      }
+      const put = await fetch(url, { method: "PUT", headers: { "x-ms-blob-type": "BlockBlob", "Content-Type": blob.type || "image/jpeg" }, body: blob });
+      if (!put.ok) { url = null; return "retry"; }
+      const done = await postJSON("/api/photos/complete", { photoId, capturedAt: capturedAt.toISOString(), sentAt: new Date().toISOString(), width: w || undefined, height: h || undefined });
+      return done.ok ? true : "retry";
+    });
+  }
+
+  // A fresh roll, right away: the server's "new roll" waits in line behind this roll's claims, never the uploads.
+  function newRoll() {
+    claims.current = claims.current.then(() =>
+      retrying<true>(async () => {
+        const r = await postJSON("/api/session/roll", { eventCode: event.code });
+        if (r.status === 409 && (await r.json().catch(() => null))?.error?.includes("over")) { setLeft(0); setOver(true); }
+        return r.ok || r.status === 409 || r.status === 401 || r.status === 404 ? true : "retry";
+      }),
+    );
+    setRoll((n) => n + 1);
+    setLeft(event.maxShots);
+    setWound(true);
+    setStatus([`Roll ${roll + 1} loaded`, `${event.maxShots} fresh shots. Frame it in the little window.`]);
+  }
+
+  if (left === 0 || event.closed || over) return <RollDone event={event} closed={event.closed || over} uploading={pending} onNewRoll={newRoll} />;
 
   const used = event.maxShots - left;
   return (
@@ -572,8 +617,8 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
             {Array.from({ length: event.maxShots }, (_, i) => <i key={i} className={i < used ? "used" : undefined} />)}
           </div>
           <div className="pips-label">
-            <span className="tiny">Roll {me.roll ?? 1} · {used} / {event.maxShots}</span>
-            <span className="tiny">{((me.roll ?? 1) - 1) * event.maxShots + used} shots tonight</span>
+            <span className="tiny">Roll {roll} · {used} / {event.maxShots}</span>
+            <span className="tiny">{(roll - 1) * event.maxShots + used} shots tonight</span>
           </div>
         </div>
       </div>
@@ -619,7 +664,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           <span className="tiny turn">{wound ? "Wound" : "Wind"}</span>
         </div>
       </div>
-      {!event.released && <p className="fine center">Every shot joins the party&apos;s shared roll.</p>}
+      {!event.released && <p className="fine center">Every shot joins the party&apos;s shared album.</p>}
       {!event.closed && <p className="fine center">Finished your roll? You&apos;ll get another one.</p>}
       <details className="how-fold"><summary>How it works</summary><HowItWorks event={event} /></details>
       <ShareQr event={event} qr={qr} />
@@ -628,44 +673,31 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   );
 }
 
-function RollDone({ event, uploading }: { event: EventInfo; uploading: number }) {
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
-  // Same guest, fresh roll: the server adds a roll, and reloading picks it up with the camera ready.
-  // Waits for uploads, since reloading would drop any still in flight.
-  async function newRoll() {
-    setLoading(true);
-    setErr("");
-    const r = await postJSON("/api/session/roll", { eventCode: event.code }).catch(() => null);
-    if (r?.ok) return location.reload();
-    setLoading(false);
-    setErr((await r?.json().catch(() => null))?.error ?? "Couldn't connect. Check your signal and try again.");
-  }
+// End of a roll. A new one loads instantly, while this roll's shots keep uploading in the background.
+function RollDone({ event, closed, uploading, onNewRoll }: { event: EventInfo; closed: boolean; uploading: number; onNewRoll: () => void }) {
   return (
     <section className="stack">
       <p className="big-zero" aria-hidden>0</p>
-      <h1 className="headline">{event.closed ? <>The night&apos;s<br /><em>over.</em></> : <>That&apos;s a<br /><em>wrap.</em></>}</h1>
-      <p className="lede">Your shots are in the party&apos;s roll with everyone else&apos;s. It all develops at once, and nobody sees a frame until then.</p>
+      <h1 className="headline">{closed ? <>The night&apos;s<br /><em>over.</em></> : <>That&apos;s a<br /><em>wrap.</em></>}</h1>
+      <p className="lede">Your shots go into the party&apos;s shared album with everyone else&apos;s. It all opens at once, and nobody sees a frame until then.</p>
       <div className="panel">
         <div className="row">
           <span>Your shots</span>
-          <span>{uploading ? `${uploading} still uploading. Keep this page open.` : "All saved"}</span>
+          <span>{uploading ? `${uploading} uploading in the background` : "All saved"}</span>
         </div>
         <div className="row">
-          <span>Develops</span>
+          <span>Album opens</span>
           <span suppressHydrationWarning>{event.releaseAt ? formatWhen(event.releaseAt) : "When the host releases it"}</span>
         </div>
       </div>
-      {!event.closed && (
-        <>
-          <button className="cta" type="button" onClick={newRoll} disabled={loading || uploading > 0}>
-            <span>{uploading ? "Saving your shots…" : loading ? "Loading film…" : `Load a new roll · ${event.maxShots} shots`}</span>
-            <span aria-hidden>↻</span>
-          </button>
-          <p className="err" role="alert">{err}</p>
-        </>
+      {!closed && (
+        <button className="cta" type="button" onClick={onNewRoll}>
+          <span>Load a new roll · {event.maxShots} shots</span>
+          <span aria-hidden>↻</span>
+        </button>
       )}
-      {event.released && <a className="cta" href={`/e/${event.code}/roll`}><span>See the roll</span><span aria-hidden>→</span></a>}
+      {uploading > 0 && <p className="fine center">Keep this page open until they&apos;re saved: you can keep shooting meanwhile.</p>}
+      {event.released && <a className="cta" href={`/e/${event.code}/roll`}><span>See the album</span><span aria-hidden>→</span></a>}
     </section>
   );
 }

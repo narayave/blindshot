@@ -65,7 +65,7 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
 
   return (
     <>
-      {frames.length > 1 && <p className="sheet-hint">Tap a photo to open it, then swipe ← → through the roll.</p>}
+      {frames.length > 1 && <p className="sheet-hint">Tap a photo to open it, then swipe ← → through the album.</p>}
       <div className={`sheet${cards ? " cards" : ""}`}>
         {frames.length === 0 && <p className="empty">{empty}</p>}
         {frames.map((f, i) => (

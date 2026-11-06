@@ -37,7 +37,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
   if (!session && !admin) {
     return shell(
       <section className="stack">
-        <h1 className="headline">The roll is<br /><em>for guests.</em></h1>
+        <h1 className="headline">The album is<br /><em>for guests.</em></h1>
         <p className="lede">Open this on the phone you shot with at the party.</p>
       </section>,
     );
@@ -46,7 +46,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
     return shell(
       <section className="stack">
         <h1 className="headline">Still<br /><em>developing.</em></h1>
-        <p className="lede">Nobody sees a frame until the whole roll is ready.</p>
+        <p className="lede">Nobody sees a frame until the shared album opens. Your shots are saved and waiting.</p>
         <a className="ghost" href={`/e/${event.code}`}>Back to the camera</a>
       </section>,
     );
@@ -79,7 +79,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
 
   return shell(
     <section className="stack">
-      <h1 className="headline">The party&apos;s<br /><em>roll.</em></h1>
+      <h1 className="headline">The party&apos;s<br /><em>album.</em></h1>
       {night.photos > 0 && <NightStats s={night} />}
       <TagNote handle={MAKER_HANDLE} />
       <div className="tabs">
