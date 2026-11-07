@@ -14,10 +14,11 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
   const open = start !== null;
   const frame = open ? frames[cur] : null;
 
-  // While the party's still going, new frames keep developing: refresh every 30 s, but never under someone's swipe.
+  // While the party's still going, new frames keep developing: refresh every 60 s (hundreds open the album at the reveal,
+  // and each refresh is a page render), only while the tab is visible, and never under someone's swipe.
   useEffect(() => {
     if (!live || start !== null) return;
-    const t = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, 30_000);
+    const t = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, 60_000);
     return () => clearInterval(t);
   }, [live, start, router]);
 
