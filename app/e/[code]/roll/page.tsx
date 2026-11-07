@@ -80,8 +80,8 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
   return shell(
     <section className="stack">
       <h1 className="headline">The party&apos;s<br /><em>album.</em></h1>
+      <TagNote handle={MAKER_HANDLE} />{/* first thing under the title: tag me, and book it */}
       {night.photos > 0 && <NightStats s={night} />}
-      <TagNote handle={MAKER_HANDLE} />
       <div className="tabs">
         {tabLink("mine", "Mine", counts.n_mine)}
         {tabLink("all", "Everyone", counts.n_all)}

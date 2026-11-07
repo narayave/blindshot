@@ -330,3 +330,11 @@ test("darkroom wiggles: same-moment shots from two phones → group them → tap
     await dropEvent(w);
   }
 });
+
+test("home page: where it's been (real nights only) and how to book it", async ({ request }) => {
+  const html = await (await request.get("/")).text();
+  expect(html).toContain("Where it&#x27;s been");
+  expect(html).toContain("instagram.com/veefaceswest"); // want one at your event? message the maker
+  expect(html).not.toContain("Test Roll"); // the owner's bench never shows
+  expect(html).not.toContain("E2E Party"); // nor automated test events
+});
