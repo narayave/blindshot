@@ -383,7 +383,7 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .made-by a { color: var(--accent); text-decoration: none; font-weight: 600; }
 
 /* Camera: "Bring friends" pill and the big QR sheet */
-.share-pill { align-self: center; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 8px 18px; font-weight: 600; font-size: 14px; }
+.share-chip { margin-top: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 6px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
 .status .up { font-weight: 400; color: var(--muted); }
 .qr-sheet { position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0.8); display: grid; place-items: center; padding: 16px; }
 .qr-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 20px; width: min(340px, 100%); display: flex; flex-direction: column; gap: 12px; }

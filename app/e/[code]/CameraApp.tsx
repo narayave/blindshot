@@ -648,6 +648,10 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
               </div>
             </div>
             <span className="tiny">{wound ? "Ready" : "Wind ↓"}</span>
+            {/* In the camera body's empty corner: always in view, clear of the shutter bar pinned below. */}
+            <button className="share-chip" type="button" aria-label="Bring friends · show QR" onClick={() => setShowQr(true)}>
+              <span className="turn">Bring friends</span>
+            </button>
           </div>
         </div>
         <div className="flash-row">
@@ -665,7 +669,6 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           </div>
         </div>
       </div>
-      <button className="share-pill" type="button" onClick={() => setShowQr(true)}>Bring friends · show QR</button>
       {showQr && <QrSheet event={event} qr={qr} onClose={() => setShowQr(false)} />}
       {/* One line only: the shutter bar is pinned over whatever sits below it. */}
       <p className="status" aria-live="polite">
