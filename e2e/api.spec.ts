@@ -267,6 +267,7 @@ test("darkroom: password gate, star a frame, release the roll", async ({ page, b
   await expect(page.getByLabel("Host password")).toBeHidden();
   await page.goto(`/admin?event=${e.code}`);
   await expect(page.getByRole("heading", { name: "E2E Party" })).toBeVisible();
+  await expect(page.getByLabel("Funnel")).toContainText("opened the link"); // visited → signed up → took photos
 
   await expect(page.locator("svg").filter({ has: page.locator("path") }).first()).toBeVisible(); // QR code
   // tapping a photo opens the developed (film) version; the untouched original is its own button

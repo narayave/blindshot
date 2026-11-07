@@ -20,6 +20,7 @@ for (const c of [ORIGINALS, FILTERED]) {
   for await (const b of box.listBlobsFlat({ prefix: `${event.id}/` })) { await box.deleteBlob(b.name); files++; }
 }
 const p = await sql`delete from photos where event_id = ${event.id}`;
+await sql`delete from visits where event_id = ${event.id}`; // the funnel starts again too
 const s = await sql`delete from sessions where event_id = ${event.id}`; // their cookies stop matching: phones re-join with a fresh roll
 await sql`update events set max_shots = ${shots} where id = ${event.id}`;
 console.log(`${event.code}: deleted ${p.count} photos (${files} files) and ${s.count} guests; roll is ${shots} shots`);

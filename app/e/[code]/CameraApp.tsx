@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { MAKER_HANDLE, instagramHandle } from "@/lib/config";
 import { clock } from "./Countdown";
+import { logVisit } from "./visit";
 
 type EventInfo = {
   code: string;
@@ -63,6 +64,7 @@ function Lede({ event }: { event: EventInfo }) {
 // The sign-up, consent and camera arrive at opening time, on their own: the page reloads when the clock hits zero.
 function Soon({ event, qr }: { event: EventInfo; qr: string }) {
   const opens = event.opensAt ? new Date(event.opensAt).getTime() : null;
+  useEffect(() => logVisit(event.code, "soon"), [event.code]);
   const [now, setNow] = useState<number | null>(null); // after mount, so server and phone render the same thing
   useEffect(() => {
     const tick = () => {
@@ -95,6 +97,7 @@ function Soon({ event, qr }: { event: EventInfo; qr: string }) {
 
 function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined: (g: Guest) => void }) {
   const [err, setErr] = useState("");
+  useEffect(() => logVisit(event.code, "join"), [event.code]);
   const [busy, setBusy] = useState(false);
   const [agreed, setAgreed] = useState(false); // no film until the guest agrees to the shared album
 
@@ -253,6 +256,7 @@ function ShareQr({ event, qr, caption = "Friends can scan this to join" }: { eve
 }
 
 function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) {
+  useEffect(() => logVisit(event.code, "camera"), [event.code]);
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
   const [roll, setRoll] = useState(me.roll ?? 1); // goes up on a new roll, without reloading the page
   const [over, setOver] = useState(false); // the server said the night's over (closing time passed while shooting)

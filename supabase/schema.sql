@@ -89,3 +89,14 @@ alter table photos add column if not exists attempts int not null default 0;
 alter table photos add column if not exists wiggle uuid;
 alter table photos add column if not exists wiggle_x real;
 alter table photos add column if not exists wiggle_y real;
+
+-- Visits: one row per page load of an event (a random per-phone id from the browser, never a name or IP), so the
+-- darkroom can show the funnel: visited -> signed up -> took photos. kind: soon | join | camera | album.
+create table if not exists visits (
+  id bigserial primary key,
+  event_id uuid not null references events(id) on delete cascade,
+  visitor text not null,
+  kind text not null,
+  at timestamptz not null default now()
+);
+create index if not exists visits_event_at on visits (event_id, at);

@@ -2,11 +2,13 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { logVisit } from "../visit";
 
 type Frame = { id: string; thumb: string; src: string; by: string; n: number; star: boolean };
 
 export default function Sheet({ frames, moreHref, empty, name, live, cards = false }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean; cards?: boolean }) {
   const router = useRouter();
+  useEffect(() => logVisit(name, "album"), [name]); // `name` is the event code
   const [start, setStart] = useState<number | null>(null); // the frame tapped to open the viewer
   const [cur, setCur] = useState(0); // the frame on screen now
   const [file, setFile] = useState<File | null>(null);

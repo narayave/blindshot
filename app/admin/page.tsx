@@ -43,6 +43,15 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
            count(*) filter (where status = 'failed' or (status <> 'done' and created_at < now() - interval '10 minutes'))::int as problems,
            count(*) filter (where starred)::int as starred
     from photos where event_id = ${event.id}`;
+  // The funnel: unique phones (hashed device cookie) that opened the link, saw the sign-up, signed up, shot, opened the
+  // album; plus who's shooting right now.
+  const [funnel] = await sql<{ visited: number; saw_join: number; joined: number; shot: number; album: number; now: number }[]>`
+    select (select count(distinct visitor)::int from visits where event_id = ${event.id}) as visited,
+           (select count(distinct visitor)::int from visits where event_id = ${event.id} and kind = 'join') as saw_join,
+           (select count(*)::int from sessions where event_id = ${event.id}) as joined,
+           (select count(*)::int from sessions where event_id = ${event.id} and shot_count > 0) as shot,
+           (select count(distinct visitor)::int from visits where event_id = ${event.id} and kind = 'album') as album,
+           (select count(distinct session_id)::int from photos where event_id = ${event.id} and created_at > now() - interval '15 minutes') as now`;
   const rows = await sql<Row[]>`
     select p.id, p.filtered_path, p.original_path, p.status, p.error, p.starred, p.hidden, p.shot_number,
            s.name, s.instagram, s.no_promo, s.private_roll, s.user_agent as device,
@@ -78,6 +87,14 @@ export default async function Admin({ searchParams }: PageProps<"/admin">) {
               <span><b>{stats.done}</b> developed</span>
               <span><b>{stats.starred}</b> starred</span>
               {stats.problems > 0 && <span className="warn"><b>{stats.problems}</b> need a look</span>}
+            </div>
+            <div className="stats funnel" aria-label="Funnel">
+              <span><b>{funnel.visited}</b> opened the link</span>
+              <span><b>{funnel.saw_join}</b> saw the sign-up</span>
+              <span><b>{funnel.joined}</b> signed up</span>
+              <span><b>{funnel.shot}</b> took photos</span>
+              <span><b>{funnel.album}</b> opened the album</span>
+              <span><b>{funnel.now}</b> shooting now (15 min)</span>
             </div>
             <div className="panel">
               <div className="row">

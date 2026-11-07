@@ -422,3 +422,24 @@ test("bring friends: one tap from the camera opens a big QR to scan (and the sha
     await dropEvent(e);
   }
 });
+
+test("the darkroom funnel: a guest's visits (sign-up, camera) are counted under the same phone as their sign-up", async ({ page }) => {
+  const e = await makeEvent({ shots: 3 });
+  try {
+    await page.goto(`/e/${e.code}`);
+    // a person takes a few seconds to type their name; by then the page's first visit has been counted
+    await expect.poll(async () => (await sql`select 1 from visits where event_id = ${e.id}`).length).toBeGreaterThan(0);
+    await page.getByLabel("Name", { exact: true }).fill("Tester");
+    await page.locator("#consent").check();
+    await page.locator("form button[type=submit]").click();
+    await expect.poll(async () => (await sql<{ kind: string }[]>`select distinct kind from visits where event_id = ${e.id} order by kind`).map((r) => r.kind)).toEqual(["camera", "join"]);
+    const [s] = await sql<{ device_id: string }[]>`select device_id from sessions where event_id = ${e.id}`;
+    const [cam] = await sql<{ n: number }[]>`select count(*)::int as n from visits where event_id = ${e.id} and kind = 'camera' and visitor <> ${s.device_id}`;
+    expect(cam.n).toBe(0); // after signing up, every visit is under the same phone id as the sign-up
+    const [pre] = await sql<{ n: number }[]>`select count(*)::int as n from visits where event_id = ${e.id} and kind = 'join' and visitor = ${s.device_id}`;
+    expect(pre.n).toBeGreaterThan(0); // and so was their visit before signing up: the funnel lines up
+    expect(await page.evaluate(() => localStorage.length)).toBe(0); // nothing kept in the phone's storage
+  } finally {
+    await dropEvent(e);
+  }
+});
