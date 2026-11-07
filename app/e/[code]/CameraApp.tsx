@@ -205,7 +205,7 @@ function HowItWorks({ event }: { event: EventInfo }) {
       <li><b>Wind, then shoot.</b> Drag or tap the wheel between shots. Flash on for dark rooms; ↻ Selfie flips the camera.</li>
       <li><b>Roll finished? Load another.</b> New film all night{until}.</li>
       <li><b>One shared album.</b> Everyone&apos;s photos, yours included. {roll}</li>
-      <li><b>Saved on our server, not your phone.</b> Nothing fills up your camera roll. After the reveal, come back to this link to see and download every photo; on this phone, yours are under Mine.</li>
+      <li><b>Nothing fills up your camera roll.</b> After the reveal, come back to this link to see and download photos.</li>
     </ol>
   );
 }
