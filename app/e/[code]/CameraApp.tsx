@@ -225,6 +225,23 @@ function Prints() {
   );
 }
 
+// "Bring friends": the QR big enough to scan across a table, and the link for the phone's share sheet.
+function QrSheet({ event, qr, onClose }: { event: EventInfo; qr: string; onClose: () => void }) {
+  const url = `${location.origin}/e/${event.code}`;
+  const share = () => navigator.share?.({ title: event.name, text: "Free dispo cam photos tonight. No app, just your phone:", url }).catch(() => {});
+  return (
+    <div className="qr-sheet" role="dialog" aria-label="Bring friends" onClick={onClose}>
+      <div className="qr-card" onClick={(e) => e.stopPropagation()}>
+        <p className="qr-title">Bring friends</p>
+        <div className="qr-big" dangerouslySetInnerHTML={{ __html: qr }} role="img" aria-label={`QR code to join ${event.name}`} />
+        <p className="fine center">They scan this and get their own camera.</p>
+        {typeof navigator !== "undefined" && "share" in navigator && <button className="cta" type="button" onClick={share}><span>Share link</span><span aria-hidden>↗</span></button>}
+        <button className="ghost" type="button" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 // The event's QR code, so a guest can hand the camera on: friends scan it straight off this phone.
 function ShareQr({ event, qr, caption = "Friends can scan this to join" }: { event: EventInfo; qr: string; caption?: string }) {
   return (
@@ -248,6 +265,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const [pending, setPending] = useState(0);
   const [status, setStatus] = useState<[string, string]>([`Ready, ${me.name}`, "Frame it in the little window. That's all you get."]);
   const [nudge, setNudge] = useState(0);
+  const [showQr, setShowQr] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -389,7 +407,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     setFlash(on);
     if (on) charge();
     if (on && facing.current !== "user" && torchOk === false)
-      setStatus(["No flash in this browser", /iPhone|iPad/.test(navigator.userAgent)
+      setStatus([/iPhone|iPad/.test(navigator.userAgent) ? "No flash on iPhone browsers" : "No flash here · try Chrome", /iPhone|iPad/.test(navigator.userAgent)
         ? "It can't switch on your phone's light. Flip to the selfie camera (the screen is its flash), or shoot as is."
         : "It can't switch on your phone's light. Chrome can, or flip to the selfie camera (the screen is its flash)."]);
   }
@@ -538,7 +556,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     for (let attempt = 0; ; attempt++) {
       const r = await step().catch(() => "retry" as const);
       if (r !== "retry") return r;
-      if (attempt >= 1) setStatus(["Waiting for signal", "Keep this page open. Your shots will finish uploading."]);
+      if (attempt >= 1) setStatus(["Waiting for signal · keep this open", "Keep this page open. Your shots will finish uploading."]);
       await sleep(Math.min(15_000, 1000 * 2 ** attempt));
     }
   }
@@ -643,10 +661,12 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
           </div>
         </div>
       </div>
+      <button className="share-pill" type="button" onClick={() => setShowQr(true)}>Bring friends · show QR</button>
+      {showQr && <QrSheet event={event} qr={qr} onClose={() => setShowQr(false)} />}
+      {/* One line only: the shutter bar is pinned over whatever sits below it. */}
       <p className="status" aria-live="polite">
         {status[0]}
-        {status[1] && <small>{status[1]}</small>}
-        {pending > 0 && <small>{pending} uploading…</small>}
+        {pending > 0 && <span className="up"> · {pending} uploading</span>}
       </p>
       {/* Everything the thumb needs, pinned to the bottom of the screen: one-handed, like a real disposable. */}
       <div className="thumb-bar">

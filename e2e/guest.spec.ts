@@ -397,11 +397,27 @@ test("back camera in a browser that can't use the phone's light: flash says so, 
     await join(page, e.code);
     await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
     await page.getByRole("button", { name: "Flash off" }).click();
-    await expect(page.getByText("No flash in this browser")).toBeVisible();
+    await expect(page.getByText(/No flash (here · try Chrome|on iPhone browsers)/)).toBeVisible();
     await page.waitForTimeout(1700); // charged, so only the missing light can stop the pop
     await page.getByRole("button", { name: "SHOOT" }).click();
     await expect(page.getByLabel("1 shots left")).toBeVisible();
     await expect(page.locator(".flashfx")).toHaveClass(/dark/); // the shutter's dark blink, not a white flash
+  } finally {
+    await dropEvent(e);
+  }
+});
+
+test("bring friends: one tap from the camera opens a big QR to scan (and the share sheet where there is one)", async ({ page }) => {
+  const e = await makeEvent({ shots: 3 });
+  try {
+    await join(page, e.code);
+    await page.getByRole("button", { name: "Bring friends · show QR" }).click();
+    const sheet = page.getByRole("dialog", { name: "Bring friends" });
+    await expect(sheet.getByRole("img", { name: /QR code to join/ })).toBeVisible();
+    await sheet.getByRole("button", { name: "Close" }).click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByLabel("3 shots left")).toBeVisible(); // the camera is untouched
+    await expect(page.locator(".status small")).toHaveCount(0); // one status line, nothing under it
   } finally {
     await dropEvent(e);
   }
