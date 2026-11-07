@@ -68,7 +68,8 @@ to change them.
 4. **Ship the theme** if you made one: typecheck, `npm test`, commit, push, wait for the deploy
    (`gh run watch $(gh run list -b main -L 5 --json databaseId,headSha -q ".[] | select(.headSha==\"$(git rev-parse HEAD)\") | .databaseId") --exit-status` (wait a few seconds after pushing so the run exists; matching the commit avoids watching the previous deploy)).
 5. **Check it live** with the bundled script. It reports the schedule; for an open event it joins as a throwaway guest,
-   confirms the lock and deletes that guest; for one that isn't open yet it confirms the link is a 404:
+   confirms the lock and deletes that guest; for one that isn't open yet it confirms the coming-soon page (countdown, no
+   sign-up) and that joining is refused; for one that's switched off, that the link is a 404:
    ```bash
    node --env-file=.env.local .claude/skills/blindshot-new-event/scripts/check-event.ts halloween
    ```

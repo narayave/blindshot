@@ -57,8 +57,11 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 
 ## Product rules that are easy to break
 
-- **Schedule:** `--opens` (Pacific). Defaults: shooting stops 2am, roll opens at midnight (both overridable). An event
-  that isn't open, or is switched off, is a 404 for guests (not even its name); the host sees an orange banner.
+- **Schedule:** `--opens` (Pacific). Defaults: shooting stops 2am, roll opens at midnight (both overridable). Before
+  `--opens`, a switched-on event shows guests a **coming-soon page** (what it is, sample prints, share QR, "Sign-ups
+  open in" countdown) so a promo post can link to it; no sign-up, consent or camera until then, the page turns into
+  the sign-up by itself, and the join/photo/album endpoints refuse anything early. Switched off = a 404 for guests
+  (not even its name); the host sees an orange banner and the full app either way.
 - **Guests never see a photo before release.** New rolls are unlimited until closing. **Mine = this phone**: a random
   id in a long-lived site-wide cookie (`bs_device`, hashed into `sessions.device_id`); name + Instagram never unlock
   anyone's frames. The darkroom shows each photo's phone and flags a name+handle seen on two phones.
@@ -99,11 +102,18 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 
 ## Events (prod)
 
-`test` is the owner's private bench: off (404 to guests), 1 shot, look picker. `polaroid` is the instant-film trial.
-`halloween-fri` is done (released). **`halloween` (Sat Oct 31, a live event at a rooftop venue):** theme `ember`,
-look `green-night`, 13 shots, `--date-stamp`, `--overlays`, credit = host's handle; opens 6pm PT, roll opens midnight,
-shooting stops 1:30am. Re-run with all of these if you ever update it:
-`npm run event -- --code halloween --name "Halloween Night" --subtitle "Sat Oct 31" --theme ember --shots 13 --overlays --date-stamp --opens "2026-10-31 18:00" --closes "2026-11-01 01:30" --release "2026-11-01 00:00" --look green-night --credit "@veefaceswest"`
+`test` is the owner's private bench (on; leave it alone). `polaroid`, `halloween-fri` and `halloween` are switched off
+(404s; photos kept). **`diwali` (Sat Nov 7, a partner event):** theme `diwali` (styled after the partner's posts), the
+house look, 9 shots; sign-ups open 6pm PT, album opens Sun 2am, shooting stops 3am. Its name, subtitle and promo
+material are only in the database and the owner's local `~/Desktop/blindshot-posts/` (never in the repo). Updating it:
+`npm run event -- --code diwali --name "<name>" --subtitle "<subtitle>" --theme diwali --shots 9 --overlays --date-stamp --look green-night --opens "2026-11-07 18:00" --release "2026-11-08 02:00" --closes "2026-11-08 03:00"`
+(read the current name and subtitle from the events table first).
+
+**Not tested on a real iPhone before Diwali (owner tested Android Chrome/Firefox only; automated WebKit tests pass):**
+the selfie switch (Safari used to open the back camera; fixed with `facingMode: { exact }`), whether Safari can switch
+on the phone's light for flash (if not, guests see "No flash in this browser"; selfie screen-flash still works), the
+coming-soon page turning into the sign-up at opening time, and background uploads on Safari. Check these on an
+iPhone first if anything is reported from that night.
 
 **During a live event:** one change at a time; `npm test`; deploy; verify on the live site (check-event / health);
 never change the live event's settings unless asked.

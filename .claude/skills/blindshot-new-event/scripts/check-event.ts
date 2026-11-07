@@ -19,11 +19,18 @@ console.log(`  opens ${pt(event.opens_at)} · shooting stops ${pt(event.closes_a
 console.log(`  theme ${event.theme} · ${event.max_shots} shots per roll (new rolls always on) · overlays ${event.overlays ? "on" : "off"} · roll ${released ? "RELEASED" : event.release_at ? `locked until ${event.release_at.toISOString()}` : "locked until the host releases it"}`);
 
 const reachable = isOpen(event);
-console.log(`  event is ${reachable ? "OPEN (guests can reach it)" : event.online ? "SCHEDULED (guests get a 404 until it opens)" : "OFF (guests get a 404; switch it on at /e/admin)"}`);
+const soon = !reachable && event.online && !!event.opens_at && event.opens_at.getTime() > Date.now();
+console.log(`  event is ${reachable ? "OPEN (guests can reach it)" : soon ? "SCHEDULED (guests see a coming-soon page with a countdown)" : "OFF (guests get a 404; switch it on at /e/admin)"}`);
 const page = await fetch(`${base}/e/${event.code}`);
 const html = await page.text();
+if (soon) {
+  // Before opening: the link works (what it is + countdown), but nobody can join yet.
+  ok(page.status === 200 && html.includes("Sign-ups open in") && !html.includes('id="consent"'), `coming-soon page with a countdown and no sign-up (${page.status})`);
+  const join = await fetch(`${base}/api/session`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ eventCode: event.code, name: "check", consent: true }) });
+  ok(join.status === 404, `joining is refused until it opens (${join.status})`);
+}
+if (!reachable && !soon) ok(page.status === 404 && !html.includes(event.name), `guest link is a dead end (${page.status}) and doesn't reveal the name`);
 if (!reachable) {
-  ok(page.status === 404 && !html.includes(event.name), `guest link is a dead end (${page.status}) and doesn't reveal the name`);
   await sql.end();
   console.log(`\nhost:    ${base}/e/admin  (switch the event on there when it's time)`);
   process.exit(problems.length ? 1 : 0);
