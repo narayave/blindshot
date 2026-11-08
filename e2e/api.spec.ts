@@ -338,3 +338,20 @@ test("home page: where it's been (real nights only) and how to book it", async (
   expect(html).not.toContain("Test Roll"); // the owner's bench never shows
   expect(html).not.toContain("E2E Party"); // nor automated test events
 });
+
+test("album: the host's starred photos lead Everyone (shuffled, steady per viewer); Mine stays newest first", async ({ baseURL }) => {
+  const ev = await makeEvent({ shots: 3, released: true });
+  try {
+    const a = await guest(baseURL!, ev);
+    const first = await shoot(a, ev);
+    await shoot(a, ev);
+    await waitDeveloped(ev.id, 2);
+    await sql`update photos set starred = true where id = ${first.id}`; // star the older one
+    const order = async (tab: string) => [...(await (await a.get(`/e/${ev.code}/roll?tab=${tab}`)).text()).matchAll(/alt="Frame (\d+) by/g)].map((m) => m[1]);
+    expect((await order("all"))[0]).toBe("1"); // the starred (older) frame leads Everyone
+    expect(await order("all")).toEqual(await order("all")); // the shuffle is steady for this viewer
+    expect((await order("mine"))[0]).toBe("2"); // Mine: newest first, stars don't reorder it
+  } finally {
+    await dropEvent(ev);
+  }
+});

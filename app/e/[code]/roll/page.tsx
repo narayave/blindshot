@@ -62,12 +62,16 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
     select count(*)::int as n_all,
            count(*) filter (where ${mine})::int as n_mine
     from photos p join sessions s on s.id = p.session_id where ${visible}`;
+  // Everyone: the host's starred picks lead, then the rest; both in a shuffle that's fixed per viewer (steady across
+  // refreshes and "show more", different for each guest, and one prolific shooter doesn't fill the top). Mine: newest first.
   const rows = await sql<{ id: string; filtered_path: string; name: string; shot_number: number; starred: boolean; mine: boolean }[]>`
     select p.id, p.filtered_path, s.name, p.shot_number, p.starred, ${mine} as mine
     from photos p join sessions s on s.id = p.session_id
     where ${visible}
       ${tab === "mine" ? sql`and ${mine}` : sql``}
-    order by p.captured_at desc nulls last, p.created_at desc
+    order by ${tab === "all"
+      ? sql`p.starred desc, md5(p.id::text || ${me ?? "host"})`
+      : sql`p.captured_at desc nulls last, p.created_at desc`}
     limit ${limit}`;
   const url = readUrls(FILTERED);
   const total = tab === "all" ? counts.n_all : counts.n_mine;
