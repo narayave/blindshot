@@ -120,6 +120,13 @@ never change the live event's settings unless asked.
 
 ## Backlog (agreed ideas, not built)
 
+- **Say "no AI" (owner, 8 Nov, after Diwali):** a guest asked whether the photos are AI-edited. They aren't: the film
+  look is a fixed, rule-based filter (grade, grain, leaks, dust, overlays) applied the same way to every frame. Say so
+  on the join page / How it works (e.g. "No AI: a film filter, the same for every shot") and in the README.
+- **Host hides a photo from Everyone, the photographer keeps it (owner, 8 Nov):** darkroom Hide today removes a photo
+  from the photographer's Mine too (`not p.hidden` in the album query). Make Hide mean "not in Everyone", still in
+  the photographer's Mine; per-guest "keep all of theirs off Everyone" already exists as `sessions.private_roll`.
+
 - **Provenance on every exported photo (owner asked, 1 Nov):** whenever a photo is personalised for posting (credit
   removed, re-developed, cropped), record who took it and what was applied, so it can be traced later. Done so far:
   `carousel/manifest.csv` (slide, photo id, event, photographer, look, date stamp, overlays, seed, credit, what was
