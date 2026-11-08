@@ -100,3 +100,5 @@ create table if not exists visits (
   at timestamptz not null default now()
 );
 create index if not exists visits_event_at on visits (event_id, at);
+-- Camera diagnostics ride on visits: kind cam-live | cam-off | cam-stuck | shot | shot-fail | blocked, with a detail.
+alter table visits add column if not exists detail text;

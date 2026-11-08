@@ -432,7 +432,8 @@ test("the darkroom funnel: a guest's visits (sign-up, camera) are counted under 
     await page.getByLabel("Name", { exact: true }).fill("Tester");
     await page.locator("#consent").check();
     await page.locator("form button[type=submit]").click();
-    await expect.poll(async () => (await sql<{ kind: string }[]>`select distinct kind from visits where event_id = ${e.id} order by kind`).map((r) => r.kind)).toEqual(["camera", "join"]);
+    await expect.poll(async () => (await sql<{ kind: string }[]>`select distinct kind from visits where event_id = ${e.id} and kind in ('join', 'camera') order by kind`).map((r) => r.kind)).toEqual(["camera", "join"]);
+    await expect.poll(async () => (await sql`select 1 from visits where event_id = ${e.id} and kind = 'cam-live'`).length).toBeGreaterThan(0); // diagnostics: the camera went live
     const [s] = await sql<{ device_id: string }[]>`select device_id from sessions where event_id = ${e.id}`;
     const [cam] = await sql<{ n: number }[]>`select count(*)::int as n from visits where event_id = ${e.id} and kind = 'camera' and visitor <> ${s.device_id}`;
     expect(cam.n).toBe(0); // after signing up, every visit is under the same phone id as the sign-up

@@ -323,7 +323,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     setCam("starting");
     // Never sit on "Opening camera…": if the camera is held by another tab or the permission prompt got lost,
     // fall back to the camera-app picker. If the stream turns up later, we still go live.
-    const stuck = setTimeout(() => setCam((c) => (c === "starting" ? "off" : c)), 8000);
+    const stuck = setTimeout(() => setCam((c) => { if (c === "starting") logVisit(event.code, "cam-stuck"); return c === "starting" ? "off" : c; }), 8000);
     try {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       const want = facing.current;
@@ -343,8 +343,11 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
       v.onresize = shape;
       await v.play();
       setCam("live");
-    } catch {
+      const t = stream.getVideoTracks()[0]?.getSettings?.();
+      logVisit(event.code, "cam-live", `${want} ${t?.width ?? v.videoWidth}x${t?.height ?? v.videoHeight}`);
+    } catch (e) {
       setCam("off");
+      logVisit(event.code, "cam-off", `${(e as Error)?.name ?? ""}: ${(e as Error)?.message ?? e}`);
     } finally {
       clearTimeout(stuck);
     }
@@ -485,14 +488,15 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   }
 
   async function shoot(file?: File) {
-    if (left <= 0 || busy.current) return;
+    if (left <= 0 || busy.current) return logVisit(event.code, "blocked", left <= 0 ? "no film left" : "busy");
     if (!wound) {
+      logVisit(event.code, "blocked", "not wound");
       setNudge((n) => n + 1);
       setStatus(["Wind the film first", "Drag the wheel sideways, or tap it a few times."]);
       buzz([10, 40, 10]);
       return;
     }
-    if (!file && cam !== "live") return;
+    if (!file && cam !== "live") return logVisit(event.code, "blocked", `camera ${cam}`);
     busy.current = true;
     // No light to fire (back camera, browser can't use the phone's light): no fake white pop either.
     const fired = flash && (facing.current === "user" || torchOk !== false);
@@ -513,8 +517,10 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
       setStatus(left - 1 === 0 ? ["That's the roll", "Developing…"] : ["Saved", "Wind on for the next shot."]);
       if (fired) charge();
       enqueue(shot.blob, shot.w, shot.h, new Date());
-    } catch {
+      logVisit(event.code, "shot", `${shot.w}x${shot.h} ${Math.round(shot.blob.size / 1024)}KB${file ? " file" : ""}${fired ? " flash" : ""}`);
+    } catch (e) {
       setStatus(["That one didn't take", "Try again."]);
+      logVisit(event.code, "shot-fail", `${(e as Error)?.name ?? ""}: ${(e as Error)?.message ?? e}`);
     } finally {
       busy.current = false;
     }
