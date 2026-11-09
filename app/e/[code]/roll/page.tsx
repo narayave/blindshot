@@ -104,8 +104,6 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
       : sql`p.captured_at desc nulls last, p.created_at desc`}
     limit ${limit}`;
   const url = readUrls(FILTERED);
-  // Signed in after shooting closed (to look at the album, not from the night): look only, small versions only.
-  const viewOnly = !admin && !!session && !!event.closes_at && session.created_at.getTime() > event.closes_at.getTime() + CLOSE_GRACE_MS;
   const total = tab === "all" ? counts.n_all : counts.n_mine;
   const tabLink = (t: Tab, label: string, n: number) => (
     <a href={`?tab=${t}`} aria-current={tab === t ? "page" : undefined}>{label}<small>{n.toLocaleString()}</small></a>
@@ -124,12 +122,11 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
       </div>
       <Sheet
         cards={event.look === "polaroid" || event.look === "photobooth"}
-        frames={rows.map((r) => ({ id: r.id, thumb: url(thumbPath(r.filtered_path)), src: url(viewOnly ? thumbPath(r.filtered_path) : r.filtered_path), by: r.mine ? "You" : r.name, n: r.shot_number, star: r.starred }))}
+        frames={rows.map((r) => ({ id: r.id, thumb: url(thumbPath(r.filtered_path)), src: url(r.filtered_path), by: r.mine ? "You" : r.name, n: r.shot_number, star: r.starred }))}
         moreHref={rows.length < total ? `?tab=${tab}&n=${limit + PAGE}` : null}
         empty={tab === "mine" ? "None of your shots are in yet." : "Nothing here yet."}
         name={event.code}
         live={!isClosed(event, CLOSE_GRACE_MS)}
-        viewOnly={viewOnly}
       />
     </section>,
   );

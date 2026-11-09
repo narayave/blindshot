@@ -370,6 +370,9 @@ test("album after the party: anyone sees the host's picks; adding a name opens t
     await page.goto(`/e/${ev.code}/roll`);
     await expect(page.getByText("Host's picks")).toBeVisible();
     await expect(page.locator(".frame")).toHaveCount(1); // only the starred one
+    await page.locator(".frame").first().click(); // the public picks: look, don't save
+    await expect(page.getByRole("button", { name: /Save photo|Getting photo/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Close" }).click();
     await expect(page.getByRole("button", { name: /Tick the box/ })).toBeDisabled(); // they agree first
     await page.getByLabel("Name", { exact: true }).fill("Visitor");
     await page.locator("#view-agree").check();
@@ -382,12 +385,11 @@ test("album after the party: anyone sees the host's picks; adding a name opens t
     await sql`update sessions set created_at = now() - interval '3 hours' where event_id = ${ev.id} and name <> 'Visitor'`;
     await page.reload();
     await expect(page.locator(".night-grid div").nth(1)).toContainText("1"); // 1 camera: the guest, not the visitor
-    // signed in after shooting closed: look, don't save
+    // signed in after the party: they can save too (people want the photos others took of them)
     await page.locator(".frame").first().click();
     await expect(page.getByText(/^1 \/ 2/)).toBeVisible();
-    await expect(page.getByRole("button", { name: /Save photo|Getting photo/ })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Open full size" })).toHaveCount(0);
-    expect(await page.locator(".lightbox img").first().getAttribute("src")).toContain("_thumb"); // the small version only
+    await expect(page.getByRole("button", { name: /Save photo|Getting photo/ })).toHaveCount(1);
+    expect(await page.locator(".lightbox img").first().getAttribute("src")).not.toContain("_thumb"); // full size
   } finally {
     await dropEvent(ev);
   }

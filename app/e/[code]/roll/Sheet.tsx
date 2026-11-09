@@ -7,7 +7,7 @@ import { logVisit } from "../visit";
 
 type Frame = { id: string; thumb: string; src: string; by: string; n: number; star: boolean };
 
-// viewOnly: people who weren't shooting on the night (signed in afterwards, or not signed in) can look, not save.
+// viewOnly: the public picks for people who haven't signed in: look, don't save. Anyone signed in can save.
 export default function Sheet({ frames, moreHref, empty, name, live, cards = false, viewOnly = false }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean; cards?: boolean; viewOnly?: boolean }) {
   const router = useRouter();
   useEffect(() => logVisit(name, "album"), [name]); // `name` is the event code
