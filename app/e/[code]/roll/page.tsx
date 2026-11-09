@@ -7,6 +7,7 @@ import { themeClass } from "@/lib/themes";
 import Countdown from "../Countdown";
 import HostOnly from "../HostOnly";
 import Sheet from "./Sheet";
+import ViewSignIn from "./ViewSignIn";
 
 const PAGE = 40;
 type Tab = "all" | "mine"; // Mine first: guests land on their own shots, Everyone is one tap away
@@ -15,7 +16,6 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
   const event = await openEvent((await params).code);
   if (!event) notFound();
   const sp = await searchParams;
-  const tab: Tab = sp.tab === "all" ? "all" : "mine";
   const limit = Math.min(2000, Math.max(PAGE, Number(sp.n) || PAGE));
   const [session, admin] = await Promise.all([currentSession(event.id, event.code), isAdmin()]);
 
@@ -34,6 +34,33 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
     </div>
   );
 
+  // Not signed in, album out: the host's picks for anyone with the link, and a view-only sign-in for the rest.
+  if (!session && !admin && isReleased(event)) {
+    const shared = sql`p.event_id = ${event.id} and p.status = 'done' and not p.hidden and not s.private_roll`;
+    const [{ total }] = await sql<{ total: number }[]>`select count(*)::int as total from photos p join sessions s on s.id = p.session_id where ${shared}`;
+    const picks = await sql<{ id: string; filtered_path: string; name: string; shot_number: number }[]>`
+      select p.id, p.filtered_path, s.name, p.shot_number from photos p join sessions s on s.id = p.session_id
+      where ${shared} and p.starred order by md5(p.id::text || 'picks') limit 60`;
+    const url = readUrls(FILTERED);
+    const night = await nightStats(event.id, event.closes_at);
+    return shell(
+      <section className="stack">
+        <h1 className="headline">The party&apos;s<br /><em>album.</em></h1>
+        <TagNote handle={MAKER_HANDLE} />
+        {night.photos > 0 && <NightStats s={night} />}
+        {picks.length > 0 && <h2 className="picks-h">Host&apos;s picks</h2>}
+        <Sheet
+          cards={event.look === "polaroid" || event.look === "photobooth"}
+          frames={picks.map((r) => ({ id: r.id, thumb: url(thumbPath(r.filtered_path)), src: url(r.filtered_path), by: r.name, n: r.shot_number, star: true }))}
+          moreHref={null}
+          empty="The host hasn't picked any yet."
+          name={event.code}
+          live={false}
+        />
+        <ViewSignIn code={event.code} total={total} />
+      </section>,
+    );
+  }
   if (!session && !admin) {
     return shell(
       <section className="stack">
@@ -62,6 +89,8 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
     select count(*)::int as n_all,
            count(*) filter (where ${mine})::int as n_mine
     from photos p join sessions s on s.id = p.session_id where ${visible}`;
+  // Mine first, unless there's nothing of yours (someone who signed in afterwards just to look): then Everyone.
+  const tab: Tab = sp.tab === "all" || sp.tab === "mine" ? sp.tab : counts.n_mine > 0 ? "mine" : "all";
   // Everyone: the host's starred picks lead, then the rest; both in a shuffle that's fixed per viewer (steady across
   // refreshes and "show more", different for each guest, and one prolific shooter doesn't fill the top). Mine: newest first.
   const rows = await sql<{ id: string; filtered_path: string; name: string; shot_number: number; starred: boolean; mine: boolean }[]>`
@@ -79,7 +108,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
     <a href={`?tab=${t}`} aria-current={tab === t ? "page" : undefined}>{label}<small>{n.toLocaleString()}</small></a>
   );
 
-  const night = await nightStats(event.id);
+  const night = await nightStats(event.id, event.closes_at);
 
   return shell(
     <section className="stack">
@@ -108,16 +137,18 @@ type Night = {
 };
 
 // The night in numbers: every photo taken (developed) counts, including ones their photographers kept private; `kept`
-// says how many of those aren't on the shared roll.
-async function nightStats(eventId: string): Promise<Night> {
+// says how many of those aren't on the shared roll. Cameras and rolls count people who joined before shooting closed,
+// not those who signed in afterwards just to look at the album.
+async function nightStats(eventId: string, closes: Date | null): Promise<Night> {
+  const onTheNight = closes ? sql`and created_at <= ${new Date(closes.getTime() + CLOSE_GRACE_MS)}` : sql``;
   const taken = sql`p.event_id = ${eventId} and p.status = 'done'`;
   const shared = sql`p.event_id = ${eventId} and p.status = 'done' and not p.hidden and not s.private_roll`;
   const [t] = await sql<{ photos: number; kept: number; first: Date | null; last: Date | null; guests: number; rolls: number }[]>`
     select count(*)::int as photos,
            count(*) filter (where s.private_roll and not p.hidden)::int as kept,
            min(p.captured_at) as first, max(p.captured_at) as last,
-           (select count(*)::int from sessions where event_id = ${eventId}) as guests,
-           (select coalesce(sum(rolls), 0)::int from sessions where event_id = ${eventId}) as rolls
+           (select count(*)::int from sessions where event_id = ${eventId} ${onTheNight}) as guests,
+           (select coalesce(sum(rolls), 0)::int from sessions where event_id = ${eventId} ${onTheNight}) as rolls
     from photos p join sessions s on s.id = p.session_id where ${taken}`;
   const [busiest] = await sql<{ hour: Date; n: number }[]>`
     select date_trunc('hour', p.captured_at) as hour, count(*)::int as n from photos p join sessions s on s.id = p.session_id

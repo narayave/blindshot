@@ -152,7 +152,9 @@ test("roll: closed to non-guests, hidden until release, private rolls stay priva
   await shoot(b, e);
   await waitDeveloped(e.id, 2);
 
-  expect(await (await request.get(`/e/${e.code}/roll`)).text()).toContain("for guests.");
+  const outsider = await (await request.get(`/e/${e.code}/roll`)).text(); // not signed in: the host's picks only, and a way in
+  expect(outsider).toContain("Were you there?");
+  expect((outsider.match(/class="frame"/g) ?? []).length).toBe(0); // nothing starred yet, so nothing shown
   expect(await frames(a, e, "mine")).toBe(1);
   expect(await frames(a, e)).toBe(2); // you always see your own
   expect(await frames(b, e)).toBe(1); // a's private frame is not shared
@@ -351,6 +353,35 @@ test("album: the host's starred photos lead Everyone (shuffled, steady per viewe
     expect((await order("all"))[0]).toBe("1"); // the starred (older) frame leads Everyone
     expect(await order("all")).toEqual(await order("all")); // the shuffle is steady for this viewer
     expect((await order("mine"))[0]).toBe("2"); // Mine: newest first, stars don't reorder it
+  } finally {
+    await dropEvent(ev);
+  }
+});
+
+test("album after the party: anyone sees the host's picks; adding a name opens the whole album on the same page", async ({ page, baseURL }) => {
+  const ev = await makeEvent({ shots: 3 });
+  try {
+    const a = await guest(baseURL!, ev); // a guest's two photos from the night (no camera needed)
+    const first = await shoot(a, ev);
+    await shoot(a, ev);
+    await waitDeveloped(ev.id, 2);
+    await sql`update photos set starred = true where id = ${first.id}`; // the host's pick
+    // someone not signed in on this browser (e.g. tapping the link inside Instagram)
+    await page.goto(`/e/${ev.code}/roll`);
+    await expect(page.getByText("Host's picks")).toBeVisible();
+    await expect(page.locator(".frame")).toHaveCount(1); // only the starred one
+    await expect(page.getByRole("button", { name: /Tick the box/ })).toBeDisabled();
+    await page.getByLabel("Name", { exact: true }).fill("Visitor");
+    await page.locator("#view-agree").check();
+    await page.getByRole("button", { name: "See the whole album" }).click();
+    await expect(page.locator(".frame")).toHaveCount(2); // the same page, now everything
+    await expect(page.locator('.tabs a[aria-current="page"]')).toContainText("Everyone"); // nothing of theirs, so Everyone
+    // and signing in afterwards doesn't add a "camera" to the night's stats
+    await sql`update events set closes_at = now() - interval '1 hour' where id = ${ev.id}`;
+    await sql`update sessions set created_at = now() where event_id = ${ev.id} and name = 'Visitor'`;
+    await sql`update sessions set created_at = now() - interval '3 hours' where event_id = ${ev.id} and name <> 'Visitor'`;
+    await page.reload();
+    await expect(page.locator(".night-grid div").nth(1)).toContainText("1"); // 1 camera: the guest, not the visitor
   } finally {
     await dropEvent(ev);
   }

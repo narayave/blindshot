@@ -400,3 +400,8 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .nights-h { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 8px 0 8px; font-weight: 600; }
 .pitch { margin: 4px 0 0; font-size: 15px; }
 .pitch a { color: var(--accent); font-weight: 600; }
+
+/* Album, not signed in: host's picks, then "Were you there?" */
+.picks-h { margin: 6px 0 0; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.view-signin { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); }
+.view-signin h2 { margin: 0; font-family: var(--hl-font); font-weight: var(--hl-weight); font-size: 28px; color: var(--fg); }
