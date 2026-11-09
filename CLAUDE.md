@@ -54,6 +54,8 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 - `blindshot-new-event`: new night = new event (code, theme, shots, schedule, look, credit), check it live, pricing.
 - `blindshot-look-lab`: preview and ship film looks; overlay packs and their licences.
 - `blindshot-ops`: deploy, verify, health, load, recovery, event night.
+- `blindshot-stats`: the numbers (funnel, conversion, album long tail, engagement, camera health) and the running
+  learnings file for the owner's story (LinkedIn, resume, pitches).
 
 ## Product rules that are easy to break
 

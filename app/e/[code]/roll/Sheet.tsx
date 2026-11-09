@@ -8,9 +8,10 @@ import { logVisit } from "../visit";
 type Frame = { id: string; thumb: string; src: string; by: string; n: number; star: boolean };
 
 // viewOnly: the public picks for people who haven't signed in: look, don't save. Anyone signed in can save.
-export default function Sheet({ frames, moreHref, empty, name, live, cards = false, viewOnly = false }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean; cards?: boolean; viewOnly?: boolean }) {
+export default function Sheet({ frames, moreHref, empty, name, live, cards = false, viewOnly = false, tab }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean; cards?: boolean; viewOnly?: boolean; tab?: string }) {
   const router = useRouter();
-  useEffect(() => logVisit(name, "album"), [name]); // `name` is the event code
+  useEffect(() => logVisit(name, "album", tab), [name, tab]); // `name` is the event code; tab: picks | mine | all
+  const opened = useRef(new Set<string>()); // each photo counts once per visit
   const [start, setStart] = useState<number | null>(null); // the frame tapped to open the viewer
   const [cur, setCur] = useState(0); // the frame on screen now
   const [file, setFile] = useState<File | null>(null);
@@ -49,6 +50,7 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
   // Fetch the frame on screen right away: phones only allow the share sheet straight from the tap, with no waiting.
   useEffect(() => {
     setFile(null);
+    if (frame && !opened.current.has(frame.id)) { opened.current.add(frame.id); logVisit(name, "photo", frame.id); }
     if (!frame || viewOnly) return;
     let live = true;
     fetch(frame.src)
@@ -62,6 +64,7 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
   // Phones: the share sheet, where "Save Image" puts it in the camera roll. Elsewhere: a plain download.
   function save() {
     if (!file) return;
+    if (frame) logVisit(name, "save", frame.id);
     if (navigator.canShare?.({ files: [file] })) return void navigator.share({ files: [file] }).catch(() => {});
     const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(file), download: file.name });
     a.click();

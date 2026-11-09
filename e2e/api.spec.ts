@@ -389,6 +389,9 @@ test("album after the party: anyone sees the host's picks; adding a name opens t
     await page.locator(".frame").first().click();
     await expect(page.getByText(/^1 \/ 2/)).toBeVisible();
     await expect(page.getByRole("button", { name: /Save photo|Getting photo/ })).toHaveCount(1);
+    // engagement tracking: the album tab and the photo opened are recorded for the stats skill
+    await expect.poll(async () => (await sql`select kind, detail from visits where event_id = ${ev.id} and kind in ('album', 'photo')`).map((r) => r.kind === "photo" ? "photo" : `album:${r.detail}`).sort())
+      .toEqual(expect.arrayContaining(["album:all", "album:picks", "photo"]));
     expect(await page.locator(".lightbox img").first().getAttribute("src")).not.toContain("_thumb"); // full size
   } finally {
     await dropEvent(ev);

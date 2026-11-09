@@ -57,6 +57,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
           name={event.code}
           live={false}
           viewOnly
+          tab="picks"
         />
         <ViewSignIn code={event.code} total={total} />
       </section>,
@@ -127,6 +128,7 @@ export default async function RollPage({ params, searchParams }: PageProps<"/e/[
         empty={tab === "mine" ? "None of your shots are in yet." : "Nothing here yet."}
         name={event.code}
         live={!isClosed(event, CLOSE_GRACE_MS)}
+        tab={tab}
       />
     </section>,
   );
