@@ -41,7 +41,7 @@ export default function ViewSignIn({ code, total }: { code: string; total: numbe
       </label>
       <label className="check" htmlFor="view-agree">
         <input id="view-agree" type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-        <span>I was at the party. I&apos;ll be respectful with everyone&apos;s photos, and credit the person who took one if I share it.</span>
+        <span>I was at the party, and I&apos;ll be respectful with everyone&apos;s photos.</span>
       </label>
       <p className="err" role="alert">{err}</p>
       <button className="cta" type="submit" disabled={busy || !agreed}>

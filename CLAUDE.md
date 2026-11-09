@@ -66,7 +66,7 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
   id in a long-lived site-wide cookie (`bs_device`, hashed into `sessions.device_id`); name + Instagram never unlock
   anyone's frames. The darkroom shows each photo's phone and flags a name+handle seen on two phones.
 - **Album access (9 Nov, after Diwali):** not signed in = the host's starred picks only, look-only, plus "Were you
-  there?" (name + optional Instagram + a tick: be respectful, credit the photographer if you share). Signed in, at the
+  there?" (name + optional Instagram + a tick: "I'll be respectful with everyone's photos"). Signed in, at the
   party or afterwards = the whole album, saving included (guests want the photos others took of them). Sign-ins after
   shooting closed don't count as "cameras"/"rolls" in the stats. Everyone tab: starred first, then a per-viewer shuffle.
 - **Roll stats:** photos = every photo taken (incl. private-roll frames), with a "N were kept private" note; host picks
