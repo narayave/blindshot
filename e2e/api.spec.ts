@@ -370,7 +370,7 @@ test("album after the party: anyone sees the host's picks; adding a name opens t
     await page.goto(`/e/${ev.code}/roll`);
     await expect(page.getByText("Host's picks")).toBeVisible();
     await expect(page.locator(".frame")).toHaveCount(1); // only the starred one
-    await expect(page.getByRole("button", { name: /Tick the box/ })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /Tick the box/ })).toBeDisabled(); // they agree first
     await page.getByLabel("Name", { exact: true }).fill("Visitor");
     await page.locator("#view-agree").check();
     await page.getByRole("button", { name: "See the whole album" }).click();
@@ -382,6 +382,40 @@ test("album after the party: anyone sees the host's picks; adding a name opens t
     await sql`update sessions set created_at = now() - interval '3 hours' where event_id = ${ev.id} and name <> 'Visitor'`;
     await page.reload();
     await expect(page.locator(".night-grid div").nth(1)).toContainText("1"); // 1 camera: the guest, not the visitor
+    // signed in after shooting closed: look, don't save
+    await page.locator(".frame").first().click();
+    await expect(page.getByText(/^1 \/ 2/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Save photo|Getting photo/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Open full size" })).toHaveCount(0);
+    expect(await page.locator(".lightbox img").first().getAttribute("src")).toContain("_thumb"); // the small version only
+  } finally {
+    await dropEvent(ev);
+  }
+});
+
+test("album: 'Show more frames' adds the next 40 below, without reloading the page or jumping to the top", async ({ page, baseURL }) => {
+  const ev = await makeEvent({ shots: 50 });
+  try {
+    const a = await guest(baseURL!, ev);
+    const [s] = await sql<{ id: string }[]>`select id from sessions where event_id = ${ev.id}`;
+    // 45 developed frames, straight into the table (the album only reads rows; the images needn't exist)
+    for (let i = 1; i <= 45; i++)
+      await sql`insert into photos (id, event_id, session_id, shot_number, original_path, filtered_path, status, captured_at)
+        values (${randomUUID()}, ${ev.id}, ${s.id}, ${i}, ${"x/" + i + ".jpg"}, ${"x/" + i + ".jpg"}, 'done', now() - ${i + " minutes"}::interval)`;
+    void a;
+    await page.goto(`/e/${ev.code}/roll`);
+    await page.getByLabel("Name", { exact: true }).fill("Viewer");
+    await page.locator("#view-agree").check();
+    await page.getByRole("button", { name: "See the whole album" }).click();
+    await expect(page.locator(".frame")).toHaveCount(40);
+    await page.evaluate(() => { (window as unknown as { stay: boolean }).stay = true; }); // gone if the page reloads
+    await page.getByRole("link", { name: "Show more frames" }).scrollIntoViewIfNeeded();
+    const y = await page.evaluate(() => scrollY);
+    await page.getByRole("link", { name: "Show more frames" }).click();
+    await expect(page.locator(".frame")).toHaveCount(45);
+    expect(await page.evaluate(() => (window as unknown as { stay?: boolean }).stay)).toBe(true); // same page, no reload
+    expect(await page.evaluate(() => scrollY)).toBeGreaterThan(y * 0.8); // still down where we were
+    await expect(page.getByRole("link", { name: "Show more frames" })).toHaveCount(0); // that's all of them
   } finally {
     await dropEvent(ev);
   }

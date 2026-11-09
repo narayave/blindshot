@@ -405,3 +405,5 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 .picks-h { margin: 6px 0 0; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .view-signin { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); }
 .view-signin h2 { margin: 0; font-family: var(--hl-font); font-weight: var(--hl-weight); font-size: 28px; color: var(--fg); }
+/* Look, don't save: no long-press "Save image" / drag on phones for view-only visitors */
+.no-save img { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; pointer-events: auto; }

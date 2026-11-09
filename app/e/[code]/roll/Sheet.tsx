@@ -1,12 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { logVisit } from "../visit";
 
 type Frame = { id: string; thumb: string; src: string; by: string; n: number; star: boolean };
 
-export default function Sheet({ frames, moreHref, empty, name, live, cards = false }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean; cards?: boolean }) {
+// viewOnly: people who weren't shooting on the night (signed in afterwards, or not signed in) can look, not save.
+export default function Sheet({ frames, moreHref, empty, name, live, cards = false, viewOnly = false }: { frames: Frame[]; moreHref: string | null; empty: string; name: string; live: boolean; cards?: boolean; viewOnly?: boolean }) {
   const router = useRouter();
   useEffect(() => logVisit(name, "album"), [name]); // `name` is the event code
   const [start, setStart] = useState<number | null>(null); // the frame tapped to open the viewer
@@ -47,14 +49,14 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
   // Fetch the frame on screen right away: phones only allow the share sheet straight from the tap, with no waiting.
   useEffect(() => {
     setFile(null);
-    if (!frame) return;
+    if (!frame || viewOnly) return;
     let live = true;
     fetch(frame.src)
       .then((r) => r.blob())
       .then((b) => live && setFile(new File([b], `${name}-${frame.by.toLowerCase().replace(/\W+/g, "")}-${frame.n}.jpg`, { type: "image/jpeg" })))
       .catch(() => {});
     return () => { live = false; };
-  }, [frame, name]);
+  }, [frame, name, viewOnly]);
 
 
   // Phones: the share sheet, where "Save Image" puts it in the camera roll. Elsewhere: a plain download.
@@ -69,7 +71,7 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
   return (
     <>
       {frames.length > 1 && <p className="sheet-hint">Tap a photo to open it, then swipe ← → through the album.</p>}
-      <div className={`sheet${cards ? " cards" : ""}`}>
+      <div className={`sheet${cards ? " cards" : ""}${viewOnly ? " no-save" : ""}`} onContextMenu={viewOnly ? (e) => e.preventDefault() : undefined}>
         {frames.length === 0 && <p className="empty">{empty}</p>}
         {frames.map((f, i) => (
           <button key={f.id} className="frame" type="button" onClick={() => setStart(i)}>
@@ -79,10 +81,11 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
             {f.star && <span className="star" title="Host pick">★</span>}
           </button>
         ))}
-        {moreHref && <a className="more" href={moreHref}>Show more frames</a>}
+        {/* In-page: the next 40 appear below and you stay where you are (a plain link reloaded the page at the top). */}
+        {moreHref && <Link className="more" href={moreHref} scroll={false}>Show more frames</Link>}
       </div>
       {open && frame && (
-        <div className="lightbox" role="dialog" aria-label="Photos">
+        <div className={`lightbox${viewOnly ? " no-save" : ""}`} role="dialog" aria-label="Photos" onContextMenu={viewOnly ? (e) => e.preventDefault() : undefined}>
           <div
             className="lb-track"
             ref={track}
@@ -106,8 +109,8 @@ export default function Sheet({ frames, moreHref, empty, name, live, cards = fal
           {frames.length > 1 && <span className="lb-hint" aria-hidden>← swipe →</span>}
           <p className="lb-count" aria-live="polite">{cur + 1} / {frames.length}{frames.length > 1 ? " · swipe for more" : ""}</p>
           <div className="lb-bar">
-            <button type="button" onClick={save} disabled={!file}>{file ? "Save photo" : "Getting photo…"}</button>
-            <a href={frame.src} target="_blank" rel="noreferrer">Open full size</a>
+            {!viewOnly && <button type="button" onClick={save} disabled={!file}>{file ? "Save photo" : "Getting photo…"}</button>}
+            {!viewOnly && <a href={frame.src} target="_blank" rel="noreferrer">Open full size</a>}
             <button type="button" onClick={() => setStart(null)}>Close</button>
           </div>
         </div>

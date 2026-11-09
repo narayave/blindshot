@@ -11,6 +11,7 @@ export type Session = {
   instagram: string | null;
   device_id: string | null;
   shot_count: number; // across all of this guest's rolls
+  created_at: Date;
   rolls: number; // rolls loaded so far: this guest may shoot max_shots × rolls
   private_roll: boolean;
   no_promo: boolean;
@@ -23,7 +24,7 @@ export async function currentSession(eventId: string, eventCode: string): Promis
   const token = (await cookies()).get(cookieName(eventCode))?.value;
   if (!token) return null;
   const [s] = await sql<Session[]>`
-    select id, event_id, name, instagram, device_id, shot_count, rolls, private_roll, no_promo
+    select id, event_id, name, instagram, device_id, shot_count, rolls, private_roll, no_promo, created_at
     from sessions where token_hash = ${hash(token)} and event_id = ${eventId}`;
   return s ?? null;
 }

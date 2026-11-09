@@ -4,9 +4,10 @@ import { useState, type FormEvent } from "react";
 import { instagramHandle } from "@/lib/config";
 
 // After the party, for people opening the album from a post or another browser (Instagram's in-app browser doesn't
-// share the sign-in from the night): add a name, view only, and the same page reloads with the whole album.
+// share the sign-in from the night): add a name and the same page reloads with the whole album, to look at only
+// (no saving: see Sheet's viewOnly).
 export default function ViewSignIn({ code, total }: { code: string; total: number }) {
-  const [agreed, setAgreed] = useState(false);
+  const [agreed, setAgreed] = useState(false); // "I was there, I'll look": the album is for people from the night
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -40,7 +41,7 @@ export default function ViewSignIn({ code, total }: { code: string; total: numbe
       </label>
       <label className="check" htmlFor="view-agree">
         <input id="view-agree" type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-        <span>These are everyone&apos;s photos from the night. I&apos;ll enjoy them, and ask before reposting someone else&apos;s.</span>
+        <span>I was at the party. These are everyone&apos;s photos from the night, so I&apos;ll look, not save or repost.</span>
       </label>
       <p className="err" role="alert">{err}</p>
       <button className="cta" type="submit" disabled={busy || !agreed}>

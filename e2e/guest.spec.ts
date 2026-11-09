@@ -429,6 +429,7 @@ test("the darkroom funnel: a guest's visits (sign-up, camera) are counted under 
     await page.goto(`/e/${e.code}`);
     // a person takes a few seconds to type their name; by then the page's first visit has been counted
     await expect.poll(async () => (await sql`select 1 from visits where event_id = ${e.id}`).length).toBeGreaterThan(0);
+    await page.waitForLoadState("networkidle"); // every first-visit ping has its answer (dev fires it twice) before signing up
     await page.getByLabel("Name", { exact: true }).fill("Tester");
     await page.locator("#consent").check();
     await page.locator("form button[type=submit]").click();
