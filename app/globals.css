@@ -95,6 +95,31 @@
 .theme-ember .band b { font-family: var(--font-archivo), sans-serif; font-weight: 300; font-stretch: 125%; letter-spacing: 0.3em;
   text-transform: uppercase; font-size: 15px; text-shadow: none; }
 
+.theme-dolce {
+  --bg: #0C0A09; --bg-2: #1A1513; --fg: #F3E9D8; --muted: #B8AA97; --line: rgba(243, 233, 216, 0.14);
+  --dots: transparent; --dots-2: transparent;
+  --body: #161210; --body-2: #241C19; --well: #050404; --cam-fg: #F3E9D8; --cam-muted: #B8AA97;
+  --ridge: #3A2A25; --ridge-ready: #8C1C24; --vf-ring: #C8102E;
+  --accent: #E03A45; --accent-2: #C8A46A; --hot: #8C0F1E; --on-accent: #0C0A09;
+  --cta: #F3E9D8; --cta-ink: #0C0A09; --cta-shadow: #8C0F1E;
+  --shutter: #C8102E; --shutter-deep: #6E0A16; --shutter-ink: #F3E9D8; --shutter-ring: #C8A46A;
+  --hl-em: #E03A45; --hl-shadow: none;
+  --band: linear-gradient(#C8102E 0 33.3%, #F3E9D8 0 66.6%, #C8102E 0);
+  --chip-bg: #0C0A09; --chip-fg: #E03A45; --leaf: #C8A46A; --flash: #FFF6EA;
+  --hl-font: var(--font-playfair), Georgia, serif; --hl-weight: 700; --hl-stretch: 100%;
+  color-scheme: dark;
+}
+.theme-dolce.shell { background-image:
+  radial-gradient(70% 40% at 50% -5%, rgba(200, 16, 46, 0.22), transparent 70%),
+  radial-gradient(80% 50% at 50% 110%, rgba(140, 15, 30, 0.28), transparent 70%);
+  background-size: auto; background-position: 0 0; background-repeat: no-repeat; background-attachment: fixed; }
+.theme-dolce .headline { line-height: 1.02; letter-spacing: -0.01em; }
+.theme-dolce .headline em { font-style: italic; font-weight: 400; }
+.theme-dolce .wordmark { font-family: var(--font-playfair), Georgia, serif; font-style: italic; font-weight: 700; font-size: 28px;
+  color: var(--fg); text-shadow: 2px 2px 0 #8C0F1E; }
+.theme-dolce .stripes i:nth-child(1) { background: #C8102E; } .theme-dolce .stripes i:nth-child(2) { background: #F3E9D8; } .theme-dolce .stripes i:nth-child(3) { background: #C8102E; }
+.theme-dolce .band b { font-family: var(--font-playfair), Georgia, serif; font-style: italic; font-size: 18px; text-shadow: none; }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; }
 body { font-family: var(--font-instrument), system-ui, -apple-system, sans-serif; font-size: 16px; line-height: 1.45; -webkit-tap-highlight-color: transparent; }

@@ -65,6 +65,8 @@ to change them.
    (the repo is public), including examples in docs and skills.
    **Careful when editing a night that's already open:** `--opens` in the future closes the link until then. To keep a
    live event live, pass an `--opens` a few minutes in the past (and its `--closes`/`--release` explicitly).
+   **Private night** (the owner attending, link not shared): right after creating it, set `listed = false`
+   (`update events set listed = false where code = '<code>'`) so the home page never shows it.
 4. **Ship the theme** if you made one: typecheck, `npm test`, commit, push, wait for the deploy
    (`gh run watch $(gh run list -b main -L 5 --json databaseId,headSha -q ".[] | select(.headSha==\"$(git rev-parse HEAD)\") | .databaseId") --exit-status` (wait a few seconds after pushing so the run exists; matching the commit avoids watching the previous deploy)).
 5. **Check it live** with the bundled script. It reports the schedule; for an open event it joins as a throwaway guest,

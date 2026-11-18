@@ -8,7 +8,7 @@ async function nights() {
     select e.code, e.name, e.subtitle, e.online, e.opens_at, e.closes_at,
            (select count(*)::int from photos p where p.event_id = e.id and p.status = 'done') as photos
     from events e
-    where e.opens_at is not null and e.code not like 'e2e-%'
+    where e.opens_at is not null and e.code not like 'e2e-%' and e.listed
       and ((select count(*) from photos p where p.event_id = e.id and p.status = 'done') >= 20
            or (e.online and (e.closes_at is null or e.closes_at > now())))
     order by e.opens_at desc`.catch(() => []);

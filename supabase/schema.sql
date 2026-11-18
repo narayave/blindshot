@@ -77,6 +77,8 @@ alter table events add column if not exists look text;
 
 -- Watermark: a fixed credit on every photo of the event; null = whoever took it (@handle, else first name).
 alter table events add column if not exists credit text;
+-- Unlisted: a private night never appears on the home page ("where it's been" / "coming up"); its link still works.
+alter table events add column if not exists listed boolean not null default true;
 
 -- The phone a session was made on: a hash of a random, site-wide, long-lived cookie (browsers expose no hardware id).
 alter table sessions add column if not exists device_id text;

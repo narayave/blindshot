@@ -64,6 +64,8 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
   open in" countdown) so a promo post can link to it; no sign-up, consent or camera until then, the page turns into
   the sign-up by itself, and the join/photo/album endpoints refuse anything early. Switched off = a 404 for guests
   (not even its name); the host sees an orange banner and the full app either way.
+- **Private nights:** `events.listed = false` keeps an event off the home page ("where it's been" / "coming up"); its link
+  and share QR still work. Set it by SQL right after `npm run event` (the script doesn't touch it).
 - **Guests never see a photo before release.** New rolls are unlimited until closing. **Mine = this phone**: a random
   id in a long-lived site-wide cookie (`bs_device`, hashed into `sessions.device_id`); name + Instagram never unlock
   anyone's frames. The darkroom shows each photo's phone and flags a name+handle seen on two phones.
