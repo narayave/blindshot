@@ -46,6 +46,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           closed: isClosed(event),
           focusCheck: event.focus_check,
           flash: event.flash,
+          fullSize: event.look === "mono", // the owner's own black-and-white camera: keep every pixel of the original
           polaroid: event.look === "polaroid",
           photobooth: event.look === "photobooth",
           closesAt: event.closes_at?.toISOString() ?? null,

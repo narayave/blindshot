@@ -18,6 +18,7 @@ type EventInfo = {
   closed: boolean; // shooting has ended for the night
   focusCheck: boolean; // camera trial (see settle)
   flash: boolean; // the camera opens with the flash on
+  fullSize: boolean; // upload the photo at full size (no UPLOAD_EDGE shrink): originals kept for a full-res develop later
   polaroid: boolean; // instant film: portrait only, the photo comes back as a 2:3 card
   photobooth: boolean; // one shutter press = 3-2-1 and a burst of four, developed as a booth strip
   closesAt: string | null;
@@ -543,7 +544,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     const photoId = crypto.randomUUID();
     const type = blob.type || "image/jpeg";
     setPending((p) => p + 1);
-    const shrunk = shrink(blob, w, h);
+    const shrunk = event.fullSize ? Promise.resolve({ blob, w, h }) : shrink(blob, w, h);
     const claimed = claims.current.then(() => claim(photoId, type));
     claims.current = claimed;
     Promise.all([shrunk, claimed])

@@ -98,7 +98,7 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
 - **Credit:** without `--credit`, each photo credits whoever took it (the default now). `--credit "@handle"` puts one
   fixed handle on every photo instead (Halloween used the host's).
 - **Looks** (`LOOKS` in `lib/film.ts`, names mirrored in `LOOK_NAMES` in `lib/config.ts`): default 35mm disposable,
-  `night` (21 Nov: scans at 3000 px, jpeg 90; phones upload up to 3200 px), `mono` (neutral black and white, 3000 px), `green`, `green-night`, `polaroid` (2:3 card, portrait only), `photobooth` (B&W sepia, 3-2-1 burst of four,
+  `night` (21 Nov: scans at 3000 px, jpeg 90; phones upload up to 3200 px), `mono` (neutral black and white, 3000 px; its camera uploads full-size originals, so a full-res copy can be developed locally later; the 512 MB worker can't do 4032 px two at a time), `green`, `green-night`, `polaroid` (2:3 card, portrait only), `photobooth` (B&W sepia, 3-2-1 burst of four,
   front camera, strip). `--date-stamp`: 90s amber LED date/time, Pacific. Offline events show a look picker to the host.
 - **Camera:** controls in a bottom bar for one thumb; layout never rotates (labels do); flash is **off by default** (`--flash` on `npm run event` opens that event's camera with it on);
   flash = phone light held until exposure settles (only where the browser can switch it on: Chrome on Android yes,
