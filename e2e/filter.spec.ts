@@ -181,4 +181,5 @@ test("night look scans at 3000px; mono develops neutral black and white", async 
   let worst = 0;
   for (let i = 0; i < data.length; i += 3) worst = Math.max(worst, Math.abs(data[i] - data[i + 1]), Math.abs(data[i + 1] - data[i + 2]));
   expect(worst).toBeLessThanOrEqual(12); // no colour cast (jpeg noise allowed)
+  expect(LOOKS.mono.scratches).toBe(0); // dust yes, scratches no
 });

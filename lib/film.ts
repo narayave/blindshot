@@ -97,6 +97,7 @@ export const LOOKS: Record<string, Partial<FilmOptions>> = {
     blackPoint: [0.03, 0.03, 0.03], whitePoint: [0.98, 0.98, 0.97], shadowTint: [1, 1, 1], tint: [1, 1, 1],
     halation: { strength: 0.35, threshold: 0.85, radius: 0.01, color: [1, 1, 1] }, vignette: 0.25,
     grain: { amount: 0.07, size: 1.3, shadowBoost: 1.1, chroma: 0 }, leak: { chance: 0, strength: 0, colors: [] },
+    dust: 2.6, scratches: 0, // dust for the vibe, never a scratch (owner, 21 Nov)
     shake: { chance: 0.04, strength: 1 }, pan: { chance: 0.05, strength: 1 },
     maxEdge: 3000, quality: 90,
   },
