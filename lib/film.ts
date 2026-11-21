@@ -93,9 +93,10 @@ export const LOOKS: Record<string, Partial<FilmOptions>> = {
   // Black-and-white film for dark rooms (the owner's own camera at Dolce): neutral greys, deep but not crushed
   // blacks, a white glow on lights, fine grain and dust. Full-size, no leaks (they'd show as grey smudges).
   mono: {
-    saturation: 0, warmth: 0, contrast: 1.1, gamma: 1.12, exposure: 1.1, shoulder: 0.92,
-    blackPoint: [0.03, 0.03, 0.03], whitePoint: [0.98, 0.98, 0.97], shadowTint: [1, 1, 1], tint: [1, 1, 1],
-    halation: { strength: 0.35, threshold: 0.85, radius: 0.01, color: [1, 1, 1] }, vignette: 0.25,
+    // 21 Nov: brighter, contrasty highlights that start to blow out (owner's pick, "B"); blacks stay deep
+    saturation: 0, warmth: 0, contrast: 1.2, gamma: 1.22, exposure: 1.4, shoulder: 0.97,
+    blackPoint: [0.03, 0.03, 0.03], whitePoint: [1, 1, 1], shadowTint: [1, 1, 1], tint: [1, 1, 1],
+    halation: { strength: 0.45, threshold: 0.82, radius: 0.012, color: [1, 1, 1] }, vignette: 0.25,
     grain: { amount: 0.07, size: 1.3, shadowBoost: 1.1, chroma: 0 }, leak: { chance: 0, strength: 0, colors: [] },
     dust: 2.6, scratches: 0, // dust for the vibe, never a scratch (owner, 21 Nov)
     shake: { chance: 0.04, strength: 1 }, pan: { chance: 0.05, strength: 1 },
