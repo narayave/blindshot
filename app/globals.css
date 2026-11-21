@@ -223,6 +223,14 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
   padding: 14px 0 max(14px, env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--bg) 28%); }
 .tb-side { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .thumb-bar .wheel { width: 100%; max-width: 120px; height: 44px; }
+.thumb-bar .wheel { transition: background-position 60ms linear; }
+/* One-time reminder that film never runs out: floats just above the shutter bar, taps away, fades on its own. */
+.tip { position: fixed; z-index: 30; left: 50%; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 104px); transform: translateX(-50%);
+  width: min(calc(100vw - 32px), 380px); display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px 16px;
+  border-radius: 14px; border: 1px solid var(--line); background: var(--bg-2); color: var(--fg); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  animation: tip-in 220ms ease-out; }
+.tip b { font-size: 15px; } .tip span { font-size: 14px; color: var(--muted); }
+@keyframes tip-in { from { opacity: 0; transform: translate(-50%, 10px); } }
 /* The layout never rotates: labels turn to stay readable when the phone is sideways. */
 .turn { display: inline-block; transform: rotate(var(--label-turn, 0deg)); transition: transform 250ms ease; }
 .switch.icon { width: 44px; height: 44px; padding: 0; font-size: 18px; letter-spacing: 0; }
@@ -277,7 +285,7 @@ label.field input:focus { outline: none; border-bottom-color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   .strip { transition: none; }
-  .flashfx.go, .wheel.nudge, .diya.charging i, .cam .toran { animation: none; }
+  .flashfx.go, .wheel.nudge, .tip, .diya.charging i, .cam .toran { animation: none; }
 }
 
 /* host admin ("darkroom") */

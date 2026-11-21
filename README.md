@@ -2,7 +2,7 @@
 
 *a disposable camera for your party*
 
-Guests scan a QR code at an event and get a 13-shot roll of film on their phone, with a viewfinder exactly one inch wide. There are no previews: you wind the film, press the shutter, and never see the frame. Every photo is stored untouched, and a copy is developed with a lomography look, the cheap-camera colour that early Instagram filters imitated, tuned against real disposable-camera scans. After the party the whole roll develops at once, and every guest sees everyone's photos on one shared roll.
+Guests scan a QR code at an event and get a 13-shot roll of film on their phone, with a viewfinder exactly one inch wide. There are no previews: you press the shutter, the film winds itself, and you never see the frame. Every photo is stored untouched, and a copy is developed with a lomography look, the cheap-camera colour that early Instagram filters imitated, tuned against real disposable-camera scans. After the party the whole roll develops at once, and every guest sees everyone's photos on one shared roll.
 
 It started as a tool for a first event in Seattle in November 2026 and is being built so any event can run it with its own theme.
 
@@ -27,7 +27,7 @@ The longer-term aim is a product hosts can buy per event: one camera, with a **t
 |---|---|
 | **Scan** | A QR code at the venue opens `/e/{event}` in the phone's browser. No app, no account. |
 | **Load film** | First name, an optional Instagram handle (so the host can tag you; shown in the darkroom), and one consent tick: every photo goes to the shared roll and the host may post it. Events created with `--opt-outs` also offer "no promotional use" and "keep my photos out of the shared roll". |
-| **Shoot** | A camera body on screen: 1-inch live viewfinder, a thumbwheel you drag to wind on, a flash switch, a mechanical shot counter. Shutter → click, flash, vibration, "Saved". Never the photo. |
+| **Shoot** | A camera body on screen: 1-inch live viewfinder, a thumbwheel that winds on by itself after each shot, a flash switch, a mechanical shot counter. Shutter → click, flash, vibration, "Saved". Never the photo. |
 | **Wrap** | After the last shot: "That's a wrap", when the roll develops, and **Load a new roll** for a fresh roll, no rejoining. After the event's closing time: "The night's over", no more shots. |
 | **Develop** | At the release time, the shared roll opens: everyone's frames, host picks, your own. Any frame can be saved to the phone's camera roll. |
 

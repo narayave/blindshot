@@ -104,7 +104,7 @@ events) · `npm run load -- 100` (burst test against the live site) · `npm run 
   flash = phone light held until exposure settles (only where the browser can switch it on: Chrome on Android yes,
   Firefox on Android no, so there it says "No flash in this browser" and does no fake white pop); selfie = screen
   as flash, kept short (~0.35-0.7 s, `SCREEN_MIN_MS`/`SCREEN_MAX_MS`); phone light 0.25-0.8 s, recharge 0.8 s, and a
-  shot pressed mid-recharge waits for it rather than going out dark. The shutter fires on press, not release. Uploads never block: each shot is claimed in
+  shot pressed mid-recharge waits for it rather than going out dark. The shutter fires on press, not release. The film **winds itself** after each shot (21 Nov: at Diwali 17 phones pressed SHOOT on an unwound camera); the wheel turns and clicks on its own, and the 3rd shot of the night shows a one-time "Don't worry about running out of film" pop-up. Uploads never block: each shot is claimed in
   order, photos upload in parallel in the background, and "Load a new roll" is instant (no page reload).
 - **Times** are Pacific everywhere guests see them; the worker runs in UTC. DST nights: use wall-clock helpers.
 

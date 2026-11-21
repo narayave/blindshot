@@ -186,8 +186,11 @@ function Join({ event, qr, onJoined }: { event: EventInfo; qr: string; onJoined:
 
 /* ---------------- camera ---------------- */
 
-// One short swipe (or one tap) winds the film: winding is a ritual, not a chore, and it happens one-handed.
+// The film winds itself after each shot (guests at Diwali kept pressing SHOOT on an unwound camera): the wheel still
+// turns and clicks, so it feels like a disposable, but the next shot is always ready.
 const WIND_PX = 60;
+// The 3rd shot of the night brings up a one-time reminder that film never runs out (nobody reads the small print).
+const TIP_AT = 3;
 // Torch fallback: the light burns at least TORCH_MIN_MS (LED warm-up), then until brightness stops changing
 // (auto-exposure has caught up), but never longer than TORCH_MAX_MS. Tune per phone.
 const TORCH_MIN_MS = 250;
@@ -205,7 +208,7 @@ function HowItWorks({ event }: { event: EventInfo }) {
   return (
     <ol className="how" suppressHydrationWarning>
       <li><b>Shoot freely: film never runs out.</b> {event.maxShots} shots a roll, and a fresh roll loads the moment you finish. No previews: you see nothing until the album opens.</li>
-      <li><b>Wind, then shoot.</b> Drag or tap the wheel between shots. Flash on for dark rooms; ↻ Selfie flips the camera.</li>
+      <li><b>Just shoot.</b> The film winds itself. Flash on for dark rooms; ↻ Selfie flips the camera.</li>
       <li><b>Roll finished? Load another.</b> New film all night{until}.</li>
       <li><b>One shared album.</b> Everyone&apos;s photos, yours included. {roll}</li>
       <li><b>Nothing fills up your camera roll.</b> After the reveal, come back to this link to see and download photos.</li>
@@ -260,7 +263,6 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
   const [roll, setRoll] = useState(me.roll ?? 1); // goes up on a new roll, without reloading the page
   const [over, setOver] = useState(false); // the server said the night's over (closing time passed while shooting)
-  const [wound, setWound] = useState(true);
   const [flash, setFlash] = useState(false); // off until the guest turns it on (it then charges for 1.5 s)
   const [charged, setCharged] = useState(true);
   // Can this browser switch on the phone's light for the back camera? (Firefox can't; Chrome can.) null = not known yet.
@@ -268,13 +270,13 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const [cam, setCam] = useState<"starting" | "live" | "off">("starting");
   const [pending, setPending] = useState(0);
   const [status, setStatus] = useState<[string, string]>([`Ready, ${me.name}`, "Frame it in the little window. That's all you get."]);
-  const [nudge, setNudge] = useState(0);
+  const [tip, setTip] = useState(false); // "don't worry about running out of film", once, after the TIP_AT-th shot
   const [showQr, setShowQr] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fxRef = useRef<HTMLDivElement>(null);
-  const wheelRef = useRef<HTMLButtonElement>(null);
+  const wheelRef = useRef<HTMLDivElement>(null);
   // Claims (one quick request per shot, reserving its frame) and new rolls run strictly in order, so a new roll is only
   // asked for after every earlier shot is counted. The photos themselves upload in parallel, in the background.
   const claims = useRef<Promise<unknown>>(Promise.resolve());
@@ -317,7 +319,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   // A fixed portrait window (photos come back portrait); it reads as wide when the phone is held sideways.
   const vfShape = event.polaroid ? 2 / 3 : event.photobooth ? 4 / 5 : turned ? 4 / 3 : 3 / 4;
   const vfW = vfShape < 1 ? `${(1.2 * vfShape).toFixed(3)}in` : "1.2in", vfH = vfShape < 1 ? "1.2in" : `${(1.2 / vfShape).toFixed(3)}in`;
-  const windRef = useRef({ acc: 0, pos: 0, lastX: null as number | null, moved: 0 });
+  const windPos = useRef(0);
 
   async function startCamera() {
     setCam("starting");
@@ -419,20 +421,13 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
         : "It can't switch on your phone's light. Chrome can, or flip to the selfie camera (the screen is its flash)."]);
   }
 
-  function addWind(px: number) {
-    if (wound || left === 0) return;
-    const w = windRef.current;
-    w.pos -= px;
-    if (wheelRef.current) wheelRef.current.style.backgroundPositionX = `${w.pos}px`;
-    const before = Math.floor(w.acc / 12);
-    w.acc += px;
-    if (Math.floor(w.acc / 12) > before) { tick(); buzz(4); }
-    if (w.acc >= WIND_PX) {
-      w.acc = 0;
-      setWound(true);
-      setStatus(["Ready", `${left} shot${left === 1 ? "" : "s"} left`]);
-      buzz(20);
-    }
+  // The wheel turns by itself after a shot: five ratchet clicks over ~0.3 s. Shooting never waits for it.
+  function autoWind() {
+    for (let k = 1; k <= 5; k++) setTimeout(() => {
+      windPos.current -= WIND_PX / 5;
+      if (wheelRef.current) wheelRef.current.style.backgroundPositionX = `${windPos.current}px`;
+      tick();
+    }, 120 + k * 60);
   }
 
   function flashFx(fired: boolean) {
@@ -489,13 +484,6 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
 
   async function shoot(file?: File) {
     if (left <= 0 || busy.current) return logVisit(event.code, "blocked", left <= 0 ? "no film left" : "busy");
-    if (!wound) {
-      logVisit(event.code, "blocked", "not wound");
-      setNudge((n) => n + 1);
-      setStatus(["Wind the film first", "Drag the wheel sideways, or tap it a few times."]);
-      buzz([10, 40, 10]);
-      return;
-    }
     if (!file && cam !== "live") return logVisit(event.code, "blocked", `camera ${cam}`);
     busy.current = true;
     // No light to fire (back camera, browser can't use the phone's light): no fake white pop either.
@@ -512,9 +500,10 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     };
     try {
       const shot = file ? (snap(), { blob: file as Blob, w: 0, h: 0 }) : event.photobooth ? await boothBurst(snap) : await grab(snap);
-      setWound(false);
       setLeft((l) => l - 1);
-      setStatus(left - 1 === 0 ? ["That's the roll", "Developing…"] : ["Saved", "Wind on for the next shot."]);
+      setStatus(left - 1 === 0 ? ["That's the roll", "Developing…"] : ["Saved", `${left - 1} shot${left - 1 === 1 ? "" : "s"} left`]);
+      if (left - 1 > 0) autoWind();
+      if ((roll - 1) * event.maxShots + (event.maxShots - left) + 1 === TIP_AT) { setTip(true); setTimeout(() => setTip(false), 6000); }
       if (fired) charge();
       enqueue(shot.blob, shot.w, shot.h, new Date());
       logVisit(event.code, "shot", `${shot.w}x${shot.h} ${Math.round(shot.blob.size / 1024)}KB${file ? " file" : ""}${fired ? " flash" : ""}`);
@@ -612,7 +601,6 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
     );
     setRoll((n) => n + 1);
     setLeft(event.maxShots);
-    setWound(true);
     setStatus([`Roll ${roll + 1} loaded`, `${event.maxShots} fresh shots. Frame it in the little window.`]);
   }
 
@@ -653,7 +641,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
                 </div>
               </div>
             </div>
-            <span className="tiny">{wound ? "Ready" : "Wind ↓"}</span>
+            <span className="tiny">Ready</span>
             {/* In the camera body's empty corner: always in view, clear of the shutter bar pinned below. */}
             <button className="share-chip" type="button" aria-label="Bring friends · show QR" onClick={() => setShowQr(true)}>
               <span className="turn">Bring friends</span>
@@ -676,6 +664,12 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
         </div>
       </div>
       {showQr && <QrSheet event={event} qr={qr} onClose={() => setShowQr(false)} />}
+      {tip && (
+        <button className="tip" type="button" onClick={() => setTip(false)}>
+          <b>Don&apos;t worry about running out of film.</b>
+          <span>Finish this roll and a fresh one loads. Shoot all night.</span>
+        </button>
+      )}
       {/* One line only: the shutter bar is pinned over whatever sits below it. */}
       <p className="status" aria-live="polite">
         {status[0]}
@@ -695,31 +689,12 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
         </div>
         {/* Fires on press, like a real shutter (a click only comes on release). The click still fires it when no press
             came first (keyboards, some browsers), and never twice. */}
-        <button className="shutter" type="button" aria-disabled={!wound} aria-label="SHOOT"
+        <button className="shutter" type="button" aria-label="SHOOT"
           onPointerDown={(e) => { if (e.button === 0) { pressed.current = true; shoot(); } }}
           onClick={() => { if (pressed.current) pressed.current = false; else shoot(); }}><span className="turn">SHOOT</span></button>
         <div className="tb-side">
-          <button
-            key={nudge}
-            ref={wheelRef}
-            className={`wheel${wound ? " ready" : ""}${nudge ? " nudge" : ""}`}
-            type="button"
-            aria-label="Wind the film. Swipe or tap."
-            onPointerDown={(e) => { windRef.current.lastX = e.clientX; windRef.current.moved = 0; e.currentTarget.setPointerCapture(e.pointerId); unlockAudio(); }}
-            onPointerMove={(e) => {
-              const w = windRef.current;
-              if (w.lastX === null) return;
-              const dx = Math.abs(w.lastX - e.clientX);
-              w.lastX = e.clientX;
-              w.moved += dx;
-              addWind(dx);
-            }}
-            onPointerUp={() => { windRef.current.lastX = null; }}
-            // A tap winds it all the way. On click, not pointerup: screen readers, Enter/Space and some browsers send only click.
-            onClick={() => { if (windRef.current.moved < 4) addWind(WIND_PX); windRef.current.moved = 0; }}
-            onKeyDown={(e) => { if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); addWind(WIND_PX); } }}
-          />
-          <span className="tiny turn">{wound ? "Wound" : "Wind"}</span>
+          <div ref={wheelRef} className="wheel ready" aria-hidden />
+          <span className="tiny turn">Auto-wind</span>
         </div>
       </div>
       {!event.released && <p className="fine center">Every shot joins the party&apos;s shared album.</p>}

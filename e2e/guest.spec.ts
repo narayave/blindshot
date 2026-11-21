@@ -10,12 +10,6 @@ async function join(page: Page, code: string, name = "Tester") {
   await page.locator("form button[type=submit]").click();
 }
 
-async function wind(page: Page) {
-  const wheel = page.getByRole("button", { name: /Wind the film/ });
-  for (let i = 0; i < 3; i++) await wheel.click();
-  await expect(page.getByText("Wound")).toBeVisible();
-}
-
 // Playwright's WebKit has no fake camera device: feed it a moving test pattern through the same API.
 // Camera stubs go on MediaDevices.prototype: WebKit hasn't built navigator.mediaDevices yet when init scripts run.
 // Silent test runs: every audio context stays suspended, so no shutter clicks out of the laptop's speakers.
@@ -68,21 +62,18 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     await expect(page.getByText("Finished your roll? You'll get another one.")).toBeVisible();
     await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
 
-    // a fresh roll comes wound: first shot is instant
+    // the film winds itself: no wheel to turn, the next shot is always ready
+    await expect(page.getByText("Auto-wind")).toBeVisible();
     await page.getByRole("button", { name: "SHOOT" }).click();
     await expect(page.getByLabel("1 shots left")).toBeVisible();
-
-    // after that the shutter does nothing until the film is wound
-    await page.getByRole("button", { name: "SHOOT" }).click({ force: true });
-    await expect(page.getByText("Wind the film first")).toBeVisible();
-    await expect(page.getByLabel("1 shots left")).toBeVisible();
+    await expect(page.getByText("Wind the film first")).toHaveCount(0);
 
     // once the shot has landed, reopening the link resumes the same roll
     await waitDeveloped(e.id, 1);
     await page.reload();
     await expect(page.getByLabel("1 shots left")).toBeVisible();
 
-    await wind(page);
+    await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
     await page.getByRole("button", { name: "SHOOT" }).click();
     await expect(page.getByRole("heading", { name: /wrap/ })).toBeVisible();
 
@@ -115,6 +106,30 @@ test("join → shoot a full roll blind → developed onto the shared roll", asyn
     await expect(page.getByText(/^1 \/ 2/)).toBeVisible();
     await page.getByRole("button", { name: "Save photo" }).click();
     await expect.poll(() => page.evaluate(() => (window as unknown as { saved?: string }).saved)).toMatch(new RegExp(`^${e.code}-you-\\d\\.jpg$`));
+  } finally {
+    await dropEvent(e);
+  }
+});
+
+test("shots come back to back (the film winds itself), and the 3rd shot says film never runs out", async ({ page }) => {
+  const e = await makeEvent({ shots: 5 });
+  const tip = page.getByText("Don't worry about running out of film.");
+  try {
+    await join(page, e.code);
+    await expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);
+    for (const n of [4, 3]) {
+      await page.getByRole("button", { name: "SHOOT" }).click();
+      await expect(page.getByLabel(`${n} shots left`)).toBeVisible();
+    }
+    await expect(tip).toHaveCount(0); // not yet
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(page.getByLabel("2 shots left")).toBeVisible();
+    await expect(tip).toBeVisible();
+    await tip.click(); // taps away
+    await expect(tip).toHaveCount(0);
+    await page.getByRole("button", { name: "SHOOT" }).click();
+    await expect(page.getByLabel("1 shots left")).toBeVisible();
+    await expect(tip).toHaveCount(0); // once only
   } finally {
     await dropEvent(e);
   }
@@ -290,7 +305,6 @@ test("no camera access → falls back to the camera-app picker", async ({ page }
   try {
     await join(page, e.code);
     await expect(page.getByText("No camera access. Tap to shoot")).toBeVisible();
-    await wind(page);
     await page.getByLabel("Take a photo with your camera app").setInputFiles({ name: "shot.jpg", mimeType: "image/jpeg", buffer: await testJpeg() });
     await expect(page.getByLabel("1 shots left")).toBeVisible();
     await waitDeveloped(e.id, 1);
@@ -355,7 +369,7 @@ test("slow venue signal: a finished roll gives way to a new one instantly while 
     await join(page, e.code);
     await live();
     await page.getByRole("button", { name: "SHOOT" }).click();
-    await wind(page);
+    await expect(page.getByLabel("1 shots left")).toBeVisible();
     await page.getByRole("button", { name: "SHOOT" }).click();
     await expect(page.getByRole("heading", { name: /wrap/ })).toBeVisible();
     await expect(page.getByText(/uploading in the background/)).toBeVisible(); // still sending...
