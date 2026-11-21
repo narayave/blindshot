@@ -251,7 +251,12 @@ export async function applyFilmFilter(input: Buffer, partial: Partial<FilmOption
   const layers: OverlayOptions[] = [];
   if (o.overlay) layers.push({ input: await placeOverlay(o.overlay.image, w, h, rand, o.overlay.strength), raw: raw3.raw, blend: "screen" });
   else if (rand() < o.leak.chance) layers.push({ input: Buffer.from(leakSvg(w, h, rand, o.leak)), blend: "screen" });
-  if (o.dust > 0 || o.scratches > 0) layers.push({ input: Buffer.from(dustSvg(w, h, rand, o.dust, rand() < o.scratches)) });
+  if (o.dust > 0 || o.scratches > 0) {
+    let dust = dustSvg(w, h, rand, o.dust, rand() < o.scratches);
+    // Neutral black and white (mono): grey dust, or its cream/peach specks and warm hairs would tint the frame.
+    if (o.saturation === 0 && o.whitePoint[0] === o.whitePoint[2]) dust = dust.replace(/#fffbea|#ffc9a0/g, "#f4f4f4").replace(/#1a1a12|#15140f/g, "#181818");
+    layers.push({ input: Buffer.from(dust) });
+  }
   if (o.dateStamp) layers.push({ input: Buffer.from(dateStampSvg(o.dateStamp, w, h, o.dateColor)) });
   let img = sharp(base, raw3);
   const credit = o.watermark ? creditPath(o.watermark) : null;
