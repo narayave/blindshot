@@ -135,6 +135,19 @@ test("shots come back to back (the film winds itself), and the 3rd shot says fil
   }
 });
 
+test("an event set to flash-on opens the camera with the flash on; the guest can still switch it off", async ({ page }) => {
+  const e = await makeEvent({ shots: 3, flash: true });
+  try {
+    await join(page, e.code);
+    const sw = page.getByRole("button", { name: /^Flash (on|off)$/ });
+    await expect(sw).toHaveAttribute("aria-pressed", "true");
+    await sw.click();
+    await expect(sw).toHaveAttribute("aria-pressed", "false");
+  } finally {
+    await dropEvent(e);
+  }
+});
+
 test("finished roll → load a new roll without joining again", async ({ page }) => {
   const e = await makeEvent({ shots: 1 });
   const live = () => expect.poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.videoWidth)).toBeGreaterThan(0);

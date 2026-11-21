@@ -174,3 +174,11 @@ test("wiggles: same-moment shots from two or more phones group; the crop keeps e
   });
   expect(new Set(crops.map((c) => c.height.toFixed(6))).size).toBe(1); // same scale on every frame
 });
+
+test("night look scans at 3000px; mono develops neutral black and white", async () => {
+  expect(await sharp(await applyFilmFilter(await testJpeg(4000, 3000), LOOKS.night)).metadata()).toMatchObject({ width: 3000, height: 2250 });
+  const { data } = await sharp(await applyFilmFilter(await testJpeg(1200, 900), { ...LOOKS.mono, seed: 3 })).raw().toBuffer({ resolveWithObject: true });
+  let worst = 0;
+  for (let i = 0; i < data.length; i += 3) worst = Math.max(worst, Math.abs(data[i] - data[i + 1]), Math.abs(data[i + 1] - data[i + 2]));
+  expect(worst).toBeLessThanOrEqual(12); // no colour cast (jpeg noise allowed)
+});

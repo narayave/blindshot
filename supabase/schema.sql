@@ -79,6 +79,8 @@ alter table events add column if not exists look text;
 alter table events add column if not exists credit text;
 -- Unlisted: a private night never appears on the home page ("where it's been" / "coming up"); its link still works.
 alter table events add column if not exists listed boolean not null default true;
+-- Flash on when the camera opens (guests can still switch it off); off by default.
+alter table events add column if not exists flash boolean not null default false;
 
 -- The phone a session was made on: a hash of a random, site-wide, long-lived cookie (browsers expose no hardware id).
 alter table sessions add column if not exists device_id text;

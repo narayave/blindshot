@@ -45,6 +45,7 @@ export default async function EventPage({ params }: PageProps<"/e/[code]">) {
           decor: theme(event.theme).decor,
           closed: isClosed(event),
           focusCheck: event.focus_check,
+          flash: event.flash,
           polaroid: event.look === "polaroid",
           photobooth: event.look === "photobooth",
           closesAt: event.closes_at?.toISOString() ?? null,

@@ -75,6 +75,7 @@ export const LOOKS: Record<string, Partial<FilmOptions>> = {
     blackPoint: [0.012, 0.02, 0.008], whitePoint: [1, 1, 0.97],
     halation: { strength: 0.45, threshold: 0.85, radius: 0.01, color: [1, 0.32, 0.12] },
     shake: { chance: 0.05, strength: 1 }, pan: { chance: 0.06, strength: 1 },
+    maxEdge: 3000, quality: 90, // 21 Nov: a sharper scan (2.25x the pixels of the 2000 px default) for dressed-up nights
   },
   // Green film (like the film effects in Instagram stories): olive-green cast in the shadows and mids, softer colour.
   green: {
@@ -88,6 +89,16 @@ export const LOOKS: Record<string, Partial<FilmOptions>> = {
     blackPoint: [0.07, 0.08, 0.09], whitePoint: [0.97, 0.95, 0.88], shadowTint: [0.9, 0.98, 1.06],
     grain: { amount: 0.04, size: 1.2, shadowBoost: 0.8, chroma: 0.25 }, leak: { chance: 0.12, strength: 0.35, colors: ["#ff9a6b", "#ffd27a"] },
     shake: { chance: 0.04, strength: 1 }, pan: { chance: 0, strength: 1 },
+  },
+  // Black-and-white film for dark rooms (the owner's own camera at Dolce): neutral greys, deep but not crushed
+  // blacks, a white glow on lights, fine grain and dust. Full-size, no leaks (they'd show as grey smudges).
+  mono: {
+    saturation: 0, warmth: 0, contrast: 1.1, gamma: 1.12, exposure: 1.1, shoulder: 0.92,
+    blackPoint: [0.03, 0.03, 0.03], whitePoint: [0.98, 0.98, 0.97], shadowTint: [1, 1, 1], tint: [1, 1, 1],
+    halation: { strength: 0.35, threshold: 0.85, radius: 0.01, color: [1, 1, 1] }, vignette: 0.25,
+    grain: { amount: 0.07, size: 1.3, shadowBoost: 1.1, chroma: 0 }, leak: { chance: 0, strength: 0, colors: [] },
+    shake: { chance: 0.04, strength: 1 }, pan: { chance: 0.05, strength: 1 },
+    maxEdge: 3000, quality: 90,
   },
   // Photobooth: black and white with a warm brown-black, off-white highs, deep shadows. Four frames in a strip
   // (the camera shoots a burst; developStrip lays them out). No leaks, light dust, no motion tricks.

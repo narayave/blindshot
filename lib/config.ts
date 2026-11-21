@@ -2,7 +2,7 @@
 export const MAX_SHOTS = 13;
 // The named film looks (LOOKS in lib/film.ts), listed here so pages can offer them without loading the image code.
 // e2e/filter.spec.ts checks the two lists match.
-export const LOOK_NAMES = ["night", "green", "green-night", "polaroid", "photobooth"] as const;
+export const LOOK_NAMES = ["night", "green", "green-night", "polaroid", "photobooth", "mono"] as const;
 export const ORIGINALS = "originals";
 export const FILTERED = "filtered";
 

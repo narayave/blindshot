@@ -17,6 +17,7 @@ type EventInfo = {
   decor: boolean;
   closed: boolean; // shooting has ended for the night
   focusCheck: boolean; // camera trial (see settle)
+  flash: boolean; // the camera opens with the flash on
   polaroid: boolean; // instant film: portrait only, the photo comes back as a 2:3 card
   photobooth: boolean; // one shutter press = 3-2-1 and a burst of four, developed as a booth strip
   closesAt: string | null;
@@ -263,7 +264,7 @@ function Camera({ event, me, qr }: { event: EventInfo; me: Guest; qr: string }) 
   const [left, setLeft] = useState(event.maxShots - me.shotsUsed);
   const [roll, setRoll] = useState(me.roll ?? 1); // goes up on a new roll, without reloading the page
   const [over, setOver] = useState(false); // the server said the night's over (closing time passed while shooting)
-  const [flash, setFlash] = useState(false); // off until the guest turns it on (it then charges for 1.5 s)
+  const [flash, setFlash] = useState(event.flash); // the event's default (usually off); the guest can switch it
   const [charged, setCharged] = useState(true);
   // Can this browser switch on the phone's light for the back camera? (Firefox can't; Chrome can.) null = not known yet.
   const [torchOk, setTorchOk] = useState<boolean | null>(null);
@@ -738,9 +739,10 @@ function RollDone({ event, closed, uploading, onNewRoll }: { event: EventInfo; c
 /* ---------------- helpers ---------------- */
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-// Picked photos and big video frames can be full sensor size (~4 MB); the film filter outputs 2000px, so send
-// at most UPLOAD_EDGE to keep party-wifi uploads quick. Anything we can't decode goes up as-is.
-const UPLOAD_EDGE = 2400;
+// Picked photos and big video frames can be full sensor size (~4 MB); the film filter outputs up to 3000px (the
+// "night" look), so send at most UPLOAD_EDGE: room for that, still quick on party wifi (uploads never block a shot).
+// Anything we can't decode goes up as-is.
+const UPLOAD_EDGE = 3200;
 async function shrink(blob: Blob, w: number, h: number): Promise<{ blob: Blob; w: number; h: number }> {
   if (w && (Math.max(w, h) <= UPLOAD_EDGE || h > 3 * w)) return { blob, w, h }; // booth strips are already sized
   try {

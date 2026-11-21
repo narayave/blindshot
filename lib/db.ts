@@ -27,6 +27,7 @@ export type Event = {
   closes_at: Date | null; // shooting stops here
   look: string | null; // named film look (LOOKS in lib/film.ts); null = default
   credit: string | null; // fixed watermark on every photo; null = whoever took it (@handle or first name)
+  flash: boolean; // the camera opens with the flash on
   focus_check: boolean; // camera trial: wait for focus too, and re-grab if the light missed the frame
 };
 
