@@ -99,6 +99,7 @@ export const LOOKS: Record<string, Partial<FilmOptions>> = {
     halation: { strength: 0.45, threshold: 0.82, radius: 0.012, color: [1, 1, 1] }, vignette: 0.25,
     grain: { amount: 0.07, size: 1.3, shadowBoost: 1.1, chroma: 0 }, leak: { chance: 0, strength: 0, colors: [] },
     dust: 2.6, scratches: 0, // dust for the vibe, never a scratch (owner, 21 Nov)
+    dateColor: "#f2f2f2", // a white LED date: nothing warm on black and white
     shake: { chance: 0.04, strength: 1 }, pan: { chance: 0.05, strength: 1 },
     maxEdge: 3000, quality: 90,
   },

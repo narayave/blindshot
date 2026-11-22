@@ -19,13 +19,15 @@ export async function developFrame(photoId: string, original: Buffer, override: 
   const frame = ((p.shot_number - 1) % p.max_shots) + 1; // within its roll
   const edgeFrame = frame === 1 || frame === p.max_shots;
   const seed = override.seed ?? seedOf(photoId); // a wigglegram passes one seed for all its frames (overlay included)
-  const develop = p.look && LOOKS[p.look]?.frame === "strip" ? developStrip : applyFilmFilter;
+  const look = p.look ? LOOKS[p.look] : undefined;
+  const develop = look?.frame === "strip" ? developStrip : applyFilmFilter;
   return develop(original, {
-    ...(p.look ? LOOKS[p.look] : undefined),
+    ...look,
     seed,
     watermark: p.credit ?? (p.instagram ? `@${p.instagram}` : p.name.trim()), // the event's fixed credit, else whoever took it
     overlay: p.overlays ? await pickOverlay(seed) : null,
-    ...(edgeFrame && { leak: { ...DEFAULT_FILM.leak, chance: 0.8 } }),
+    // ...unless the look has no leaks at all (black and white: a warm leak looks wrong there)
+    ...(edgeFrame && (look?.leak?.chance ?? DEFAULT_FILM.leak.chance) > 0 && { leak: { ...DEFAULT_FILM.leak, chance: 0.8 } }),
     dateStamp: p.date_stamp ? (p.captured_at ?? new Date()) : null,
     ...override,
   });

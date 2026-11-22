@@ -182,6 +182,11 @@ test("night look scans at 3000px; mono develops neutral black and white", async 
   for (let i = 0; i < data.length; i += 3) worst = Math.max(worst, Math.abs(data[i] - data[i + 1]), Math.abs(data[i + 1] - data[i + 2]));
   expect(worst).toBeLessThanOrEqual(12); // no colour cast (jpeg noise allowed)
   expect(LOOKS.mono.scratches).toBe(0); // dust yes, scratches no
+  // the date stamp is white, not amber
+  const { data: d3 } = await sharp(await applyFilmFilter(await testJpeg(1200, 900), { ...LOOKS.mono, seed: 4, dateStamp: new Date() })).raw().toBuffer({ resolveWithObject: true });
+  let worst3 = 0;
+  for (let i = 0; i < d3.length; i += 3) worst3 = Math.max(worst3, Math.abs(d3[i] - d3[i + 2]));
+  expect(worst3).toBeLessThanOrEqual(12);
   // dust stays neutral too: a dusty frame of a real colour photo has no tinted specks or hairs
   const { data: d2 } = await sharp(await applyFilmFilter(await testJpeg(1200, 900), { ...LOOKS.mono, dust: 6, seed: 11 })).raw().toBuffer({ resolveWithObject: true });
   let worst2 = 0;
